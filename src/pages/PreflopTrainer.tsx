@@ -10,6 +10,7 @@ import { Play, RotateCcw, ChevronDown, Info, CheckCircle, XCircle, Eye, Trophy, 
 import { Button, Card, Badge, ProgressBar, SectionHeader } from '@/components/ui'
 import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
+import TrainingTable from '@/components/poker/TrainingTable'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
 import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES } from '@/data/ranges'
 import { randomHand, classifyHandStrength, generateHandGrid, countCombos } from '@/lib/poker'
@@ -525,8 +526,10 @@ export default function PreflopTrainer() {
   }
 
   // Monta range para o heatmap (com ajuste de stack para open_raise)
+  // Em modo aleatório, usa a posição da questão atual (não o estado `position` que pode ser BTN)
+  const rangePosition = currentQuestion?.position ?? position
   const currentRange = (() => {
-    const base = getRangeForScenario(scenario, position, stackDepth, tableFormat, villainPosition)
+    const base = getRangeForScenario(scenario, rangePosition, stackDepth, tableFormat, villainPosition)
     return scenario === 'open_raise' ? applyStackAdjustment(base, heroStack) : base
   })()
   const heatmapAction: Action =
@@ -540,7 +543,7 @@ export default function PreflopTrainer() {
   // call_rfi: diferencia mãos de call (verde) vs 3bet (laranja) no grid
   const rangeMap: Record<string, Action | 'mixed'> = {}
   if (scenario === 'call_rfi') {
-    const threeBetHands = THREE_BET_RANGES[position] || []
+    const threeBetHands = THREE_BET_RANGES[rangePosition] || []
     currentRange.forEach(h => { rangeMap[h] = threeBetHands.includes(h) ? '3bet' : 'call' })
   } else {
     currentRange.forEach(h => { rangeMap[h] = heatmapAction })
@@ -627,7 +630,38 @@ export default function PreflopTrainer() {
 
   return (
     <div className="page-scroll">
-      <div className="px-4 py-4 pb-6 space-y-4">
+      <div className="lg:flex lg:min-h-full">
+
+        {/* ===== PAINEL ESQUERDO: mesa de poker (desktop only) ===== */}
+        <div className="hidden lg:flex lg:flex-col lg:w-[380px] xl:w-[420px] lg:shrink-0 lg:border-r lg:border-border-subtle lg:p-6 lg:overflow-y-auto">
+          <TrainingTable
+            heroPosition={isSessionActive && currentQuestion ? currentQuestion.position : (isRandomPosition ? poolPosition : position)}
+            villainPosition={['bb_defense', '3bet', '4bet', 'squeeze', 'call_rfi'].includes(scenario) ? villainPosition : undefined}
+            handNotation={isSessionActive && currentQuestion ? currentQuestion.hand : undefined}
+            scenario={scenario}
+            stackDepth={heroStack}
+            tableFormat={tableFormat}
+            heroAction={showResult && userAnswer ? userAnswer : undefined}
+          />
+          {/* Range heatmap no painel esquerdo (após resposta) */}
+          {isSessionActive && currentQuestion && showResult && mode !== 'competition' && (showRange || mode === 'study') && (
+            <div className="mt-6 pt-5 border-t border-border-subtle">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider mb-3 font-body">
+                Range correto — {currentQuestion.position}
+              </div>
+              <RangeGrid
+                range={rangeMap}
+                highlightHand={currentQuestion.hand}
+                cellSize="xs"
+                showLegend={scenario === 'call_rfi'}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ===== PAINEL DIREITO: conteúdo (mobile: tela inteira) ===== */}
+        <div className="flex-1 min-w-0">
+      <div className="px-4 py-4 pb-6 lg:px-6 space-y-4">
 
         {/* ---- HEADER ---- */}
         <div className="flex items-center justify-between">
@@ -916,7 +950,7 @@ export default function PreflopTrainer() {
                         sb_vs_bb: 'SB vs BB (Raise)',
                       }[scenario as string] ?? scenario}`}
                   subtitle={scenario === 'call_rfi'
-                    ? `${currentRange.filter(h => (THREE_BET_RANGES[position]||[]).includes(h)).length} mãos 3-Bet + ${currentRange.filter(h => !(THREE_BET_RANGES[position]||[]).includes(h)).length} mãos Call`
+                    ? `${currentRange.filter(h => (THREE_BET_RANGES[rangePosition]||[]).includes(h)).length} mãos 3-Bet + ${currentRange.filter(h => !(THREE_BET_RANGES[rangePosition]||[]).includes(h)).length} mãos Call`
                     : `${currentRange.length} mãos (${formatPercent(currentRange.length / 169)})`}
                 />
                 <RangeGrid range={rangeMap} showLegend={scenario === 'call_rfi'} cellSize="xs" />
@@ -1143,9 +1177,9 @@ export default function PreflopTrainer() {
                       )}
                     </Card>
 
-                    {/* Range heatmap pós-resposta */}
+                    {/* Range heatmap pós-resposta (mobile) — no desktop fica no painel esquerdo */}
                     {mode !== 'competition' && (showRange || mode === 'study') && (
-                      <Card className="p-4">
+                      <Card className="p-4 lg:hidden">
                         <SectionHeader
                           title={`Range Correto: ${currentQuestion.position}`}
                           subtitle={scenario === 'call_rfi' ? 'Verde=Call · Laranja=3-Bet' : undefined}
@@ -1206,6 +1240,8 @@ export default function PreflopTrainer() {
           )}
         </AnimatePresence>
 
+      </div>
+        </div>
       </div>
     </div>
   )

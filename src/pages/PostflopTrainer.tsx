@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw, CheckCircle, XCircle, Info, Play, RotateCcw, TrendingUp, AlertCircle } from 'lucide-react'
 import { Button, Card, Badge, SectionHeader, ProgressBar } from '@/components/ui'
 import PlayingCard, { Board } from '@/components/poker/PlayingCard'
+import TrainingTable from '@/components/poker/TrainingTable'
 import { cn, getDifficultyXPMultiplier } from '@/lib/utils'
 import { Card as CardType, Action } from '@/types'
 import { useUserStore, useTrainingStore, useUIStore } from '@/store'
@@ -522,9 +523,33 @@ export default function PostflopTrainer() {
         ? (config?.position === 'OOP' ? TURN_FIRST_TO_ACT_ACTIONS_OOP : TURN_FIRST_TO_ACT_ACTIONS_IP)
         : (config?.position === 'OOP' ? FIRST_TO_ACT_ACTIONS_OOP : FIRST_TO_ACT_ACTIONS_IP)
 
+  // Board cards acumulados para a mesa visual
+  const tableBoardCards = drill ? [
+    ...drill.board,
+    ...(drill.turnCard ? [drill.turnCard] : []),
+    ...(drill.riverCard ? [drill.riverCard] : []),
+  ] : []
+
   return (
     <div className="page-scroll">
-      <div className="px-4 py-4 pb-6 space-y-4 max-w-2xl mx-auto">
+      <div className="lg:flex lg:min-h-full">
+
+        {/* ===== PAINEL ESQUERDO: mesa de poker (desktop only, só durante drill) ===== */}
+        {config && drill && (
+          <div className="hidden lg:flex lg:flex-col lg:w-[380px] xl:w-[420px] lg:shrink-0 lg:border-r lg:border-border-subtle lg:p-6 lg:overflow-y-auto">
+            <TrainingTable
+              position={config.position}
+              heroCards={drill.heroCards}
+              boardCards={tableBoardCards}
+              boardPhase={drill.phase}
+              potSize={drill.phase === 'flop' ? config.potSize : drill.phase === 'turn' ? drill.turnEstimatedPot : drill.riverEstimatedPot}
+            />
+          </div>
+        )}
+
+        {/* ===== PAINEL DIREITO: conteúdo (mobile: tela inteira) ===== */}
+        <div className="flex-1 min-w-0">
+      <div className="px-4 py-4 pb-6 space-y-4 lg:px-6 max-w-2xl mx-auto lg:max-w-none lg:mx-0">
 
         {/* HEADER */}
         <div className="flex items-center justify-between">
@@ -1410,6 +1435,8 @@ export default function PostflopTrainer() {
           ) : null}
         </AnimatePresence>
 
+      </div>
+        </div>
       </div>
     </div>
   )
