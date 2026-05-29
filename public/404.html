@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // Redireciona todas as rotas para o index.html
+      // Necessário porque o GitHub Pages não suporta SPA por padrão
+      var path = window.location.pathname;
+      var repo = '/pokermind-pro';
+      if (path.startsWith(repo)) {
+        path = path.slice(repo.length) || '/';
+      }
+      sessionStorage.setItem('redirect', path);
+      window.location.replace(repo + '/');
+    </script>
+  </head>
+  <body></body>
+</html>

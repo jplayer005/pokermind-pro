@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#07070d"/>
+      <stop offset="100%" stop-color="#141428"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#f5c842"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+
+  <!-- Subtle glow behind icon -->
+  <ellipse cx="512" cy="512" rx="260" ry="260" fill="#f5c84220"/>
+
+  <!-- Gold rounded square -->
+  <rect x="207" y="207" width="610" height="610" rx="150" ry="150" fill="url(#goldGrad)"/>
+
+  <!-- Lightning bolt (Zap) — dark, centered in 610x610 safe area -->
+  <!-- Lucide Zap path on 24x24 viewBox, scaled to 300x300, centered at 512,512 -->
+  <!-- scale = 300/24 = 12.5 | offset = 512 - 150 = 362 -->
+  <g transform="translate(362, 362) scale(12.5)">
+    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#07070d" stroke="none" fill-rule="nonzero"/>
+  </g>
+</svg>

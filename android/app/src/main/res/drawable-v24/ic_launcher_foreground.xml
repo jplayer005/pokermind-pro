@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108">
+
+    <!-- Gold rounded square (safe zone: 18dp to 90dp on each axis) -->
+    <path
+        android:pathData="M54,18 m-28,0 a28,28 0 0,1 56,0 v52 a28,28 0 0,1 -56,0 Z"
+        android:strokeColor="#00000000"
+        android:strokeWidth="0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="26"
+                android:startY="18"
+                android:endX="82"
+                android:endY="90"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#f5c842" />
+                <item android:offset="1.0" android:color="#ca8a04" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Lightning bolt (Zap) centered in safe zone -->
+    <!-- Lucide Zap path: M13 2L3 14h9l-1 8 10-12h-9l1-8z (24x24 viewBox) -->
+    <!-- Scale to ~28dp wide, centered at 54,54 -->
+    <!-- scale=1.167, offset: translate(40,40) since 54-(12*1.167)=40 -->
+    <path
+        android:pathData="M54.58,40.66L46.5,54.33l5.25,0l-0.58,9.33l8.08,-13.66l-5.25,0l0.58,-9.33Z"
+        android:fillColor="#07070d"
+        android:strokeColor="#00000000"
+        android:strokeWidth="0" />
+
+</vector>
