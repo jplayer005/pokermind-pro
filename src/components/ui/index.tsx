@@ -79,10 +79,10 @@ export function Card({ children, className, glow = 'none', hoverable, onClick }:
     <div
       onClick={onClick}
       className={cn(
-        // Borda 60% opacity = look mais suave (igual ao das conquistas bloqueadas)
-        // Shadow sutil reforça "elevação" sem precisar de borda forte
-        'bg-bg-elevated border border-border-subtle/60 rounded-xl2 transition-all duration-200',
-        'shadow-[0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.03)]',
+        // border-subtle agora é mais escuro que bg-elevated → parece sombra/recesso
+        // em vez de linha clara. Shadow externo reforça a sensação de "elevação".
+        'bg-bg-elevated border border-border-subtle rounded-xl2 transition-all duration-200',
+        'shadow-[0_2px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.025)]',
         hoverable && 'cursor-pointer active:scale-[0.99]',
         glow !== 'none' && glows[glow],
         className

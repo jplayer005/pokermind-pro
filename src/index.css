@@ -13,7 +13,7 @@
 [data-theme="dark"] {
   /* Canais RGB dos tokens de design (R, G, B sem parênteses) */
   /* Paleta profissional poker — azul-naval profundo */
-  /* bg-elevated agora mais distinto de bg-base (+10 unidades) pra cards "levantarem" */
+  /* bg-elevated +10 unidades de bg-base pra cards se destacarem do fundo */
   --c-bg-base:      8, 9, 18;
   --c-bg-surface:   14, 16, 30;
   --c-bg-elevated:  26, 29, 48;
@@ -22,10 +22,11 @@
   --c-text-secondary: 130, 138, 170;
   --c-text-muted:     68, 76, 108;
   --c-text-inverse:   8, 9, 18;
-  /* border-subtle ligeiramente mais leve pra contrastar com novo bg-elevated, mas sem aparência de linha "branca" */
-  --c-border-subtle:  40, 44, 68;
-  --c-border-default: 54, 58, 86;
-  --c-border-strong:  72, 78, 114;
+  /* IMPORTANTE: border-subtle ABAIXO de bg-elevated pra criar efeito de "sombra suave"
+     em vez de "linha clara". Visualmente parece um recesso sutil, não uma linha branca. */
+  --c-border-subtle:  18, 21, 38;
+  --c-border-default: 42, 46, 72;
+  --c-border-strong:  64, 70, 100;
 
   /* Glass morphism — bordas escuras, sem branco */
   --glass-bg:           rgba(18, 21, 38, 0.78);
