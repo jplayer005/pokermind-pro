@@ -986,7 +986,39 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
   return { category: 'air', label: 'Nada (Ar)', strength: 4, draws: [], description: 'Sem par nem draw relevante. Cheque quase sempre. Bluff puro apenas em spots muito selecionados: board seco, posição, villain com range fraco, fold equity alta.' }
 }
 
+// Normalização: garante que primaryAction é sempre a ação MAIS FREQUENTE.
+// Bug-fix: alguns retornos dentro de getGTODecisionImpl têm primaryFrequency
+// MENOR que alternativeFrequency (ex: bet_33 45% como "principal" vs check 55%
+// como "alternativa"). Isso confunde o feedback: ao escolher a ação mais comum
+// (check 55%), o usuário era marcado como "alternativa" em vez de "correto".
+function normalizeGtoDecision(d: GtoDecision): GtoDecision {
+  const primFreq = d.primaryFrequency ?? 0
+  const altFreq = d.alternativeFrequency ?? 0
+  if (d.alternativeAction && altFreq > primFreq) {
+    return {
+      ...d,
+      primaryAction: d.alternativeAction,
+      primaryFrequency: altFreq,
+      alternativeAction: d.primaryAction,
+      alternativeFrequency: primFreq,
+    }
+  }
+  return d
+}
+
 export function getGTODecision(
+  handEval: PostflopHandEval,
+  texture: BoardTexture,
+  position: 'IP' | 'OOP',
+  potType: 'SRP' | '3bet',
+  facingBet: boolean,
+  street: 'flop' | 'turn' | 'river' = 'flop',
+  spr: number = 10,
+): GtoDecision {
+  return normalizeGtoDecision(getGTODecisionImpl(handEval, texture, position, potType, facingBet, street, spr))
+}
+
+function getGTODecisionImpl(
   handEval: PostflopHandEval,
   texture: BoardTexture,
   position: 'IP' | 'OOP',
@@ -1103,9 +1135,9 @@ export function getGTODecision(
         explanation: `${handEval.label} no river IP — bet 67% para valor (70%). Cheque 30% com as mãos mais fortes da categoria para induzir bluffs. Bet 50% e 75% também válidos. Bet pot é overbet — só correto se você tem range polarizado claro (raro com mão "strong" mas não nuts).`
       }
       if (isMedium) return {
-        primaryAction: 'bet_33', primaryFrequency: 0.45,
-        alternativeAction: 'check', alternativeFrequency: 0.55,
-        explanation: `${handEval.label} no river IP — thin value bet 33% (45%). Bet pequeno extrai valor de mãos piores sem inflar o pot. Cheque 55% para pot control — com pot grande, villain pode levantar com mãos melhores.`
+        primaryAction: 'check', primaryFrequency: 0.55,
+        alternativeAction: 'bet_33', alternativeFrequency: 0.45,
+        explanation: `${handEval.label} no river IP — cheque 55% para pot control (com pot grande, villain pode levantar com mãos melhores). Thin value bet 33% (45%) extrai valor de mãos piores sem inflar o pot.`
       }
       if (isMissedDraw || isWeak) {
         // Bluff only with polarized sizing
@@ -1274,7 +1306,7 @@ export function getGTODecision(
         const sz: GtoAction = draws.includes('Flush Draw') ? 'bet_50' : 'bet_33'
         return { primaryAction: sz, primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `Semi-bluff com ${draws.join(' + ')} — aposte para fold equity + equity quando chamado.` }
       }
-      return { primaryAction: 'bet_33', primaryFrequency: 0.45, alternativeAction: 'check', alternativeFrequency: 0.55, explanation: `Semi-bluff fraco — bet pequeno com menos frequência. Prefira checar.` }
+      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Semi-bluff fraco — cheque (55%) é o default. Bet pequeno 33% (45%) ocasional para fold equity, mas a equity da draw é baixa demais pra semi-bluff frequente.` }
     }
     if (category === 'overcards') {
       if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.90, alternativeAction: 'bet_50', alternativeFrequency: 0.10, explanation: `Overcards no turn — cheque quase sempre. Bluff raramente; villain chamou o flop com mão razoável.` }
@@ -1285,7 +1317,7 @@ export function getGTODecision(
       return { primaryAction: 'check', primaryFrequency: 0.88, alternativeAction: 'bet_67', alternativeFrequency: 0.12, explanation: `Nada no turn — cheque quase sempre. Bluff puro no turn só em spots muito específicos (pot grande, villain capped, fold equity alta). Use sizing grande quando bluffa (bet_67 ou pot).` }
     }
     if (dry && !paired && potType === 'SRP') {
-      return { primaryAction: 'bet_33', primaryFrequency: 0.45, alternativeAction: 'check', alternativeFrequency: 0.55, explanation: `Nada em board seco — aposte 33% moderadamente como bluff. Boards secos = mais fold equity.` }
+      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Nada em board seco — cheque na maioria (55%). Bluff ocasional com bet 33% (45%) aproveita fold equity de boards secos, mas pot control é o default com ar.` }
     }
     return { primaryAction: 'check', primaryFrequency: 0.82, alternativeAction: 'bet_33', alternativeFrequency: 0.18, explanation: `Nada — cheque quase sempre. Bet 33% raramente como bluff puro.` }
   }
