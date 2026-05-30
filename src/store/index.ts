@@ -629,6 +629,87 @@ export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
   )
 )
 
+// ------- STORE DE REVIEW QUEUE PÓS-FLOP -------
+// Rastreia o desempenho do usuário por categoria de spot (categoria de mão +
+// posição + potType + street + textura). Usado para enviesar a geração de
+// novos spots no PostflopTrainer — quem erra um spot vê spots similares
+// com mais frequência nas próximas mãos (sem usar SR/SM-2 tradicional).
+export interface PostflopSpotProfile {
+  key: string                 // hash: `${category}_${position}_${potType}_${street}_${textureClass}`
+  category: string            // PostflopHandCategory (ex: 'tptk', 'middle_pair', 'draw_strong')
+  position: 'IP' | 'OOP'
+  potType: 'SRP' | '3bet'
+  street: 'flop' | 'turn' | 'river'
+  textureClass: 'dry' | 'wet' | 'paired' | 'monotone' | 'neutral'
+  attempts: number
+  mistakes: number
+  lastMissedAt?: number       // timestamp do último erro
+  lastSeenAt: number          // timestamp da última exposição
+}
+
+interface PostflopReviewStore {
+  profiles: Record<string, PostflopSpotProfile>
+  recordSpot: (
+    key: string,
+    dimensions: {
+      category: string
+      position: 'IP' | 'OOP'
+      potType: 'SRP' | '3bet'
+      street: 'flop' | 'turn' | 'river'
+      textureClass: 'dry' | 'wet' | 'paired' | 'monotone' | 'neutral'
+    },
+    isMistake: boolean
+  ) => void
+  getProfile: (key: string) => PostflopSpotProfile | null
+  getWeakSpots: (limit?: number) => PostflopSpotProfile[]
+  resetReview: () => void
+}
+
+export const usePostflopReviewStore = create<PostflopReviewStore>()(
+  persist(
+    (set, get) => ({
+      profiles: {},
+
+      recordSpot: (key, dim, isMistake) =>
+        set((state) => {
+          const now = Date.now()
+          const existing = state.profiles[key] ?? {
+            key,
+            ...dim,
+            attempts: 0,
+            mistakes: 0,
+            lastSeenAt: now,
+          }
+          const updated: PostflopSpotProfile = {
+            ...existing,
+            attempts: existing.attempts + 1,
+            mistakes: existing.mistakes + (isMistake ? 1 : 0),
+            lastMissedAt: isMistake ? now : existing.lastMissedAt,
+            lastSeenAt: now,
+          }
+          return { profiles: { ...state.profiles, [key]: updated } }
+        }),
+
+      getProfile: (key) => get().profiles[key] ?? null,
+
+      getWeakSpots: (limit = 10) => {
+        const all = Object.values(get().profiles)
+          .filter(p => p.attempts >= 3) // só conta após 3+ exposições
+          .map(p => ({ ...p, errorRate: p.mistakes / p.attempts }))
+          .sort((a, b) => b.errorRate - a.errorRate)
+          .slice(0, limit)
+        return all
+      },
+
+      resetReview: () => set({ profiles: {} }),
+    }),
+    {
+      name: 'pokermind-postflop-review',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
 // ------- STORE DE MÃOS SALVAS -------
 interface HandsStore {
   savedHands: SavedHand[]

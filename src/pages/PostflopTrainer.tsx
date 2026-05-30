@@ -11,7 +11,8 @@ import PlayingCard, { Board } from '@/components/poker/PlayingCard'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { cn, getDifficultyXPMultiplier } from '@/lib/utils'
 import { Card as CardType, Action } from '@/types'
-import { useUserStore, useTrainingStore, useUIStore } from '@/store'
+import { useUserStore, useTrainingStore, useUIStore, usePostflopReviewStore } from '@/store'
+import type { PostflopSpotProfile } from '@/store'
 import {
   evaluatePostflopHand, analyzeBoardTexture, getGTODecision,
   generateRandomCards, analyzeBoardAdvantage, analyzeBlockerEffects,
@@ -297,6 +298,58 @@ function estimateTurnPot(flopPot: number, flopAction: PostflopAction | null): nu
   return Math.round(flopPot * (multipliers[flopAction] ?? 1))
 }
 
+// ---- HELPERS PARA REVIEW QUEUE ----
+type TextureClass = 'dry' | 'wet' | 'paired' | 'monotone' | 'neutral'
+
+function textureToClass(texture: BoardTexture): TextureClass {
+  if (texture.monotone) return 'monotone'
+  if (texture.paired) return 'paired'
+  if (texture.wet) return 'wet'
+  if (texture.dry) return 'dry'
+  return 'neutral'
+}
+
+function spotKey(
+  category: string,
+  position: 'IP' | 'OOP',
+  potType: 'SRP' | '3bet',
+  street: 'flop' | 'turn' | 'river',
+  textureClass: TextureClass
+): string {
+  return `${category}_${position}_${potType}_${street}_${textureClass}`
+}
+
+// Score de "interesse" para sort de candidatos. Quanto maior, mais o spot
+// merece ser mostrado agora (o usuário precisa praticar essa categoria).
+function scoreCandidate(profile: PostflopSpotProfile | null): number {
+  let score = 1
+
+  if (!profile) {
+    // Nunca viu esse tipo de spot — boost moderado para descoberta
+    score += 0.5
+  } else {
+    // Boost por erros (diminishing — 1 erro = 0.51, 5 erros = 1.69, 20 erros = 1.96)
+    if (profile.mistakes > 0) {
+      score += 2 * (1 - Math.exp(-profile.mistakes / 3))
+    }
+    // Boost extra se erro foi recente
+    if (profile.lastMissedAt) {
+      const hoursSince = (Date.now() - profile.lastMissedAt) / (1000 * 60 * 60)
+      if (hoursSince < 24) score += 1.5
+      else if (hoursSince < 168) score += 0.5 // 1 semana
+    }
+    // Despriorisa spots já dominados (>90% acerto após 5+ tentativas)
+    const accuracy = 1 - (profile.mistakes / profile.attempts)
+    if (accuracy > 0.9 && profile.attempts > 5) {
+      score -= 0.4
+    }
+  }
+
+  // Tie-break aleatório para variedade
+  score += Math.random() * 0.3
+  return score
+}
+
 // ---- AMOSTRAGEM REALISTA DE CARTAS DO HERÓI ----
 // Em vez de 2 cartas 100% aleatórias, o herói recebe uma mão amostrada do
 // range pré-flop que chegaria àquele spot (SRP IP, SRP OOP, 3bet IP, 3bet OOP).
@@ -347,7 +400,8 @@ function pickHeroCardsFromRange(potType: PotType, position: HeroPos, boardCards:
   return generateRandomCards(2, boardCards) as [CardType, CardType]
 }
 
-function generateDrillState(cfg: SetupConfig): DrillState {
+// Gera UM candidato de drill state (board + hero + análise de flop)
+function generateOneCandidate(cfg: SetupConfig): DrillState {
   const boardCards = generateRandomCards(3) as [CardType, CardType, CardType]
   const heroCards = pickHeroCardsFromRange(cfg.potType, cfg.position, boardCards)
   const texture = analyzeBoardTexture(boardCards)
@@ -356,7 +410,7 @@ function generateDrillState(cfg: SetupConfig): DrillState {
   const gtoDecision = getGTODecision(handEval, texture, cfg.position, cfg.potType, cfg.scenario === 'facing_bet', 'flop', flopSPR)
   const boardAdvantage = analyzeBoardAdvantage(texture, cfg.potType, cfg.position)
   const blockerEffects = analyzeBlockerEffects(heroCards)
-  let state: DrillState = {
+  return {
     board: boardCards, heroCards, handEval, texture,
     gtoDecision, boardAdvantage, blockerEffects,
     answered: false, userAction: null, resultType: null,
@@ -368,13 +422,48 @@ function generateDrillState(cfg: SetupConfig): DrillState {
     riverGtoDecision: null, riverEstimatedPot: cfg.potSize,
     riverAnswered: false, riverUserAction: null, riverResultType: null,
   }
+}
+
+// Geração principal: candidate sampling enviesado pelo review queue.
+// Gera N candidatos, escolhe o de maior "interest score" (mais relevante para
+// o usuário praticar agora — categorias erradas/recentes têm prioridade).
+function generateDrillState(cfg: SetupConfig): DrillState {
+  // Modos turn_only/river_only: sem optimização (geração simples)
   if (cfg.streetMode === 'turn_only') {
-    state = { ...advanceTurn(state, cfg), answered: true }
-  } else if (cfg.streetMode === 'river_only') {
-    state = advanceTurn(state, cfg)
-    state = { ...advanceRiver(state, cfg), answered: true, turnAnswered: true }
+    const base = generateOneCandidate(cfg)
+    return { ...advanceTurn(base, cfg), answered: true }
   }
-  return state
+  if (cfg.streetMode === 'river_only') {
+    let state = generateOneCandidate(cfg)
+    state = advanceTurn(state, cfg)
+    return { ...advanceRiver(state, cfg), answered: true, turnAnswered: true }
+  }
+
+  // Modo flop_only / full: candidate sampling baseado em review queue
+  const CANDIDATE_COUNT = 5
+  const candidates: DrillState[] = []
+  const scores: number[] = []
+
+  for (let i = 0; i < CANDIDATE_COUNT; i++) {
+    const candidate = generateOneCandidate(cfg)
+    const key = spotKey(
+      candidate.handEval.category,
+      cfg.position,
+      cfg.potType,
+      'flop',
+      textureToClass(candidate.texture),
+    )
+    const profile = usePostflopReviewStore.getState().getProfile(key)
+    candidates.push(candidate)
+    scores.push(scoreCandidate(profile))
+  }
+
+  // Escolhe candidato com maior score
+  let bestIdx = 0
+  for (let i = 1; i < scores.length; i++) {
+    if (scores[i] > scores[bestIdx]) bestIdx = i
+  }
+  return candidates[bestIdx]
 }
 
 function advanceTurn(drill: DrillState, cfg: SetupConfig): DrillState {
@@ -466,6 +555,22 @@ export default function PostflopTrainer() {
     if (drill.phase === 'flop' && drill.answered) return
     if (drill.phase === 'turn' && drill.turnAnswered) return
 
+    // Helper para gravar o spot no review queue (bias futuro)
+    const recordSpot = (
+      street: 'flop' | 'turn' | 'river',
+      handEval: PostflopHandEval,
+      texture: BoardTexture,
+      isMistake: boolean,
+    ) => {
+      const textureClass = textureToClass(texture)
+      const key = spotKey(handEval.category, config.position, config.potType, street, textureClass)
+      usePostflopReviewStore.getState().recordSpot(
+        key,
+        { category: handEval.category, position: config.position, potType: config.potType, street, textureClass },
+        isMistake,
+      )
+    }
+
     if (drill.phase === 'flop') {
       const gto = drill.gtoDecision
       const resultType: 'correct' | 'alternative' | 'wrong' =
@@ -487,6 +592,7 @@ export default function PostflopTrainer() {
         timeMs: 0,
         timestamp: Date.now(),
       })
+      recordSpot('flop', drill.handEval, drill.texture, resultType === 'wrong')
     } else if (drill.phase === 'turn') {
       const gto = drill.turnGtoDecision!
       const resultType: 'correct' | 'alternative' | 'wrong' =
@@ -508,6 +614,10 @@ export default function PostflopTrainer() {
         timeMs: 0,
         timestamp: Date.now(),
       })
+      if (drill.turnHandEval && drill.turnCard) {
+        const turnTexture = analyzeBoardTexture([...drill.board, drill.turnCard])
+        recordSpot('turn', drill.turnHandEval, turnTexture, resultType === 'wrong')
+      }
     } else {
       // River
       const gto = drill.riverGtoDecision!
@@ -530,8 +640,13 @@ export default function PostflopTrainer() {
         timeMs: 0,
         timestamp: Date.now(),
       })
+      if (drill.riverHandEval && drill.riverCard) {
+        const riverBoard = [...drill.board, ...(drill.turnCard ? [drill.turnCard] : []), drill.riverCard]
+        const riverTexture = analyzeBoardTexture(riverBoard)
+        recordSpot('river', drill.riverHandEval, riverTexture, resultType === 'wrong')
+      }
     }
-  }, [drill, config, addXP, answerQuestion])
+  }, [drill, config, addXP, answerQuestion, defaultDifficulty])
 
   const handleGoToTurn = useCallback(() => {
     if (!drill || !config) return
