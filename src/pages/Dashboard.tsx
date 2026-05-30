@@ -15,10 +15,65 @@ import {
   Zap
 } from 'lucide-react'
 import { Card, ProgressBar, StatCard, SectionHeader } from '@/components/ui'
-import { useUserStore, useTrainingStore } from '@/store'
+import { useUserStore, useTrainingStore, usePostflopReviewStore } from '@/store'
+import type { PostflopSpotProfile } from '@/store'
 import { formatPercent, formatTime, formatNumber, xpToNextLevel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { DrillSession } from '@/types'
+
+// ---- HELPERS PÓS-FLOP REVIEW QUEUE ----
+
+// Mapa de categoria → grupo de filtro (para navegação com filtro pré-aplicado)
+const CATEGORY_TO_FILTER_GROUP: Record<string, string> = {
+  quads: 'nutted', full_house: 'nutted', flush: 'nutted', straight: 'nutted', set: 'nutted',
+  trips: 'strong', two_pair: 'strong', overpair: 'strong', tptk: 'strong', tpgk: 'strong',
+  tpwk: 'medium', middle_pair: 'medium', underpair: 'medium',
+  draw_strong: 'draws', draw_medium: 'draws', draw_weak: 'draws',
+  bottom_pair: 'weak',
+  overcards: 'air', air: 'air',
+}
+
+// Rótulos amigáveis para exibição
+const CATEGORY_LABELS: Record<string, string> = {
+  quads: 'Quadra', full_house: 'Full House', flush: 'Flush', straight: 'Straight', set: 'Set',
+  trips: 'Trips', two_pair: 'Dois Pares', overpair: 'Sobre-Par', tptk: 'TPTK', tpgk: 'TPGK',
+  tpwk: 'TPWK', middle_pair: 'Par do Meio', underpair: 'Par Menor',
+  draw_strong: 'Draw Forte', draw_medium: 'OESD', draw_weak: 'Gutshot',
+  bottom_pair: 'Par Fraco',
+  overcards: 'Overcards', air: 'Ar',
+}
+
+const TEXTURE_LABELS: Record<string, string> = {
+  dry: 'Seco', wet: 'Molhado', paired: 'Pareado', monotone: 'Monotone', neutral: 'Neutro',
+}
+
+const STREET_LABELS: Record<string, string> = {
+  flop: 'Flop', turn: 'Turn', river: 'River',
+}
+
+// Formata o spot para exibição: "TPTK · OOP · 3bet · Flop · Molhado"
+function formatSpotDisplay(p: PostflopSpotProfile): string {
+  return [
+    CATEGORY_LABELS[p.category] ?? p.category,
+    p.position,
+    p.potType,
+    STREET_LABELS[p.street] ?? p.street,
+    TEXTURE_LABELS[p.textureClass] ?? p.textureClass,
+  ].join(' · ')
+}
+
+// Converte spot profile → estado de navegação para PostflopTrainer
+function spotToNavState(p: PostflopSpotProfile) {
+  return {
+    fromWeakSpot: true,
+    position: p.position,
+    potType: p.potType,
+    streetMode: p.street === 'flop' ? 'flop_only' : p.street === 'turn' ? 'turn_only' : 'river_only',
+    handCategoryFilter: CATEGORY_TO_FILTER_GROUP[p.category] ?? 'any',
+    textureFilter: p.textureClass === 'neutral' ? 'any' : p.textureClass,
+    autoStart: true,
+  }
+}
 
 // ---- HELPERS DE DADOS REAIS ----
 
@@ -203,6 +258,17 @@ export default function Dashboard() {
 
   // ---- Pontos fracos reais ----
   const weakSpots = useMemo(() => computeWeakSpots(sessionHistory), [sessionHistory])
+
+  // ---- Pontos fracos pós-flop (review queue por categoria de spot) ----
+  const postflopReviewProfiles = usePostflopReviewStore(s => s.profiles)
+  const postflopWeakSpots = useMemo(() => {
+    return Object.values(postflopReviewProfiles)
+      .filter(p => p.attempts >= 3)
+      .map(p => ({ ...p, errorRate: p.mistakes / p.attempts, accuracy: Math.round((1 - p.mistakes / p.attempts) * 100) }))
+      .filter(p => p.errorRate > 0.2) // só mostra spots com >20% erro
+      .sort((a, b) => b.errorRate - a.errorRate)
+      .slice(0, 5)
+  }, [postflopReviewProfiles])
 
   // ---- Precisão por cenário (todas) ----
   const scenarioAccuracy = useMemo(() => computeScenarioAccuracy(sessionHistory), [sessionHistory])
@@ -442,6 +508,56 @@ export default function Dashboard() {
             </Card>
           )}
         </motion.div>
+
+        {/* ---- PONTOS FRACOS PÓS-FLOP (REVIEW QUEUE) ---- */}
+        {postflopWeakSpots.length > 0 && (
+          <motion.div variants={STAGGER.item}>
+            <SectionHeader
+              title="Pontos Fracos Pós-Flop"
+              subtitle="Spots com >20% de erro · clique para drillar com filtros aplicados"
+            />
+            <div className="space-y-2">
+              {postflopWeakSpots.map((spot) => (
+                <Card
+                  key={spot.key}
+                  className="p-3 flex items-center gap-3 cursor-pointer active:scale-[0.99]"
+                  hoverable
+                  onClick={() => navigate('/postflop', { state: spotToNavState(spot) })}
+                >
+                  <div className={cn(
+                    'w-8 h-8 rounded-lg flex items-center justify-center text-xs font-mono font-bold flex-shrink-0',
+                    spot.accuracy < 50
+                      ? 'bg-accent-crimson/15 text-accent-crimson'
+                      : spot.accuracy < 70
+                        ? 'bg-yellow-500/15 text-yellow-400'
+                        : 'bg-accent-emerald/10 text-accent-emerald'
+                  )}>
+                    {spot.accuracy}%
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-body font-medium text-text-primary truncate">
+                      {formatSpotDisplay(spot)}
+                    </div>
+                    <div className="text-[10px] text-text-muted mt-0.5">
+                      {spot.mistakes} erros em {spot.attempts} tentativas
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 w-20">
+                    <ProgressBar
+                      value={spot.accuracy}
+                      color={spot.accuracy < 50 ? 'crimson' : spot.accuracy < 70 ? 'gold' : 'emerald'}
+                      size="xs"
+                    />
+                    <ChevronRight size={12} className="text-text-muted flex-shrink-0" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <p className="text-[10px] text-text-muted mt-2 px-1 font-body">
+              💡 Categorizados por categoria de mão + posição + tipo de pote + rua + textura do board.
+            </p>
+          </motion.div>
+        )}
 
         {/* ---- PRECISÃO POR CENÁRIO ---- */}
         {scenarioAccuracy.length > 0 && (

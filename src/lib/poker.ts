@@ -1372,3 +1372,55 @@ export function countRemainingCombos(handStr: string, heroCards: Card[]): number
 export function totalCombosForHand(handStr: string): number {
   return generateHandCombos(handStr, []).length
 }
+
+/**
+ * Versão pós-flop do Monte Carlo: o board é FIXO (3, 4 ou 5 cartas já reveladas),
+ * só completa as cartas restantes. Usado no PostflopTrainer pra mostrar equity
+ * do hero vs range estimado do villain no spot atual.
+ */
+export function runMonteCarloEquityPostflop(
+  heroCards: [Card, Card],
+  board: Card[],
+  villainRange: string[],
+  iterations = 500
+): MonteCarloResult {
+  const used = [...heroCards, ...board]
+  const villainCombos: [Card, Card][] = []
+  for (const hand of villainRange) {
+    villainCombos.push(...generateHandCombos(hand, used))
+  }
+
+  if (villainCombos.length === 0) {
+    return { equity: 0.5, wins: 0, ties: 0, losses: 0, totalRuns: 0, heroWinPct: 50, tiePct: 0, lossPct: 50 }
+  }
+
+  const cardsToComplete = Math.max(0, 5 - board.length)
+  let wins = 0, ties = 0, losses = 0, runs = 0
+
+  for (let i = 0; i < iterations; i++) {
+    const vCards = villainCombos[Math.floor(Math.random() * villainCombos.length)]
+    const completion = cardsToComplete > 0
+      ? generateRandomCards(cardsToComplete, [...used, ...vCards])
+      : []
+    if (completion.length < cardsToComplete) continue
+
+    const fullBoard = [...board, ...completion]
+    const heroEval = evaluatePostflopHand(heroCards, fullBoard)
+    const villEval = evaluatePostflopHand(vCards, fullBoard)
+    const cmp = compareHands(heroEval, villEval)
+
+    if (cmp > 0) wins++
+    else if (cmp < 0) losses++
+    else ties++
+    runs++
+  }
+
+  const equity = runs > 0 ? (wins + ties * 0.5) / runs : 0.5
+  return {
+    equity,
+    wins, ties, losses, totalRuns: runs,
+    heroWinPct: runs > 0 ? Math.round((wins / runs) * 100) : 50,
+    tiePct:    runs > 0 ? Math.round((ties / runs) * 100) : 0,
+    lossPct:   runs > 0 ? Math.round((losses / runs) * 100) : 50,
+  }
+}
