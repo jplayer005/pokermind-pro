@@ -296,9 +296,21 @@ export default function PreflopTrainer() {
   const [competitionResult, setCompetitionResult] = useState<CompetitionScore | null>(null)
   const competitionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ---- GERAÇÃO DE QUESTÃO ----
+  // ---- GERAÇÃO DE QUESTÃO (lógica reestruturada) ----
+  //
+  // PRINCÍPIO: A FILA DE MÃOS é a fonte da verdade.
+  //   - Construída uma vez por scenario+position, embaralhada via buildWeightedPool
+  //     (todas as 169 mãos com boost nas marginais)
+  //   - Cada chamada consome 1 mão da fila → garante rotação sem repetição
+  //   - Quando a fila esvazia → reconstrói
+  //
+  // SM-2 (revisão): atua como BIAS SUAVE, não override:
+  //   - Mãos correspondentes a questões due ganham peso extra no pool de construção
+  //   - A mão due aparece no fluxo da rotação (não a força infinitamente)
+  //
+  // ANTI-LOOP: a última mão mostrada NUNCA aparece consecutivamente.
   const generateQuestion = useCallback(() => {
-    // Determina posição efetiva (aleatória ou manual)
+    // ---- 1. Determina posição efetiva ----
     let effectivePos = position
     if (isRandomPosition) {
       const formatPos = POSITIONS_BY_FORMAT[tableFormat]
@@ -309,93 +321,87 @@ export default function PreflopTrainer() {
       }
     }
 
-    // Range ajustado por profundidade de stack (open_raise tem maior dependência de implied odds)
+    // ---- 2. Range (com ajuste de stack) ----
     const baseRange = getRangeForScenario(scenario, effectivePos, stackDepth, tableFormat, villainPosition)
     const range = scenario === 'open_raise' ? applyStackAdjustment(baseRange, heroStack) : baseRange
 
-    // Questões do banco para posição efetiva
-    const bankQuestions = DRILL_QUESTIONS.filter(q => {
-      if (q.scenario !== scenario) return false
-      if (q.position !== effectivePos) return false
-      if (scenario === 'bb_defense' && q.villainPosition && q.villainPosition !== villainPosition) return false
-      return true
-    })
-    const bankFallback = DRILL_QUESTIONS.filter(q => q.scenario === scenario)
-    const bankPool = bankQuestions.length > 0 ? bankQuestions : bankFallback
-
-    // Prioridade SM-2: questões vencidas do banco para o cenário atual
-    const dueIds = getDueQuestions()
-    const dueInBank = bankPool.filter(q => dueIds.includes(q.id))
-
-    // Anti-loop: evita repetir as últimas N questões mostradas (quando há alternativas)
-    const recent = recentQuestionsRef.current
-    const filterRecent = <T extends { id: string }>(pool: T[]): T[] => {
-      if (pool.length <= 1) return pool
-      const filtered = pool.filter(q => !recent.includes(q.id))
-      return filtered.length > 0 ? filtered : pool
+    // ---- 3. Identifica mãos com bank questions e questões due (SM-2) ----
+    const bankByHand = new Map<string, PreflopDrillQuestion[]>()
+    for (const q of DRILL_QUESTIONS) {
+      if (q.scenario !== scenario) continue
+      if (q.position !== effectivePos) continue
+      if (scenario === 'bb_defense' && q.villainPosition && q.villainPosition !== villainPosition) continue
+      const arr = bankByHand.get(q.hand) ?? []
+      arr.push(q)
+      bankByHand.set(q.hand, arr)
     }
 
-    // Probabilidade do banco proporcional ao número de mãos únicas — evita repetição (bug K4s)
-    const uniqueHandsInBank = new Set(bankPool.map(q => q.hand)).size
-    const bankProb = bankPool.length === 0 ? 0 :
-      uniqueHandsInBank <= 1 ? 0.15 :
-      uniqueHandsInBank <= 3 ? 0.35 : 0.6
+    const dueIds = new Set(getDueQuestions())
+    const dueHands = new Set<string>()
+    for (const [hand, qs] of bankByHand) {
+      if (qs.some(q => dueIds.has(q.id))) dueHands.add(hand)
+    }
 
+    // ---- 4. Reconstrói a fila se posição mudou ou está vazia ----
+    let pool = (poolPosition === effectivePos) ? handPool : []
+    if (pool.length === 0) {
+      pool = buildWeightedPool(range, allHandsList, defaultDifficulty)
+      // Bias SM-2: mãos com questão due aparecem 2× extras na fila
+      for (const dueHand of dueHands) {
+        pool.push(dueHand, dueHand)
+      }
+      // Re-embaralha após adicionar SM-2
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[pool[i], pool[j]] = [pool[j], pool[i]]
+      }
+      setPoolPosition(effectivePos)
+    }
+
+    // ---- 5. Pop próxima mão da fila — pulando a mão imediatamente anterior ----
+    const lastHand = recentQuestionsRef.current[0] ?? null
+    let hand = pool[0] ?? randomHand()
+    let remainingPool = pool.slice(1)
+
+    // Se a próxima mão é igual à última mostrada e há outras na fila, troca de posição
+    if (hand === lastHand && remainingPool.length > 0) {
+      const swapHand = remainingPool[0]
+      remainingPool = [hand, ...remainingPool.slice(1)]
+      hand = swapHand
+    }
+    setHandPool(remainingPool)
+
+    // ---- 6. Para essa mão, escolhe questão do banco (se existir) ou gera dinâmica ----
+    const matchingBank = bankByHand.get(hand) ?? []
     let question: PreflopDrillQuestion
 
-    if (dueInBank.length > 0) {
-      // SM-2: rotaciona entre as questões vencidas (evita repetir a mesma)
-      const dueFiltered = filterRecent(dueInBank)
-      question = dueFiltered[Math.floor(Math.random() * dueFiltered.length)]
-      setQuestionSM2Type('review')
-    } else if (Math.random() < bankProb) {
-      // Sorteia do banco evitando as últimas N mostradas
-      const bankFiltered = filterRecent(bankPool)
-      const picked = bankFiltered[Math.floor(Math.random() * bankFiltered.length)]
-      const sm2Stats = useSpacedRepetitionStore.getState().getQuestionStats(picked.id)
-      setQuestionSM2Type(sm2Stats ? null : 'new')
-      question = picked
+    if (matchingBank.length > 0) {
+      // Prefere questão due dentro das matches; senão, sorteia
+      const dueMatches = matchingBank.filter(q => dueIds.has(q.id))
+      question = dueMatches.length > 0
+        ? dueMatches[Math.floor(Math.random() * dueMatches.length)]
+        : matchingBank[Math.floor(Math.random() * matchingBank.length)]
+      setQuestionSM2Type(dueMatches.length > 0 ? 'review' : (useSpacedRepetitionStore.getState().getQuestionStats(question.id) ? null : 'new'))
     } else {
+      // Gera questão dinâmica para essa mão
       setQuestionSM2Type(null)
-      // Pool rotativo — reconstrói se posição mudou ou pool esvaziou
-      let pool = (poolPosition === effectivePos) ? handPool : []
-      if (pool.length === 0) {
-        pool = buildWeightedPool(range, allHandsList, defaultDifficulty)
-        setPoolPosition(effectivePos)
-      }
-
-      const hand = pool[0] || randomHand()
-      setHandPool(pool.slice(1))
-
       const isInRange = range.includes(hand)
       const correctAction = getCorrectActionForScenario(scenario, isInRange, hand, effectivePos)
 
       const scenarioLabels: Record<ScenarioType, string> = {
-        open_raise: 'open raise',
-        push_fold:  'push/fold',
-        '3bet':     '3-bet',
-        '4bet':     '4-bet',
-        squeeze:    'squeeze',
-        bb_defense: 'defesa do BB',
-        call_rfi:   'call vs raise',
-        sb_vs_bb:   'SB vs BB',
+        open_raise: 'open raise', push_fold: 'push/fold', '3bet': '3-bet', '4bet': '4-bet',
+        squeeze: 'squeeze', bb_defense: 'defesa do BB', call_rfi: 'call vs raise', sb_vs_bb: 'SB vs BB',
       }
       const actionLabels: Record<string, string> = {
-        raise: 'RAISE (abrir o pot)',
-        fold:  'FOLD (descartar)',
-        jam:   'JAM (all-in)',
-        '3bet': '3-BET (reraise)',
-        '4bet': '4-BET (re-reraise)',
-        call:   'CALL (chamar)',
-        limp:   'LIMP (completar BB)',
+        raise: 'RAISE (abrir o pot)', fold: 'FOLD (descartar)', jam: 'JAM (all-in)',
+        '3bet': '3-BET (reraise)', '4bet': '4-BET (re-reraise)', call: 'CALL (chamar)', limp: 'LIMP (completar BB)',
       }
-
       const stackNote = scenario === 'open_raise' && heroStack < 100
         ? ` [Range ajustada para ${heroStack}bb — mãos especulativas removidas]`
         : ''
 
       question = {
-        id: `gen_${Date.now()}`,
+        id: `gen_${Date.now()}_${hand}`,
         hand,
         position: effectivePos,
         heroStack,
@@ -408,14 +414,8 @@ export default function PreflopTrainer() {
       }
     }
 
-    // Bank questions são curadas com decisões GTO refinadas (frequências, gtoMix,
-    // explicações específicas). Confiamos no correctAction do banco — a fórmula binária
-    // "está no range?" não captura exceções como A5s vs UTG=fold, JJ vs BB 3bet=call,
-    // squeeze com call equilibrado, ou SB vs BB com mixed strategy (raise/limp).
-    // Questões geradas dinamicamente (`gen_*`) sempre usam a fórmula.
-
-    // Atualiza buffer anti-loop (mantém só as últimas N IDs)
-    const nextRecent = [question.id, ...recentQuestionsRef.current].slice(0, RECENT_BUFFER)
+    // ---- 7. Atualiza buffer anti-loop (usando a MÃO, não o id) ----
+    const nextRecent = [hand, ...recentQuestionsRef.current.filter(h => h !== hand)].slice(0, RECENT_BUFFER)
     recentQuestionsRef.current = nextRecent
 
     setCurrentQuestion(question)

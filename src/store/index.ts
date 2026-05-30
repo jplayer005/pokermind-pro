@@ -541,7 +541,7 @@ export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
             interval: 1,
             repetitions: 0,
             easeFactor: 2.5,
-            nextReview: today,
+            nextReview: addDays(today, 1), // padrão seguro: já agendado para amanhã
             totalAttempts: 0,
             totalCorrect: 0,
             lastSeen: today,
@@ -600,6 +600,31 @@ export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
     {
       name: 'pokermind-sr',
       storage: createJSONStorage(() => localStorage),
+      // Auto-reparo na hidratação: entradas com nextReview <= hoje (legado do bug
+      // de timezone) são empurradas para amanhã pelo menos. Isso quebra loops de
+      // SM-2 que existiam em versões anteriores ao fix de addDays.
+      onRehydrateStorage: () => (state) => {
+        if (!state || !state.sm2Data) return
+        const today = todayStr()
+        let fixed = 0
+        const repaired: Record<string, QuestionSM2Data> = {}
+        for (const [id, entry] of Object.entries(state.sm2Data)) {
+          if (!entry) continue
+          if (entry.nextReview <= today) {
+            // Corrupto: empurra para today + max(interval, 1) dias
+            const interval = Math.max(1, entry.interval || 1)
+            repaired[id] = { ...entry, nextReview: addDays(today, interval) }
+            fixed++
+          } else {
+            repaired[id] = entry
+          }
+        }
+        if (fixed > 0) {
+          state.sm2Data = repaired
+          // eslint-disable-next-line no-console
+          console.log(`[SM-2] Reparadas ${fixed} entradas com nextReview corrompido`)
+        }
+      },
     }
   )
 )
