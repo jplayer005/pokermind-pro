@@ -305,6 +305,10 @@ export interface PostflopHandEval {
   strength: number  // 0-100
   draws: string[]   // e.g. ['Flush Draw', 'Gutshot']
   description: string
+  /** Full House vulnerável a FH maior: hero tem pocket pair X trips, mas o par
+   *  no board é Y > X — qualquer villain com Yx tem trips de Y (maior boat) ou
+   *  bem perto disso. Sizing pequeno é melhor que pot bet. */
+  vulnerableFH?: boolean
 }
 
 export interface BoardTexture {
@@ -838,11 +842,24 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
   if (isHeroPocketPair) {
     // Par no bolso + trips no board de rank diferente = FH (ex: KK + 777)
     if (boardHasTrips(h1.rank)) {
+      // Vulnerável a quads: villain com o rank dos trips do board = quads
+      // (improvável mas possível). Não consideramos isso aqui — strength 97 é OK.
       return { category: 'full_house', label: 'Full House', strength: 97, draws: [], description: `Full house! Par no bolso sobre trips do board. Mão nutted — construa o pot, não deixe draws gratuitos.` }
     }
     // Par no bolso + 1 no board + par no board de rank diferente = FH (ex: KK + K-7-7)
     if (h1Matches === 1 && boardHasPair(h1.rank)) {
-      return { category: 'full_house', label: 'Full House', strength: 96, draws: [], description: 'Full house! Set com board pareado. Mão nutted — aposte para construir o pot.' }
+      // ⚠️ Vulnerável se o par do BOARD é MAIOR que o rank do hero — qualquer
+      // villain com a carta do par alto tem trinca alta = FH maior.
+      const heroIdx = RANKS.indexOf(h1.rank)
+      const boardPairRanks = Object.entries(boardFreq)
+        .filter(([r, c]) => c >= 2 && r !== h1.rank)
+        .map(([r]) => RANKS.indexOf(r as Rank))
+      const hasHigherBoardPair = boardPairRanks.some(idx => idx < heroIdx)
+      const strength = hasHigherBoardPair ? 88 : 96
+      const desc = hasHigherBoardPair
+        ? `Full house ${h1.rank}s full de ${RANKS[boardPairRanks[0]]}s. ⚠️ FH VULNERÁVEL — o par no board (${RANKS[boardPairRanks[0]]}) é maior que sua trinca. Qualquer villain com ${RANKS[boardPairRanks[0]]}x tem FH dominante. Bet pequeno (33-50%) ou pot control.`
+        : 'Full house! Set com board pareado. Mão nutted — aposte para construir o pot.'
+      return { category: 'full_house', label: hasHigherBoardPair ? `FH (Vulnerável)` : 'Full House', strength, draws: [], description: desc, vulnerableFH: hasHigherBoardPair }
     }
     // Par no bolso + 1 no board sem par extra = SET (não FH!)
     if (h1Matches === 1) {
@@ -851,6 +868,9 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     }
   } else {
     // Não é pocket pair: trips de h1 + par de h2 = FH, ou vice-versa
+    // Vulnerabilidade: se o "par" da FH é uma carta única do hero + outra única do board
+    // (ex: hero AK, board K-K-A-X-Y: hero KK + AA = AA + KKK = FH As full de Ks. Não vulnerável.)
+    // Mas se hero tem JJ-on-board-trips with a kicker on board pair — geralmente é nutted.
     if (h1Matches >= 2 && h2Matches >= 1) {
       return { category: 'full_house', label: 'Full House', strength: 95, draws: [], description: 'Full house! Aposte para valor máximo — mão nutted.' }
     }
@@ -954,11 +974,17 @@ export function getGTODecision(
 ): GtoDecision {
   const { category, strength, draws } = handEval
   const { wet, dry, paired, monotone, straightOnBoard } = texture
-  // Mãos categoricamente "nutadas" mas que perdem para straight no board
-  // (set, trips, two pair, overpair, top pair). Precisam de POT CONTROL —
-  // bet pot rouba valor vs villain straight e não folda mais.
+  // Categorias de mãos que perdem para straight/flush no board.
   const isBelowStraight = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk'].includes(category)
+  // Set/trips/etc são todas abaixo de flush também (FH e quads acima).
+  const isBelowFlush = isBelowStraight || category === 'straight'
+
+  // ⚠️ POT CONTROL flags — usados nos branches IP/OOP nutted para reduzir sizing
+  // quando o board permite mãos melhores no range do villain.
   const vulnerableToStraight = straightOnBoard && isBelowStraight
+  const vulnerableToFlush = monotone && isBelowFlush
+  const vulnerableFH = handEval.vulnerableFH === true
+  const anyVulnerability = vulnerableToStraight || vulnerableToFlush || vulnerableFH
   // Ajuste SPR: stack curto favorece sizing maior e comprometimento; stack profundo favorece controle
   const isShortSPR = spr <= 2   // stack ≤ 2× pot — muito comprometido
   const isMidSPR   = spr > 2 && spr <= 5
@@ -1014,19 +1040,22 @@ export function getGTODecision(
     // River acting first
     if (position === 'IP') {
       if (isNutted) {
-        // ⚠️ Board com straight (5-6-7-8 etc) + hero abaixo de straight → POT CONTROL.
-        // Bet pot só extrai mais de pares fortes que foldam de qualquer jeito, e
-        // perde MUITO vs villain com straight (que sempre paga).
-        if (vulnerableToStraight) {
+        // ⚠️ POT CONTROL: board permite mão melhor (straight, flush, FH maior)
+        if (anyVulnerability) {
+          const reason = vulnerableToStraight
+            ? `board tem 4 cartas consecutivas — qualquer 9/4 (etc.) do villain = straight`
+            : vulnerableToFlush
+            ? `board MONOTONE (3+ do mesmo naipe) — qualquer carta do naipe do villain = flush`
+            : `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
           return {
             primaryAction: 'bet_50', primaryFrequency: 0.40,
             alternativeAction: 'bet_33', alternativeFrequency: 0.30,
             alsoAcceptable: ['check', 'bet_67'],
-            explanation: `${handEval.label} no river IP — ⚠️ board tem 4 cartas consecutivas. Apesar da força categórica, qualquer 9 ou 4 (ou outras conectoras) te bate. POT CONTROL: bet 33-50% extrai valor de top pair/overpair sem inflar quando villain tem straight. Check também válido (50%). EVITE bet 75%/pot — villain com straight te paga mais; pares fortes foldam pra qualquer aposta.`
+            explanation: `${handEval.label} no river IP — ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai valor de pares fortes/two pair sem inflar quando villain tem a mão melhor. Check (50%) também válido. EVITE bet 75%/pot — villain com straight/flush/FH maior te paga MAIS; pares fortes foldam pra qualquer aposta.`
           }
         }
-        // Em board pareado/monotone, 67% é o sizing mais frequente (range capped);
-        // em boards dry/favoráveis, pot extrai mais valor (range polarizado).
+        // Em board pareado/monotone (sem ser vulnerável a flush real), 67% é o sizing
+        // mais frequente (range capped); em boards dry/favoráveis, pot extrai mais.
         const sz: GtoAction = paired || monotone ? 'bet_67' : 'bet_pot'
         const altSz: GtoAction = paired || monotone ? 'bet_pot' : 'bet_67'
         return {
@@ -1064,15 +1093,20 @@ export function getGTODecision(
 
     // River OOP
     if (isNutted) {
-      // ⚠️ Vulnerável a straight: check-raise vira armadilha — villain straight
-      // te dobra. Check-call ou pequeno donk são as linhas seguras.
-      if (vulnerableToStraight) {
+      // ⚠️ POT CONTROL OOP: check-raise vira armadilha quando villain pode ter
+      // straight/flush/FH dominante.
+      if (anyVulnerability) {
+        const reason = vulnerableToStraight
+          ? `board tem 4 cartas consecutivas — qualquer 9/4 (etc.) do villain = straight`
+          : vulnerableToFlush
+          ? `board MONOTONE (3+ do mesmo naipe) — qualquer carta do naipe do villain = flush`
+          : `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
         return {
-          primaryAction: 'check', primaryFrequency: 0.50,
-          alternativeAction: 'bet_33', alternativeFrequency: 0.30,
+          primaryAction: 'check', primaryFrequency: 0.55,
+          alternativeAction: 'bet_33', alternativeFrequency: 0.25,
           alsoAcceptable: ['bet_50'],
           checkRaiseCandidate: false,
-          explanation: `${handEval.label} OOP no river — ⚠️ board tem 4 cartas consecutivas. POT CONTROL é crítico OOP: cheque (50%) e decida com base no sizing do villain (call vs raises pequenos, fold a overbet em alguns spots). Donk pequeno (33%) extrai valor de top pair sem arriscar check-raise. NUNCA check-raise — villain com straight te dobra.`
+          explanation: `${handEval.label} OOP no river — ⚠️ ${reason}. POT CONTROL é crítico OOP: cheque (55%) e decida com base no sizing do villain. Donk pequeno (33%) extrai valor de top pair sem arriscar check-raise. NUNCA check-raise — villain com a mão melhor te dobra.`
         }
       }
       return {
@@ -1150,6 +1184,20 @@ export function getGTODecision(
   // No turn: sizings maiores (sem 33%), villain chamou o flop então range é mais strong
   if (position === 'IP') {
     if (isNutted) {
+      // ⚠️ POT CONTROL no turn/flop: vulnerable a straight/flush/FH maior
+      if ((isTurn || !isTurn) && anyVulnerability) {
+        const reason = vulnerableToStraight
+          ? `board tem 4 cartas consecutivas`
+          : vulnerableToFlush
+          ? `board monotone (3+ mesmo naipe) — flush completo possível`
+          : `FH com par no board maior que sua trinca`
+        return {
+          primaryAction: 'bet_50', primaryFrequency: 0.45,
+          alternativeAction: 'check', alternativeFrequency: 0.25,
+          alsoAcceptable: ['bet_33', 'bet_67'],
+          explanation: `${handEval.label} IP — ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai de pares fortes sem inflar quando villain tem mão melhor. Check também válido para realizar equity barato. EVITE bets grandes — villain com a mão melhor te paga mais; pares fortes foldam pra qualquer aposta.`
+        }
+      }
       // SPR baixo: stack comprometido — bet pot imediato, não slow play
       if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, alsoAcceptable: ['bet_75', 'bet_67'], explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor. Bet 75%/67% também aceitáveis.` }
       if (isTurn) {
@@ -1214,6 +1262,21 @@ export function getGTODecision(
     (!isTurn && hasDraw && strength >= 45 && draws.some(d => d.includes('Flush') || d === 'OESD'))
 
   if (isNutted) {
+    // ⚠️ POT CONTROL OOP: vulnerable a straight/flush/FH maior
+    if (anyVulnerability) {
+      const reason = vulnerableToStraight
+        ? `board tem 4 cartas consecutivas`
+        : vulnerableToFlush
+        ? `board monotone (3+ mesmo naipe) — flush completo possível`
+        : `FH com par no board maior que sua trinca`
+      return {
+        primaryAction: 'check', primaryFrequency: 0.50,
+        alternativeAction: 'bet_33', alternativeFrequency: 0.30,
+        alsoAcceptable: ['bet_50'],
+        checkRaiseCandidate: false,
+        explanation: `${handEval.label} OOP — ⚠️ ${reason}. POT CONTROL: cheque para realizar equity barato (call vs raises pequenos, fold a overbet). Donk bet pequeno (33%) extrai de pares fortes sem inflar. NUNCA check-raise — villain com a mão melhor te dobra.`
+      }
+    }
     // SPR baixo: bet pot imediato OOP — não precisar de check-raise com stack comprometido
     if (isShortSPR) return {
       primaryAction: 'bet_pot', primaryFrequency: 0.75,
