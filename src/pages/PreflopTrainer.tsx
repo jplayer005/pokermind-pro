@@ -12,8 +12,8 @@ import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
-import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES } from '@/data/ranges'
-import { randomHand, classifyHandStrength, generateHandGrid, countCombos } from '@/lib/poker'
+import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS } from '@/data/ranges'
+import { randomHand, classifyHandStrength, generateHandGrid } from '@/lib/poker'
 import { formatPercent, shuffle, getDifficultyXPMultiplier } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { Action, Position, PreflopDrillQuestion, TableFormat } from '@/types'
@@ -144,29 +144,41 @@ function applyStackAdjustment(range: string[], heroStack: number): string[] {
   return range.filter(h => !removals.includes(h))
 }
 
-// ---- HELPER: constrói pool ponderado por combos ----
-// difficulty: ajusta proporção de mãos fora do range (mais fora = mais disciplina de fold)
-// easy:   menos mãos fora (50%) → mais oportunidades de open/raise
-// medium: igual (100%) → comportamento original
-// hard:   mais mãos fora (180%) → maior pressão sobre decisões de fold borderline
+// ---- HELPER: constrói pool com cobertura total + boost de marginais ----
+// Garante que TODAS as 169 mãos do grid apareçam pelo menos 1× (cobertura total),
+// mas com pesos diferenciados para focar o aprendizado nas mãos da fronteira:
+//
+// Categoria                              | Peso
+// ---------------------------------------|------
+// Marginal IN range  (ex: 22, A5s BTN)   | 3-4×  ← "primeiras dentro do range"
+// Marginal OUT range (ex: K2o vs UTG)    | 3-4×  ← "quase entrou mas não"
+// Premium IN range   (AA, KK, AKs, etc.) | 1×    ← decisão fácil, pouca repetição
+// Trash OUT range    (72o, 83o, etc.)    | 1×    ← fold trivial, pouca repetição
+//
+// Resultado: o usuário vê CADA mão pelo menos uma vez (para reconhecimento),
+// mas passa a maior parte do tempo decidindo nas mãos marginais.
 function buildWeightedPool(range: string[], allHands: string[], difficulty: 'easy' | 'medium' | 'hard' = 'medium'): string[] {
   const pool: string[] = []
-  // Mãos no range: peso por combos (AA=6, AKs=4, AKo=12)
-  for (const hand of range) {
-    const w = countCombos(hand)
-    for (let i = 0; i < Math.ceil(w / 4); i++) pool.push(hand)
+  const rangeSet = new Set(range)
+
+  // Boost de marginais — mais alto em hard (treino mais focado em borderline)
+  const marginalBoost = difficulty === 'easy' ? 3 : difficulty === 'hard' ? 5 : 4
+
+  // Cobertura TOTAL: itera as 169 mãos do grid
+  for (const hand of allHands) {
+    const isMarginal = MARGINAL_HANDS.has(hand)
+    const isInRange = rangeSet.has(hand)
+
+    // Peso base: 1 (toda mão aparece pelo menos uma vez)
+    // Marginal recebe boost forte; mão in-range premium ganha +1 sobre trash
+    let weight = 1
+    if (isMarginal) weight = marginalBoost
+    else if (isInRange) weight = 2
+
+    for (let i = 0; i < weight; i++) pool.push(hand)
   }
-  // Quantidade de mãos fora do range varia com dificuldade
-  const outRatio = difficulty === 'easy' ? 0.5 : difficulty === 'hard' ? 1.8 : 1.0
-  const outCount = Math.floor(range.length * outRatio)
-  const outOfRange = allHands.filter(h => !range.includes(h))
-  const shuffledOut = [...outOfRange]
-  for (let i = shuffledOut.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffledOut[i], shuffledOut[j]] = [shuffledOut[j], shuffledOut[i]]
-  }
-  for (const hand of shuffledOut.slice(0, outCount)) pool.push(hand)
-  // Fisher-Yates final
+
+  // Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[pool[i], pool[j]] = [pool[j], pool[i]]

@@ -15,9 +15,10 @@ import { useUserStore, useTrainingStore, useUIStore } from '@/store'
 import {
   evaluatePostflopHand, analyzeBoardTexture, getGTODecision,
   generateRandomCards, analyzeBoardAdvantage, analyzeBlockerEffects,
-  classifyTurnCard,
+  classifyTurnCard, generateHandCombos, countCombos,
 } from '@/lib/poker'
 import type { PostflopHandEval, BoardTexture, GtoDecision, BoardAdvantageAnalysis, BlockerEffect, TurnCardInfo } from '@/lib/poker'
+import { POSTFLOP_PREFLOP_RANGES, MARGINAL_HANDS } from '@/data/ranges'
 
 // ---- TIPOS ----
 type HeroPos = 'IP' | 'OOP'
@@ -296,9 +297,59 @@ function estimateTurnPot(flopPot: number, flopAction: PostflopAction | null): nu
   return Math.round(flopPot * (multipliers[flopAction] ?? 1))
 }
 
+// ---- AMOSTRAGEM REALISTA DE CARTAS DO HERÓI ----
+// Em vez de 2 cartas 100% aleatórias, o herói recebe uma mão amostrada do
+// range pré-flop que chegaria àquele spot (SRP IP, SRP OOP, 3bet IP, 3bet OOP).
+// Isso evita situações irrealistas como 72o em pote 3-bet.
+//
+// Estratégia:
+//   • 75% das vezes — mão do range pré-flop típico, com MARGINAIS-in boostadas 3×
+//   • 25% das vezes — mão MARGINAL fora do range típico, para variar e ensinar
+//     o usuário a reconhecer situações onde "essa mão não deveria estar aqui"
+function pickHeroCardsFromRange(potType: PotType, position: HeroPos, boardCards: CardType[]): [CardType, CardType] {
+  const key = potType === 'SRP'
+    ? (position === 'IP' ? 'SRP_IP' : 'SRP_OOP')
+    : (position === 'IP' ? 'THREEBET_IP' : 'THREEBET_OOP')
+  const range = POSTFLOP_PREFLOP_RANGES[key]
+  const rangeSet = new Set<string>(range)
+
+  // Pool ponderado:
+  //   - mão IN range: peso por combos × 3 se marginal, × 1 se premium
+  //   - mão MARGINAL OUT of range: peso adicional (~25% do total) — ensina spots "raros"
+  const weighted: string[] = []
+  for (const hand of range) {
+    const w = countCombos(hand)
+    const baseWeight = Math.ceil(w / 4)
+    const boost = MARGINAL_HANDS.has(hand) ? 3 : 1
+    for (let i = 0; i < baseWeight * boost; i++) weighted.push(hand)
+  }
+  // Adiciona marginais OUT of range com peso menor mas presente
+  const marginalOut = [...MARGINAL_HANDS].filter(h => !rangeSet.has(h))
+  // Calibra peso para que ~25% do pool seja marginal-out
+  const targetMarginalOut = Math.floor(weighted.length / 3)
+  const perHandOut = marginalOut.length > 0 ? Math.max(1, Math.floor(targetMarginalOut / marginalOut.length)) : 0
+  for (const hand of marginalOut) {
+    for (let i = 0; i < perHandOut; i++) weighted.push(hand)
+  }
+
+  if (weighted.length === 0) {
+    return generateRandomCards(2, boardCards) as [CardType, CardType]
+  }
+  // Tenta até 8× encontrar uma mão com combo disponível (não bloqueada pelo board)
+  for (let attempts = 0; attempts < 8; attempts++) {
+    const handStr = weighted[Math.floor(Math.random() * weighted.length)]
+    const combos = generateHandCombos(handStr, boardCards)
+    if (combos.length > 0) {
+      return combos[Math.floor(Math.random() * combos.length)]
+    }
+  }
+  // Fallback final: cartas aleatórias
+  return generateRandomCards(2, boardCards) as [CardType, CardType]
+}
+
 function generateDrillState(cfg: SetupConfig): DrillState {
   const boardCards = generateRandomCards(3) as [CardType, CardType, CardType]
-  const heroCards = generateRandomCards(2, boardCards) as [CardType, CardType]
+  const heroCards = pickHeroCardsFromRange(cfg.potType, cfg.position, boardCards)
   const texture = analyzeBoardTexture(boardCards)
   const handEval = evaluatePostflopHand(heroCards, boardCards)
   const flopSPR = cfg.potSize > 0 ? Math.round((cfg.effectiveStack / cfg.potSize) * 10) / 10 : 10

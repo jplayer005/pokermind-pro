@@ -5,6 +5,83 @@
 
 import { PreflopDrillQuestion, Position, TableFormat } from '@/types'
 
+// ------- MÃOS NA FRONTEIRA DOS RANGES -------
+// Mãos que tipicamente ficam DENTRO OU FORA do range dependendo da posição.
+// São os spots mais difíceis e onde o usuário precisa memorizar a fronteira.
+// Utilizadas pelos pools de treino para enfatizar decisões borderline.
+export const MARGINAL_HANDS: ReadonlySet<string> = new Set<string>([
+  // Small/medium pairs
+  '22','33','44','55','66','77',
+  // Ax suited fracos
+  'A2s','A3s','A4s','A5s','A6s','A7s','A8s','A9s',
+  // Ax offsuit fracos/medianos
+  'A2o','A3o','A4o','A5o','A6o','A7o','A8o','A9o','ATo',
+  // Kx suited fracos
+  'K2s','K3s','K4s','K5s','K6s','K7s','K8s','K9s',
+  // Kx offsuit medianos
+  'K9o','KTo','KJo',
+  // Qx suited fracos/medianos
+  'Q5s','Q6s','Q7s','Q8s','Q9s','QTs',
+  // Qx offsuit
+  'Q9o','QTo','QJo',
+  // Jx
+  'J6s','J7s','J8s','J9s','JTs',
+  'J9o','JTo',
+  // Tx
+  'T6s','T7s','T8s','T9s',
+  'T8o','T9o',
+  // Suited connectors médios/fracos
+  '98s','97s','96s','87s','86s','85s','76s','75s','65s','64s','54s','53s',
+  // Offsuit connectors fracos
+  '98o','87o','76o',
+])
+
+// ------- RANGES PRÉ-FLOP PARA POSTFLOP -------
+// Quando o usuário treina pós-flop num spot SRP IP / SRP OOP / 3bet IP / 3bet OOP,
+// o herói deve receber cartas amostradas de um range pré-flop realista — não 100%
+// aleatórias. Isso evita receber 72o num pote 3-bet (não chegaria ao flop).
+export const POSTFLOP_PREFLOP_RANGES = {
+  SRP_IP: [
+    // BTN open (~45%) — IP típico em SRP
+    'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'AKo','AQo','AJo','ATo','A9o','A8o',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s','K4s','K3s','K2s',
+    'QJs','QTs','Q9s','Q8s','Q7s','Q6s',
+    'JTs','J9s','J8s','J7s','J6s',
+    'T9s','T8s','T7s','T6s',
+    '98s','97s','96s','87s','86s','76s','75s','65s','64s','54s',
+    'KQo','KJo','KTo','QJo','QTo','JTo',
+  ],
+  SRP_OOP: [
+    // BB defense vs BTN open (~45%) — OOP típico em SRP
+    'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
+    'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'AKo','AQo','AJo','ATo','A9o','A8o','A7o','A6o','A5o',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s',
+    'QJs','QTs','Q9s','Q8s','Q7s',
+    'JTs','J9s','J8s','J7s',
+    'T9s','T8s','T7s',
+    '98s','97s','87s','86s','76s','75s','65s',
+    'KQo','KJo','KTo','K9o','QJo','QTo','Q9o','JTo','J9o','T9o','98o','87o','76o',
+  ],
+  THREEBET_IP: [
+    // Range de CALL ao 3-bet (BTN/CO call BB 3-bet) — IP em pote 3-bet
+    'TT','99','88','77',
+    'AKs','AQs','AJs','ATs','A5s','A4s',
+    'AKo','AQo',
+    'KQs','KJs','KTs','QJs','QTs','JTs','T9s','98s',
+  ],
+  THREEBET_OOP: [
+    // Range de 3-BET típico (SB/BB 3-bets BTN/CO) — OOP em pote 3-bet
+    'AA','KK','QQ','JJ','TT','99',
+    'AKs','AQs','AJs','ATs',
+    'AKo','AQo',
+    'A5s','A4s','A3s','A2s',
+    'KQs','KJs',
+  ],
+} as const
+
 // ------- FORMATO DE MESA: POSIÇÕES DISPONÍVEIS -------
 // A lógica de range é baseada em "quantos jogadores ficam atrás de você"
 // HU BTN = 1 atrás; 9max UTG = 8 atrás
