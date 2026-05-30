@@ -326,6 +326,9 @@ export interface GtoDecision {
   primaryFrequency: number
   alternativeAction?: GtoAction
   alternativeFrequency?: number
+  /** Ações adicionais que também são GTO-válidas (peso menor). Usado em spots
+   *  com mãos muito fortes onde 50/67/75/pot são todos value bets razoáveis. */
+  alsoAcceptable?: GtoAction[]
   explanation: string
   checkRaiseCandidate?: boolean
 }
@@ -986,17 +989,23 @@ export function getGTODecision(
     // River acting first
     if (position === 'IP') {
       if (isNutted) {
+        // Em board pareado/monotone, 67% é o sizing mais frequente (range capped);
+        // em boards dry/favoráveis, pot extrai mais valor (range polarizado).
+        // Mas com NUTS, qualquer bet grande é GTO-válido — não punir o usuário.
         const sz: GtoAction = paired || monotone ? 'bet_67' : 'bet_pot'
+        const altSz: GtoAction = paired || monotone ? 'bet_pot' : 'bet_67'
         return {
-          primaryAction: sz, primaryFrequency: 0.85,
-          alternativeAction: 'bet_67', alternativeFrequency: 0.15,
-          explanation: `${handEval.label} no river IP — bet ${paired || monotone ? '67%' : 'pot'} para valor máximo. No river não há draws para proteger; aposte grande para extrair o máximo de mãos fortes do villain. Villain deve chamar com top pair+.`
+          primaryAction: sz, primaryFrequency: 0.70,
+          alternativeAction: altSz, alternativeFrequency: 0.30,
+          alsoAcceptable: ['bet_75', 'bet_50'],
+          explanation: `${handEval.label} no river IP — sizing recomendado: ${paired || monotone ? 'bet 67% (board pareado/monotone reduz range de calling do villain — overbets perdem valor)' : 'bet pot (range polarizado, máximo de extração)'}. Bet ${paired || monotone ? 'pot' : '67%'} também é válido. Qualquer value bet grande (50%-pot) está dentro do range GTO com mão nutted.`
         }
       }
       if (isStrong) return {
         primaryAction: 'bet_67', primaryFrequency: 0.70,
         alternativeAction: 'check', alternativeFrequency: 0.30,
-        explanation: `${handEval.label} no river IP — bet 67% para valor (70%). Cheque 30% com as mãos mais fortes da categoria para induzir bluffs do villain. Não use bet pequeno com mãos fortes — perde valor.`
+        alsoAcceptable: ['bet_50', 'bet_75'],
+        explanation: `${handEval.label} no river IP — bet 67% para valor (70%). Cheque 30% com as mãos mais fortes da categoria para induzir bluffs. Bet 50% e 75% também válidos. Bet pot é overbet — só correto se você tem range polarizado claro (raro com mão "strong" mas não nuts).`
       }
       if (isMedium) return {
         primaryAction: 'bet_33', primaryFrequency: 0.45,
@@ -1020,10 +1029,11 @@ export function getGTODecision(
 
     // River OOP
     if (isNutted) return {
-      primaryAction: 'check_raise', primaryFrequency: 0.70,
-      alternativeAction: 'bet_67', alternativeFrequency: 0.30,
+      primaryAction: 'check_raise', primaryFrequency: 0.55,
+      alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
+      alsoAcceptable: ['bet_67', 'bet_75'],
       checkRaiseCandidate: true,
-      explanation: `${handEval.label} OOP no river — Check-Raise (70%): linha mais valiosa com nuts OOP. Deixa villain "c-bet" ou "bluff" e você levanta. Donk bet 67% (30%) também válido — misture para não ser previsível.`
+      explanation: `${handEval.label} OOP no river — Check-Raise (55%): linha mais valiosa com nuts OOP. Deixa villain c-bet ou bluff e você levanta. Donk bet pot (25%) também excelente — range polarizado no river permite overbets. Bet 67% e 75% também válidos.`
     }
     if (isStrong) return {
       primaryAction: 'check', primaryFrequency: 0.65,
@@ -1093,13 +1103,13 @@ export function getGTODecision(
   if (position === 'IP') {
     if (isNutted) {
       // SPR baixo: stack comprometido — bet pot imediato, não slow play
-      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor.` }
+      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, alsoAcceptable: ['bet_75', 'bet_67'], explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor. Bet 75%/67% também aceitáveis.` }
       if (isTurn) {
-        if (wet || monotone) return { primaryAction: 'bet_75', primaryFrequency: 0.80, alternativeAction: 'check', alternativeFrequency: 0.20, explanation: `${handEval.label} no turn em board molhado — bet 75% para extrair valor e negar equity final. Cheque 20% para slow play e induções.` }
-        return { primaryAction: 'bet_67', primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `${handEval.label} no turn board seco — bet 67% para valor. Cheque 35% para induzir bluffs do villain no river.` }
+        if (wet || monotone) return { primaryAction: 'bet_75', primaryFrequency: 0.65, alternativeAction: 'bet_pot', alternativeFrequency: 0.20, alsoAcceptable: ['bet_67', 'check'], explanation: `${handEval.label} no turn em board molhado — bet 75% para extrair valor e negar equity de draws. Bet pot também válido (overbet polariza). Cheque ocasional para slow play.` }
+        return { primaryAction: 'bet_67', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.30, alsoAcceptable: ['bet_75', 'bet_50'], explanation: `${handEval.label} no turn board seco — bet 67% para valor. Cheque para induzir bluffs do villain no river. Bet 50%-75% também válidos com nuts.` }
       }
-      if (wet || monotone) return { primaryAction: 'bet_67', primaryFrequency: 0.75, alternativeAction: 'check', alternativeFrequency: 0.25, explanation: `${handEval.label} em board molhado — aposte 67% para extrair valor e negar equity de draws. Cheque 25% para slow play.` }
-      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_50', alternativeFrequency: 0.45, explanation: `${handEval.label} em board seco — slow play com check (induz bluffs) e bet 50% para valor equilibrado.` }
+      if (wet || monotone) return { primaryAction: 'bet_67', primaryFrequency: 0.60, alternativeAction: 'bet_75', alternativeFrequency: 0.25, alsoAcceptable: ['bet_pot', 'check'], explanation: `${handEval.label} em board molhado — aposte 67% para extrair valor e negar equity de draws. Bet 75% e pot também válidos para proteção máxima. Cheque ocasional para slow play.` }
+      return { primaryAction: 'check', primaryFrequency: 0.50, alternativeAction: 'bet_50', alternativeFrequency: 0.30, alsoAcceptable: ['bet_33', 'bet_67'], explanation: `${handEval.label} em board seco — slow play com check (induz bluffs do villain) ou bet 50% para valor equilibrado. Bet 33%/67% também aceitáveis dependendo do villain.` }
     }
     if (isStrong) {
       // SPR baixo: bet pot para comprometer logo
@@ -1158,25 +1168,28 @@ export function getGTODecision(
   if (isNutted) {
     // SPR baixo: bet pot imediato OOP — não precisar de check-raise com stack comprometido
     if (isShortSPR) return {
-      primaryAction: 'bet_pot', primaryFrequency: 0.88,
-      alternativeAction: 'check_raise', alternativeFrequency: 0.12,
+      primaryAction: 'bet_pot', primaryFrequency: 0.75,
+      alternativeAction: 'check_raise', alternativeFrequency: 0.20,
+      alsoAcceptable: ['bet_75', 'bet_67'],
       checkRaiseCandidate: false,
-      explanation: `${handEval.label} OOP com SPR baixo (${spr.toFixed(1)}) — bet pot (88%). Stack comprometido: donk bet pot extrai valor imediato. Check-raise 12% para balancear.`
+      explanation: `${handEval.label} OOP com SPR baixo (${spr.toFixed(1)}) — bet pot (75%). Stack comprometido: donk bet pot extrai valor imediato. Check-raise 20% para balancear. Bet 75%/67% também válidos.`
     }
     if (isTurn) {
       return {
-        primaryAction: 'check_raise', primaryFrequency: 0.65,
-        alternativeAction: 'bet_75', alternativeFrequency: 0.35,
+        primaryAction: 'check_raise', primaryFrequency: 0.50,
+        alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
+        alsoAcceptable: ['bet_75', 'bet_67'],
         checkRaiseCandidate: true,
-        explanation: `${handEval.label} OOP no turn — Check-Raise (65%) é a linha ideal: pot é maior, ranges são mais polarizadas. Donk bet 75% (35%) também extrai valor máximo. Não slow play no turn — river pode ser scare card.`
+        explanation: `${handEval.label} OOP no turn — Check-Raise (50%) é a linha ideal: pot é maior, ranges são mais polarizadas. Donk bet pot (25%) também excelente. Bet 75%/67% válidos. Não slow play no turn — river pode ser scare card.`
       }
     }
     if (wet || monotone) {
       return {
-        primaryAction: 'check_raise', primaryFrequency: 0.60,
-        alternativeAction: 'bet_67', alternativeFrequency: 0.40,
+        primaryAction: 'check_raise', primaryFrequency: 0.45,
+        alternativeAction: 'bet_67', alternativeFrequency: 0.25,
+        alsoAcceptable: ['bet_75', 'bet_pot'],
         checkRaiseCandidate: true,
-        explanation: `${handEval.label} OOP board molhado — Check-Raise (60%) nega equity dos draws E constrói pot. Donk bet 67% (40%) balanceia sua linha.`
+        explanation: `${handEval.label} OOP board molhado — Check-Raise (45%) nega equity dos draws E constrói pot. Donk bet 67%/75%/pot (25%+) balanceia sua linha — todos válidos com nuts.`
       }
     }
     return {

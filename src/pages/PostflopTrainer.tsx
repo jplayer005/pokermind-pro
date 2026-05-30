@@ -898,7 +898,8 @@ export default function PostflopTrainer() {
       const gto = drill.gtoDecision
       const resultType: 'correct' | 'alternative' | 'wrong' =
         action === gto.primaryAction ? 'correct' :
-        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' : 'wrong'
+        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' :
+        (gto.alsoAcceptable && gto.alsoAcceptable.includes(action)) ? 'alternative' : 'wrong'
       setDrill(prev => prev ? { ...prev, answered: true, userAction: action, resultType } : prev)
       setSessionStats(prev => ({
         total: prev.total + 1,
@@ -920,7 +921,8 @@ export default function PostflopTrainer() {
       const gto = drill.turnGtoDecision!
       const resultType: 'correct' | 'alternative' | 'wrong' =
         action === gto.primaryAction ? 'correct' :
-        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' : 'wrong'
+        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' :
+        (gto.alsoAcceptable && gto.alsoAcceptable.includes(action)) ? 'alternative' : 'wrong'
       setDrill(prev => prev ? { ...prev, turnAnswered: true, turnUserAction: action, turnResultType: resultType } : prev)
       setSessionStats(prev => ({
         total: prev.total + 1,
@@ -946,7 +948,8 @@ export default function PostflopTrainer() {
       const gto = drill.riverGtoDecision!
       const resultType: 'correct' | 'alternative' | 'wrong' =
         action === gto.primaryAction ? 'correct' :
-        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' : 'wrong'
+        (gto.alternativeAction && action === gto.alternativeAction) ? 'alternative' :
+        (gto.alsoAcceptable && gto.alsoAcceptable.includes(action)) ? 'alternative' : 'wrong'
       setDrill(prev => prev ? { ...prev, riverAnswered: true, riverUserAction: action, riverResultType: resultType } : prev)
       setSessionStats(prev => ({
         total: prev.total + 1,
@@ -1225,6 +1228,14 @@ export default function PostflopTrainer() {
                               Alternativa válida:{' '}
                               <span className="font-mono text-text-secondary">{ACTION_LABELS[drill.gtoDecision.alternativeAction as PostflopAction]}</span>
                               {' '}<span className="text-text-muted">({Math.round((drill.gtoDecision.alternativeFrequency ?? 0) * 100)}%)</span>
+                            </div>
+                          )}
+                          {drill.gtoDecision.alsoAcceptable && drill.gtoDecision.alsoAcceptable.length > 0 && (
+                            <div className="text-[11px] text-text-muted/80 mt-0.5">
+                              Também aceitáveis:{' '}
+                              <span className="font-mono text-text-secondary">
+                                {drill.gtoDecision.alsoAcceptable.map(a => ACTION_LABELS[a as PostflopAction]).join(' · ')}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -1584,6 +1595,14 @@ export default function PostflopTrainer() {
                                     {' '}({Math.round((drill.turnGtoDecision.alternativeFrequency ?? 0) * 100)}%)
                                   </div>
                                 )}
+                                {drill.turnGtoDecision.alsoAcceptable && drill.turnGtoDecision.alsoAcceptable.length > 0 && (
+                                  <div className="text-[11px] text-text-muted/80 mt-0.5">
+                                    Também aceitáveis:{' '}
+                                    <span className="font-mono text-text-secondary">
+                                      {drill.turnGtoDecision.alsoAcceptable.map(a => ACTION_LABELS[a as PostflopAction]).join(' · ')}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-start gap-2 mt-2 pt-2 border-t border-border-subtle">
@@ -1808,6 +1827,20 @@ export default function PostflopTrainer() {
                                   GTO: <span className="font-mono font-bold text-accent-gold">{ACTION_LABELS[drill.riverGtoDecision.primaryAction as PostflopAction]}</span>
                                   {' '}({Math.round(drill.riverGtoDecision.primaryFrequency * 100)}%)
                                 </div>
+                                {drill.riverGtoDecision.alternativeAction && (
+                                  <div className="text-xs text-text-muted mt-0.5">
+                                    Alt: <span className="font-mono text-text-secondary">{ACTION_LABELS[drill.riverGtoDecision.alternativeAction as PostflopAction]}</span>
+                                    {' '}({Math.round((drill.riverGtoDecision.alternativeFrequency ?? 0) * 100)}%)
+                                  </div>
+                                )}
+                                {drill.riverGtoDecision.alsoAcceptable && drill.riverGtoDecision.alsoAcceptable.length > 0 && (
+                                  <div className="text-[11px] text-text-muted/80 mt-0.5">
+                                    Também aceitáveis:{' '}
+                                    <span className="font-mono text-text-secondary">
+                                      {drill.riverGtoDecision.alsoAcceptable.map(a => ACTION_LABELS[a as PostflopAction]).join(' · ')}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-start gap-2 mt-2 pt-2 border-t border-border-subtle">
