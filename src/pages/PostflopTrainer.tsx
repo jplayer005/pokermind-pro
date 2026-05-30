@@ -47,6 +47,12 @@ const RIVER_FIRST_TO_ACT_ACTIONS_IP: PostflopAction[]  = ['check', 'bet_33', 'be
 const RIVER_FIRST_TO_ACT_ACTIONS_OOP: PostflopAction[] = ['check', 'check_raise', 'bet_33', 'bet_67', 'bet_pot']
 const FACING_BET_ACTIONS: PostflopAction[] = ['fold', 'call', 'raise']
 
+// Tailwind purga classes dinâmicas — mapeamento estático garante geração no build
+const POSTFLOP_COLS_CLASS: Record<number, string> = {
+  1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3',
+  4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6',
+}
+
 // ---- HELPERS ----
 function strengthColor(strength: number): string {
   if (strength >= 60) return 'bg-emerald-500'
@@ -274,9 +280,18 @@ interface DrillState {
 
 function estimateTurnPot(flopPot: number, flopAction: PostflopAction | null): number {
   if (!flopAction) return flopPot
+  // Multiplicadores assumindo villain chama bets/raises (estimativa pedagógica)
   const multipliers: Partial<Record<PostflopAction, number>> = {
-    bet_33: 1 + 0.33 * 2, bet_50: 2, bet_67: 1 + 0.67 * 2,
-    bet_75: 1 + 0.75 * 2, bet_pot: 3, check: 1,
+    bet_33: 1 + 0.33 * 2,    // hero bet 33% + villain call
+    bet_50: 2,               // hero bet 50% + villain call
+    bet_67: 1 + 0.67 * 2,    // hero bet 67% + villain call
+    bet_75: 1 + 0.75 * 2,    // hero bet 75% + villain call
+    bet_pot: 3,              // hero bet pot + villain call
+    check: 1,                // sem mudança no pot
+    fold: 1,                 // fold encerra a mão (não chega aqui)
+    call: 2,                 // facing_bet: villain apostou 50% (assumido) + hero call → ~2×
+    raise: 1 + 0.67 * 2 + 0.67 * 2, // facing bet → hero re-raise ~3× (estimado)
+    check_raise: 1 + 0.5 * 2 + 0.67 * 2, // check, villain bet 50%, hero raise → grande
   }
   return Math.round(flopPot * (multipliers[flopAction] ?? 1))
 }
@@ -286,7 +301,8 @@ function generateDrillState(cfg: SetupConfig): DrillState {
   const heroCards = generateRandomCards(2, boardCards) as [CardType, CardType]
   const texture = analyzeBoardTexture(boardCards)
   const handEval = evaluatePostflopHand(heroCards, boardCards)
-  const gtoDecision = getGTODecision(handEval, texture, cfg.position, cfg.potType, cfg.scenario === 'facing_bet', 'flop')
+  const flopSPR = cfg.potSize > 0 ? Math.round((cfg.effectiveStack / cfg.potSize) * 10) / 10 : 10
+  const gtoDecision = getGTODecision(handEval, texture, cfg.position, cfg.potType, cfg.scenario === 'facing_bet', 'flop', flopSPR)
   const boardAdvantage = analyzeBoardAdvantage(texture, cfg.potType, cfg.position)
   const blockerEffects = analyzeBlockerEffects(heroCards)
   let state: DrillState = {
@@ -316,8 +332,14 @@ function advanceTurn(drill: DrillState, cfg: SetupConfig): DrillState {
   const turnInfo = classifyTurnCard(drill.heroCards, drill.board, turnCard, drill.handEval)
   const turnHandEval = evaluatePostflopHand(drill.heroCards, fullBoard)
   const turnTexture = analyzeBoardTexture(fullBoard)
-  const turnGtoDecision = getGTODecision(turnHandEval, turnTexture, cfg.position, cfg.potType, false, 'turn')
   const turnEstimatedPot = estimateTurnPot(cfg.potSize, drill.userAction)
+  // SPR usa stack restante (effectiveStack - investimento no flop estimado por jogador)
+  // pot cresceu de cfg.potSize → turnEstimatedPot, ambos jogadores contribuíram metade
+  const flopInvestmentPerPlayer = Math.max(0, (turnEstimatedPot - cfg.potSize) / 2)
+  const turnRemainingStack = Math.max(1, cfg.effectiveStack - flopInvestmentPerPlayer)
+  const turnSPR = turnEstimatedPot > 0 ? Math.round((turnRemainingStack / turnEstimatedPot) * 10) / 10 : 10
+  // facing_bet só é o estado inicial do flop — no turn/river hero atua primeiro após villain check
+  const turnGtoDecision = getGTODecision(turnHandEval, turnTexture, cfg.position, cfg.potType, false, 'turn', turnSPR)
   return {
     ...drill,
     phase: 'turn',
@@ -334,8 +356,12 @@ function advanceRiver(drill: DrillState, cfg: SetupConfig): DrillState {
     drill.turnHandEval ?? drill.handEval)
   const riverHandEval = evaluatePostflopHand(drill.heroCards, fullBoard)
   const riverTexture = analyzeBoardTexture(fullBoard)
-  const riverGtoDecision = getGTODecision(riverHandEval, riverTexture, cfg.position, cfg.potType, false, 'river')
   const riverEstimatedPot = estimateTurnPot(drill.turnEstimatedPot, drill.turnUserAction)
+  // Stack restante: desconta investimento aproximado de cada jogador acumulado nas ruas anteriores
+  const totalInvestmentPerPlayer = Math.max(0, (riverEstimatedPot - cfg.potSize) / 2)
+  const riverRemainingStack = Math.max(1, cfg.effectiveStack - totalInvestmentPerPlayer)
+  const riverSPR = riverEstimatedPot > 0 ? Math.round((riverRemainingStack / riverEstimatedPot) * 10) / 10 : 10
+  const riverGtoDecision = getGTODecision(riverHandEval, riverTexture, cfg.position, cfg.potType, false, 'river', riverSPR)
   return {
     ...drill,
     phase: 'river',
@@ -421,7 +447,7 @@ export default function PostflopTrainer() {
         correct: prev.correct + (resultType === 'correct' ? 1 : resultType === 'alternative' ? 0.5 : 0),
       }))
       const xp = resultType === 'correct' ? 10 : resultType === 'alternative' ? 5 : 0
-      if (xp > 0) addXP(xp)
+      if (xp > 0) addXP(Math.round(xp * getDifficultyXPMultiplier(defaultDifficulty)))
       answerQuestion({
         questionId: `postflop_turn_${Date.now()}`,
         hand: drill.heroCards.map(c => `${c.rank}${c.suit[0]}`).join(''),
@@ -443,7 +469,7 @@ export default function PostflopTrainer() {
         correct: prev.correct + (resultType === 'correct' ? 1 : resultType === 'alternative' ? 0.5 : 0),
       }))
       const xp = resultType === 'correct' ? 10 : resultType === 'alternative' ? 5 : 0
-      if (xp > 0) addXP(xp)
+      if (xp > 0) addXP(Math.round(xp * getDifficultyXPMultiplier(defaultDifficulty)))
       answerQuestion({
         questionId: `postflop_river_${Date.now()}`,
         hand: drill.heroCards.map(c => `${c.rank}${c.suit[0]}`).join(''),
@@ -965,11 +991,9 @@ export default function PostflopTrainer() {
                               <span className="text-xs">
                                 <span className="text-text-muted">Villain: </span>
                                 <span className={cn('font-mono font-bold text-xs',
-                                  config.position === 'IP' && config.scenario === 'facing_bet' ? 'text-orange-400' :
                                   config.position === 'IP' ? 'text-text-secondary' : 'text-text-muted/60'
                                 )}>
-                                  {config.position === 'IP' && config.scenario === 'facing_bet' ? 'Apostou ⚡' :
-                                   config.position === 'IP' ? 'Checked ✓' : 'Aguardando...'}
+                                  {config.position === 'IP' ? 'Checked ✓' : 'Aguardando...'}
                                 </span>
                               </span>
                               <span className="text-text-muted text-[10px]">|</span>
@@ -990,7 +1014,7 @@ export default function PostflopTrainer() {
 
                     {/* Botões de ação do turn */}
                     {!drill.turnAnswered && (
-                      <div className={cn('grid gap-2', `grid-cols-${actions.length}`)}>
+                      <div className={cn('grid gap-2', POSTFLOP_COLS_CLASS[actions.length] || 'grid-cols-3')}>
                         {actions.map(action => (
                           <button
                             key={action}
@@ -1146,7 +1170,7 @@ export default function PostflopTrainer() {
                           River — {drill.riverInfo?.label ?? 'Board Final'}
                         </div>
                         <div className="text-[10px] text-text-muted mt-0.5">
-                          Pot estimado: ~{drill.riverEstimatedPot} BB • SPR ≈ {Math.max(0, (config.effectiveStack - drill.riverEstimatedPot) / drill.riverEstimatedPot).toFixed(1)}
+                          Pot estimado: ~{drill.riverEstimatedPot} BB • SPR ≈ {Math.max(0, (config.effectiveStack - (drill.riverEstimatedPot - config.potSize) / 2) / drill.riverEstimatedPot).toFixed(1)}
                         </div>
                       </div>
                       <Badge variant="blue">RIVER</Badge>
@@ -1198,11 +1222,9 @@ export default function PostflopTrainer() {
                               <span className="text-xs">
                                 <span className="text-text-muted">Villain: </span>
                                 <span className={cn('font-mono font-bold text-xs',
-                                  config.position === 'IP' && config.scenario === 'facing_bet' ? 'text-orange-400' :
                                   config.position === 'IP' ? 'text-text-secondary' : 'text-text-muted/60'
                                 )}>
-                                  {config.position === 'IP' && config.scenario === 'facing_bet' ? 'Apostou ⚡' :
-                                   config.position === 'IP' ? 'Checked ✓' : 'Aguardando...'}
+                                  {config.position === 'IP' ? 'Checked ✓' : 'Aguardando...'}
                                 </span>
                               </span>
                               <span className="text-text-muted text-[10px]">|</span>
@@ -1221,7 +1243,7 @@ export default function PostflopTrainer() {
 
                     {/* Botões river */}
                     {!drill.riverAnswered && (
-                      <div className={cn('grid gap-2', `grid-cols-${actions.length}`)}>
+                      <div className={cn('grid gap-2', POSTFLOP_COLS_CLASS[actions.length] || 'grid-cols-3')}>
                         {actions.map(action => (
                           <button
                             key={action}
@@ -1369,8 +1391,8 @@ export default function PostflopTrainer() {
                             </div>
                             {[
                               { label: 'Flop', pot: config.potSize, stack: config.effectiveStack },
-                              { label: 'Turn', pot: drill.turnEstimatedPot, stack: config.effectiveStack - drill.turnEstimatedPot * 0.5 },
-                              { label: 'River', pot: drill.riverEstimatedPot, stack: Math.max(0, config.effectiveStack - drill.riverEstimatedPot) },
+                              { label: 'Turn', pot: drill.turnEstimatedPot, stack: Math.max(1, config.effectiveStack - (drill.turnEstimatedPot - config.potSize) / 2) },
+                              { label: 'River', pot: drill.riverEstimatedPot, stack: Math.max(1, config.effectiveStack - (drill.riverEstimatedPot - config.potSize) / 2) },
                             ].map(row => {
                               const spr = row.stack > 0 ? (row.stack / row.pot) : 0
                               return (
@@ -1392,7 +1414,8 @@ export default function PostflopTrainer() {
                             })}
                             <p className="text-[10px] text-text-muted mt-2 leading-relaxed">
                               {(() => {
-                                const finalSpr = Math.max(0, config.effectiveStack - drill.riverEstimatedPot) / drill.riverEstimatedPot
+                                const finalStackRemaining = Math.max(0, config.effectiveStack - (drill.riverEstimatedPot - config.potSize) / 2)
+                                const finalSpr = drill.riverEstimatedPot > 0 ? finalStackRemaining / drill.riverEstimatedPot : 0
                                 if (finalSpr < 1) return '🔴 SPR < 1 no river: você está comprometido. Não há fold correto com qualquer mão forte.'
                                 if (finalSpr < 2) return '🟡 SPR baixo no river: pot grande em relação ao stack. Decisões de commitment são simples.'
                                 return '🟢 SPR normal: há espaço para fold mesmo no river com mãos medianas.'

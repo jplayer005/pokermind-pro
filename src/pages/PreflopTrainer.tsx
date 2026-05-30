@@ -35,6 +35,14 @@ const POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
 
 // ---- HELPER: range correto por cenário + formato ----
 // villainPosition: usado em bb_defense (range varia conforme quem abriu)
+// Posições early sem range próprio (UTG+1/UTG+2/LJ) fazem fallback para UTG.
+function resolveBBDefenseRange(villainPos: Position): string[] {
+  const direct = BB_DEFENSE_RANGES[villainPos] || []
+  if (direct.length > 0) return direct
+  // Fallback: posições early sem range próprio usam range vs UTG (mais tight)
+  return BB_DEFENSE_RANGES['UTG'] || []
+}
+
 function getRangeForScenario(
   scenario: ScenarioType,
   position: Position,
@@ -44,16 +52,16 @@ function getRangeForScenario(
 ): string[] {
   switch (scenario) {
     case 'open_raise':
-      if (position === 'BB') return BB_DEFENSE_RANGES[villainPosition] || []
+      if (position === 'BB') return resolveBBDefenseRange(villainPosition)
       return getOpenRaiseRange(tableFormat, position)
     case 'push_fold': {
       const depth = stackDepth <= 12 ? 10 : 15
       return (PUSH_FOLD_RANGES[depth] ?? {})[position] || []
     }
     case '3bet':       return THREE_BET_RANGES[position] || []
-    case 'bb_defense': return BB_DEFENSE_RANGES[villainPosition] || []  // usa posição do villain!
+    case 'bb_defense': return resolveBBDefenseRange(villainPosition)
     case 'call_rfi':
-      if (position === 'BB') return BB_DEFENSE_RANGES[villainPosition] || []
+      if (position === 'BB') return resolveBBDefenseRange(villainPosition)
       return getOpenRaiseRange(tableFormat, position)
     case '4bet':       return FOUR_BET_RANGES[position] || []
     case 'squeeze':    return SQUEEZE_RANGES[position] || []
@@ -68,15 +76,15 @@ function getLimpRangeForScenario(scenario: ScenarioType): string[] {
   return []
 }
 
-// Posições disponíveis por cenário
+// Posições disponíveis por cenário (inclui posições de 9max para suporte completo)
 const POSITIONS_BY_SCENARIO: Record<ScenarioType, Position[]> = {
-  open_raise: ['UTG', 'HJ', 'CO', 'BTN', 'SB'],
-  push_fold:  ['UTG', 'HJ', 'CO', 'BTN', 'SB'],
-  '3bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  open_raise: ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB'],
+  push_fold:  ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB'],
+  '3bet':     ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   bb_defense: ['BB'],
-  call_rfi:   ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '4bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  squeeze:    ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  call_rfi:   ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  '4bet':     ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  squeeze:    ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   sb_vs_bb:   ['SB'], // SB é o único hero no SB vs BB
 }
 
@@ -84,7 +92,8 @@ const POSITIONS_BY_SCENARIO: Record<ScenarioType, Position[]> = {
 function getCorrectActionForScenario(
   scenario: ScenarioType,
   isInRaiseRange: boolean,
-  hand?: string
+  hand?: string,
+  position?: Position
 ): Action {
   if (scenario === 'sb_vs_bb') {
     if (isInRaiseRange) return 'raise'
@@ -95,10 +104,17 @@ function getCorrectActionForScenario(
   switch (scenario) {
     case 'push_fold':  return 'jam'
     case '3bet':       return '3bet'
-    case 'bb_defense': return 'call'
-    case 'call_rfi':   return 'call'
     case '4bet':       return '4bet'
     case 'squeeze':    return '3bet'
+    // bb_defense e call_rfi: diferenciar call vs 3bet usando THREE_BET_RANGES
+    case 'bb_defense':
+    case 'call_rfi': {
+      if (hand && position) {
+        const threeBetRange = THREE_BET_RANGES[position] || []
+        return threeBetRange.includes(hand) ? '3bet' : 'call'
+      }
+      return 'call'
+    }
     default:           return 'raise'
   }
 }
@@ -194,7 +210,7 @@ export default function PreflopTrainer() {
 
   // Estado do modo de treino (mode pode ser passado via location.state)
   const [mode, setMode] = useState<DrillMode>((location.state?.mode as DrillMode) || 'study')
-  const [tableFormat, setTableFormat] = useState<TableFormat>('9max')
+  const [tableFormat, setTableFormat] = useState<TableFormat>('6max')
   const [scenario, setScenario] = useState<ScenarioType>(initScenario)
   const [position, setPosition] = useState<Position>(initPosition)
   const [villainPosition, setVillainPosition] = useState<Position>('BTN')
@@ -318,7 +334,7 @@ export default function PreflopTrainer() {
       setHandPool(pool.slice(1))
 
       const isInRange = range.includes(hand)
-      const correctAction = getCorrectActionForScenario(scenario, isInRange, hand)
+      const correctAction = getCorrectActionForScenario(scenario, isInRange, hand, effectivePos)
 
       const scenarioLabels: Record<ScenarioType, string> = {
         open_raise: 'open raise',
@@ -355,6 +371,47 @@ export default function PreflopTrainer() {
         explanation: isInRange
           ? `${hand} está dentro do range de ${scenarioLabels[scenario]} do ${effectivePos}.${stackNote} A jogada correta é ${actionLabels[correctAction] ?? correctAction}.`
           : `${hand} está fora do range de ${scenarioLabels[scenario]} do ${effectivePos}.${stackNote} A mão não tem equity suficiente nesta situação — FOLD é a jogada correta.`,
+      }
+    }
+
+    // ---- OVERRIDE SISTÊMICO: garante que correctAction de questões do banco bate com o grid ----
+    // O grid é sempre construído da fórmula (getRangeForScenario + THREE_BET_RANGES).
+    // Algumas questões do banco têm correctAction desatualizado vs o range data.
+    // Esta correção recalcula a ação correta e atualiza a questão antes de exibi-la.
+    if (!question.id.startsWith('gen_')) {
+      const bankRange = getRangeForScenario(
+        question.scenario as ScenarioType,
+        question.position,
+        stackDepth,
+        tableFormat,
+        question.villainPosition ?? villainPosition
+      )
+      const bankEvalRange = question.scenario === 'open_raise'
+        ? applyStackAdjustment(bankRange, heroStack)
+        : bankRange
+      const bankIsInRange = bankEvalRange.includes(question.hand)
+      const bankFormulaAction = getCorrectActionForScenario(
+        question.scenario as ScenarioType,
+        bankIsInRange,
+        question.hand,
+        question.position
+      )
+      if (bankFormulaAction !== question.correctAction) {
+        const sl: Record<string, string> = {
+          open_raise: 'open raise', push_fold: 'push/fold', '3bet': '3-bet', '4bet': '4-bet',
+          squeeze: 'squeeze', bb_defense: 'defesa do BB', call_rfi: 'call vs raise', sb_vs_bb: 'SB vs BB',
+        }
+        const al: Record<string, string> = {
+          raise: 'RAISE', fold: 'FOLD', jam: 'JAM', '3bet': '3-BET', '4bet': '4-BET', call: 'CALL', limp: 'LIMP',
+        }
+        question = {
+          ...question,
+          correctAction: bankFormulaAction,
+          explanation: bankIsInRange
+            ? `${question.hand} está dentro do range de ${sl[question.scenario] ?? question.scenario} do ${question.position}. A jogada correta é ${al[bankFormulaAction] ?? bankFormulaAction}.`
+            : `${question.hand} está fora do range de ${sl[question.scenario] ?? question.scenario} do ${question.position}. A mão não tem equity suficiente nesta situação — FOLD é a jogada correta.`,
+          evComparison: undefined,
+        }
       }
     }
 
@@ -540,9 +597,9 @@ export default function PreflopTrainer() {
     scenario === 'bb_defense' ? 'call'  :
     scenario === 'sb_vs_bb'   ? 'raise' : 'raise'
 
-  // call_rfi: diferencia mãos de call (verde) vs 3bet (laranja) no grid
+  // call_rfi e bb_defense: diferencia call (verde) vs 3bet (laranja) no grid
   const rangeMap: Record<string, Action | 'mixed'> = {}
-  if (scenario === 'call_rfi') {
+  if (scenario === 'call_rfi' || scenario === 'bb_defense') {
     const threeBetHands = THREE_BET_RANGES[rangePosition] || []
     currentRange.forEach(h => { rangeMap[h] = threeBetHands.includes(h) ? '3bet' : 'call' })
   } else {
@@ -632,12 +689,13 @@ export default function PreflopTrainer() {
     <div className="page-scroll">
       <div className="lg:flex lg:min-h-full">
 
-        {/* ===== PAINEL ESQUERDO: mesa de poker (desktop only) ===== */}
+        {/* ===== PAINEL ESQUERDO: mesa de poker (desktop only, só durante sessão ativa) ===== */}
+        {isSessionActive && (
         <div className="hidden lg:flex lg:flex-col lg:w-[380px] xl:w-[420px] lg:shrink-0 lg:border-r lg:border-border-subtle lg:p-6 lg:overflow-y-auto">
           <TrainingTable
-            heroPosition={isSessionActive && currentQuestion ? currentQuestion.position : (isRandomPosition ? poolPosition : position)}
+            heroPosition={currentQuestion ? currentQuestion.position : (isRandomPosition ? poolPosition : position)}
             villainPosition={['bb_defense', '3bet', '4bet', 'squeeze', 'call_rfi'].includes(scenario) ? villainPosition : undefined}
-            handNotation={isSessionActive && currentQuestion ? currentQuestion.hand : undefined}
+            handNotation={currentQuestion ? currentQuestion.hand : undefined}
             scenario={scenario}
             stackDepth={heroStack}
             tableFormat={tableFormat}
@@ -653,11 +711,12 @@ export default function PreflopTrainer() {
                 range={rangeMap}
                 highlightHand={currentQuestion.hand}
                 cellSize="xs"
-                showLegend={scenario === 'call_rfi'}
+                showLegend={scenario === 'call_rfi' || scenario === 'bb_defense'}
               />
             </div>
           )}
         </div>
+        )}
 
         {/* ===== PAINEL DIREITO: conteúdo (mobile: tela inteira) ===== */}
         <div className="flex-1 min-w-0">
@@ -744,8 +803,8 @@ export default function PreflopTrainer() {
               {/* Formato de Mesa */}
               <Card className="p-4">
                 <div className="text-xs text-text-muted font-body mb-3 uppercase tracking-wider">Formato de Mesa</div>
-                <div className="grid grid-cols-4 gap-1.5 mb-1">
-                  {(['HU','3max','4max','5max','6max','7max','8max','9max'] as TableFormat[]).map(fmt => (
+                <div className="grid grid-cols-3 gap-1.5 mb-1">
+                  {(['HU','6max','9max'] as TableFormat[]).map(fmt => (
                     <button
                       key={fmt}
                       onClick={() => handleFormatChange(fmt)}
@@ -761,10 +820,9 @@ export default function PreflopTrainer() {
                   ))}
                 </div>
                 <p className="text-[10px] text-text-muted font-body mt-2">
-                  {tableFormat === 'HU' ? 'Heads-Up: BTN abre ~65% das mãos' :
-                   tableFormat === '6max' ? '6-max: formato padrão cash game online' :
-                   tableFormat === '9max' ? '9-max: full ring, UTG muito tight (~10%)' :
-                   `${tableFormat}: posições UTG mais tight que 6-max`}
+                  {tableFormat === 'HU' ? 'HU MTT: BTN abre ~65% das mãos — dinâmica heads-up' :
+                   tableFormat === '6max' ? '6-max MTT: formato mais comum em torneios online' :
+                   '9-max MTT: full ring, UTG very tight (~10%) — simula mesas de torneio ao vivo'}
                 </p>
               </Card>
 
@@ -839,8 +897,8 @@ export default function PreflopTrainer() {
                     Posição, mão e contexto variam a cada rodada — simula tomada de decisão real.
                   </p>
                 )}
-                {/* Notas contextuais + seletor de posição do villain para bb_defense */}
-                {scenario === 'bb_defense' && (
+                {/* Seletor de posição do villain para bb_defense e call_rfi */}
+                {(scenario === 'bb_defense' || scenario === 'call_rfi') && (
                   <div className="mt-3">
                     <div className="text-xs text-text-muted font-body mb-2 uppercase tracking-wider">
                       Villain abriu de:
@@ -862,7 +920,9 @@ export default function PreflopTrainer() {
                       ))}
                     </div>
                     <p className="text-[10px] text-text-muted mt-2 font-body">
-                      Range de defesa varia conforme a posição do opener — quanto mais late, mais wide o range adversário e mais mãos você pode defender.
+                      {scenario === 'bb_defense'
+                        ? 'Range de defesa varia conforme a posição do opener — quanto mais late, mais wide o range adversário e mais mãos você pode defender.'
+                        : 'Range de call e 3-bet vs raise varia conforme a posição do opener — vs UTG você defende mais tight, verde = Call / laranja = 3-Bet.'}
                     </p>
                   </div>
                 )}
@@ -949,12 +1009,12 @@ export default function PreflopTrainer() {
                         '3bet': '3-Bet', '4bet': '4-Bet', squeeze: 'Squeeze',
                         sb_vs_bb: 'SB vs BB (Raise)',
                       }[scenario as string] ?? scenario}`}
-                  subtitle={scenario === 'call_rfi'
+                  subtitle={(scenario === 'call_rfi' || scenario === 'bb_defense')
                     ? `${currentRange.filter(h => (THREE_BET_RANGES[rangePosition]||[]).includes(h)).length} mãos 3-Bet + ${currentRange.filter(h => !(THREE_BET_RANGES[rangePosition]||[]).includes(h)).length} mãos Call`
                     : `${currentRange.length} mãos (${formatPercent(currentRange.length / 169)})`}
                 />
-                <RangeGrid range={rangeMap} showLegend={scenario === 'call_rfi'} cellSize="xs" />
-                {scenario === 'call_rfi' && (
+                <RangeGrid range={rangeMap} showLegend={scenario === 'call_rfi' || scenario === 'bb_defense'} cellSize="xs" />
+                {(scenario === 'call_rfi' || scenario === 'bb_defense') && (
                   <p className="text-[10px] text-text-muted mt-2 font-body">
                     Verde = Call | Laranja = 3-Bet (mãos de valor + bluffs com bloqueadores)
                   </p>
@@ -1024,8 +1084,13 @@ export default function PreflopTrainer() {
                 const visibleActions = ACTIONS.filter(a =>
                   ACTIONS_BY_SCENARIO[currentQuestion.scenario as ScenarioType]?.includes(a.action) ?? true
                 )
+                // Tailwind purga classes dinâmicas → mapeamento estático garante inclusão
+                const colsClass: Record<number, string> = {
+                  1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3',
+                  4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6', 7: 'grid-cols-7',
+                }
                 return (
-                  <div className={cn('grid gap-2', `grid-cols-${visibleActions.length}`)}>
+                  <div className={cn('grid gap-2', colsClass[visibleActions.length] || 'grid-cols-3')}>
                     {visibleActions.map(({ action, label, color, shortcut }) => (
                       <button
                         key={action}

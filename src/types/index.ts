@@ -18,7 +18,7 @@ export type Position = 'UTG' | 'UTG+1' | 'UTG+2' | 'LJ' | 'HJ' | 'CO' | 'BTN' | 
 export type PositionShort = 'UTG' | 'HJ' | 'CO' | 'BTN' | 'SB' | 'BB'
 
 // ------- FORMATO DE MESA -------
-export type TableFormat = 'HU' | '3max' | '4max' | '5max' | '6max' | '7max' | '8max' | '9max'
+export type TableFormat = 'HU' | '6max' | '9max'
 
 // ------- AÇÕES DE POKER -------
 export type Action = 'fold' | 'call' | 'raise' | 'check' | '3bet' | '4bet' | 'jam' | 'limp'

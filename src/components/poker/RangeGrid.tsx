@@ -16,9 +16,9 @@ const ACTION_COLORS: Record<string, { bg: string; text: string; label: string }>
   '3bet':  { bg: '#ff6b35', text: '#ffffff', label: '3-Bet' },
   '4bet':  { bg: '#ff3d5a', text: '#ffffff', label: '4-Bet' },
   jam:     { bg: '#ff3d5a', text: '#ffffff', label: 'Jam' },
-  fold:    { bg: '#1a1a2e', text: '#505070', label: 'Fold' },
+  fold:    { bg: '#12141e', text: '#44506c', label: 'Fold' },
   mixed:   { bg: '#a855f7', text: '#ffffff', label: 'Misto' },
-  default: { bg: '#14141f', text: '#505070', label: '' },
+  default: { bg: '#12141e', text: '#44506c', label: '' },
 }
 
 interface RangeGridProps {
@@ -115,7 +115,7 @@ export default function RangeGrid({
                     'range-cell aspect-square flex items-center justify-center relative',
                     'border border-transparent',
                     interactive && 'cursor-pointer',
-                    isHighlighted && 'ring-2 ring-white ring-offset-1 ring-offset-bg-base z-20',
+                    isHighlighted && 'ring-2 ring-accent-gold ring-offset-1 ring-offset-bg-base z-20',
                     CELL_SIZES[cellSize]
                   )}
                   style={{
@@ -139,7 +139,7 @@ export default function RangeGrid({
                   {/* Indicador de mão highlight */}
                   {isHighlighted && (
                     <motion.div
-                      className="absolute inset-0 rounded-sm border-2 border-white"
+                      className="absolute inset-0 rounded-sm border-2 border-accent-gold"
                       animate={{ opacity: [1, 0.5, 1] }}
                       transition={{ repeat: Infinity, duration: 1 }}
                     />

@@ -12,39 +12,40 @@
 :root,
 [data-theme="dark"] {
   /* Canais RGB dos tokens de design (R, G, B sem parênteses) */
-  --c-bg-base:      7, 7, 13;
-  --c-bg-surface:   14, 14, 26;
-  --c-bg-elevated:  20, 20, 31;
-  --c-bg-overlay:   26, 26, 46;
-  --c-text-primary:   240, 240, 255;
-  --c-text-secondary: 144, 144, 176;
-  --c-text-muted:     80, 80, 112;
-  --c-text-inverse:   7, 7, 13;
-  --c-border-subtle:  30, 30, 48;
-  --c-border-default: 42, 42, 64;
-  --c-border-strong:  61, 61, 92;
+  /* Paleta profissional poker — azul-naval profundo */
+  --c-bg-base:      8, 9, 18;
+  --c-bg-surface:   12, 14, 26;
+  --c-bg-elevated:  18, 20, 36;
+  --c-bg-overlay:   26, 28, 48;
+  --c-text-primary:   228, 232, 252;
+  --c-text-secondary: 130, 138, 170;
+  --c-text-muted:     68, 76, 108;
+  --c-text-inverse:   8, 9, 18;
+  --c-border-subtle:  26, 28, 48;
+  --c-border-default: 38, 42, 68;
+  --c-border-strong:  58, 64, 96;
 
-  /* Glass morphism — tema escuro */
-  --glass-bg:           rgba(14, 14, 26, 0.6);
-  --glass-border:       rgba(255, 255, 255, 0.05);
-  --glass-strong-bg:    rgba(20, 20, 31, 0.85);
-  --glass-strong-border:rgba(255, 255, 255, 0.08);
+  /* Glass morphism — bordas escuras, sem branco */
+  --glass-bg:           rgba(12, 14, 26, 0.76);
+  --glass-border:       rgba(38, 42, 68, 0.65);
+  --glass-strong-bg:    rgba(18, 20, 36, 0.93);
+  --glass-strong-border:rgba(50, 55, 84, 0.72);
 
   /* Skeleton shimmer */
-  --skeleton-from: rgba(20, 20, 31, 1);
+  --skeleton-from: rgba(18, 20, 36, 1);
   --skeleton-mid:  rgba(255, 255, 255, 0.04);
 
   /* Variáveis legadas (usadas em body/scrollbar) */
-  --bg-base: #07070d;
-  --bg-elevated: #14141f;
+  --bg-base: #080912;
+  --bg-elevated: #121424;
   --accent-gold: #f5c842;
   --accent-emerald: #00e5a0;
   --accent-crimson: #ff3d5a;
   --accent-blue: #3d9bff;
-  --text-primary: #f0f0ff;
-  --text-secondary: #9090b0;
-  --border-subtle: #1e1e30;
-  --border-default: #2a2a40;
+  --text-primary: #e4e8fc;
+  --text-secondary: #828aaa;
+  --border-subtle: #1a1c30;
+  --border-default: #262a44;
 
   /* Safe area para mobile/WebView */
   --safe-top: env(safe-area-inset-top, 0px);

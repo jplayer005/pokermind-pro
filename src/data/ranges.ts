@@ -10,12 +10,7 @@ import { PreflopDrillQuestion, Position, TableFormat } from '@/types'
 // HU BTN = 1 atrás; 9max UTG = 8 atrás
 export const POSITIONS_BY_FORMAT: Record<TableFormat, Position[]> = {
   'HU':   ['BTN', 'BB'],
-  '3max': ['BTN', 'SB', 'BB'],
-  '4max': ['CO', 'BTN', 'SB', 'BB'],
-  '5max': ['HJ', 'CO', 'BTN', 'SB', 'BB'],
   '6max': ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '7max': ['UTG', 'UTG+1', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '8max': ['UTG', 'UTG+1', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   '9max': ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
 }
 
@@ -157,8 +152,8 @@ export const BB_DEFENSE_RANGES: Record<Position, string[]> = {
 export const THREE_BET_RANGES: Record<Position, string[]> = {
   'BTN':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s', 'A4s', 'K5s'],
   'CO':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AJs', 'AKo', 'A5s'],
-  'SB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A5s', 'A4s', 'KQs'],
-  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A4s', 'A3s'],
+  'SB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A5s', 'A4s', 'A3s', 'KQs'],
+  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A9s', 'A4s', 'A3s', 'KJs'],
   'UTG':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo'],
   'UTG+1':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'],
   'UTG+2':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'], // similar a UTG+1
@@ -311,8 +306,7 @@ export const PUSH_FOLD_RANGES: Record<number, Record<Position, string[]>> = {
 // Posições early (UTG, UTG+1, UTG+2, LJ) ficam mais tight quanto maior a mesa.
 export const OPEN_RAISE_RANGES_BY_FORMAT: Record<TableFormat, Partial<Record<Position, string[]>>> = {
 
-  // ---- HU (~65% das mãos) ----
-  // BTN/SB age primeiro; range muito wide
+  // ---- HU MTT (~65% das mãos) ----
   'HU': {
     'BTN': [
       'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
@@ -329,107 +323,13 @@ export const OPEN_RAISE_RANGES_BY_FORMAT: Record<TableFormat, Partial<Record<Pos
       'T9o','T8o',
       '98o','87o','76o',
     ],
-    'BB': [], // BB defende, não abre
-  },
-
-  // ---- 3-max (~52% BTN, ~42% SB) ----
-  '3max': {
-    'BTN': [
-      'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
-      'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
-      'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s','K4s','K3s',
-      'QJs','QTs','Q9s','Q8s','Q7s','Q6s',
-      'JTs','J9s','J8s','J7s','J6s',
-      'T9s','T8s','T7s',
-      '98s','97s','87s','86s','76s','75s','65s','64s','54s',
-      'AKo','AQo','AJo','ATo','A9o','A8o','A7o','A6o','A5o',
-      'KQo','KJo','KTo','K9o','K8o',
-      'QJo','QTo','Q9o','Q8o',
-      'JTo','J9o',
-      'T9o','98o','87o','76o',
-    ],
-    'SB': [
-      'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
-      'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
-      'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s',
-      'QJs','QTs','Q9s','Q8s','Q7s',
-      'JTs','J9s','J8s','J7s',
-      'T9s','T8s','T7s',
-      '98s','97s','87s','86s','76s','75s','65s',
-      'AKo','AQo','AJo','ATo','A9o','A8o','A7o',
-      'KQo','KJo','KTo','K9o',
-      'QJo','QTo',
-      'JTo','T9o','98o',
-    ],
     'BB': [],
   },
 
-  // ---- 4-max ----
-  // CO tem 3 jogadores atrás = mesmo que 6max CO
-  // BTN/SB/BB = mesmo que 6max
-  '4max': {
-    'CO':  [], // usa 6max CO
-    'BTN': [], // usa 6max BTN
-    'SB':  [], // usa 6max SB
-    'BB':  [],
-  },
-
-  // ---- 5-max ----
-  // HJ tem 4 jogadores atrás = mesmo que 6max HJ
-  // CO/BTN/SB/BB = mesmo que 6max
-  '5max': {
-    'HJ':  [], // usa 6max HJ
-    'CO':  [],
-    'BTN': [],
-    'SB':  [],
-    'BB':  [],
-  },
-
-  // ---- 6-max (já definido em OPEN_RAISE_RANGES) ----
+  // ---- 6-max MTT (já definido em OPEN_RAISE_RANGES) ----
   '6max': {}, // usa OPEN_RAISE_RANGES como fallback
 
-  // ---- 7-max ----
-  // UTG tem 6 jogadores atrás → mais tight que 6max UTG
-  // UTG+1 tem 5 jogadores atrás = mesmo que 6max UTG
-  '7max': {
-    'UTG': [ // ~14% — ligeiramente mais tight que 6max UTG
-      'AA','KK','QQ','JJ','TT','99','88',
-      'AKs','AQs','AJs','ATs',
-      'AKo','AQo',
-      'KQs','KJs',
-    ],
-    'UTG+1': [], // usa 6max UTG (5 jogadores atrás)
-    'HJ':     [],
-    'CO':     [],
-    'BTN':    [],
-    'SB':     [],
-    'BB':     [],
-  },
-
-  // ---- 8-max ----
-  // UTG: 7 atrás → ~12%; UTG+1: 6 atrás → ~14%; LJ: 5 atrás = 6max UTG
-  '8max': {
-    'UTG': [ // ~12%
-      'AA','KK','QQ','JJ','TT','99',
-      'AKs','AQs','AJs','ATs',
-      'AKo','AQo',
-      'KQs',
-    ],
-    'UTG+1': [ // ~14% — mesmo que 7max UTG
-      'AA','KK','QQ','JJ','TT','99','88',
-      'AKs','AQs','AJs','ATs',
-      'AKo','AQo',
-      'KQs','KJs',
-    ],
-    'LJ':  [], // usa 6max UTG (5 jogadores atrás)
-    'HJ':  [],
-    'CO':  [],
-    'BTN': [],
-    'SB':  [],
-    'BB':  [],
-  },
-
-  // ---- 9-max ----
+  // ---- 9-max MTT ----
   // UTG: 8 atrás → ~10%; UTG+1: 7 atrás → ~12%; UTG+2: 6 atrás → ~14%; LJ: 5 atrás = 6max UTG
   '9max': {
     'UTG': [ // ~10% — o spot mais tight do poker
@@ -460,12 +360,17 @@ export const OPEN_RAISE_RANGES_BY_FORMAT: Record<TableFormat, Partial<Record<Pos
 }
 
 // Helper: busca o range correto considerando formato + fallback para 6max
+// Posições early (UTG+1, UTG+2, LJ) em formatos onde não há range específico
+// fazem fallback para 6max UTG (mesma quantidade de jogadores atrás ou equivalente).
 export function getOpenRaiseRange(format: TableFormat, position: Position): string[] {
   const formatRanges = OPEN_RAISE_RANGES_BY_FORMAT[format]
   const formatSpecific = formatRanges?.[position]
-  // se existe e não é array vazio, usa o específico
   if (formatSpecific && formatSpecific.length > 0) return formatSpecific
-  // fallback: usa 6max range
+  // fallback inteligente: posições early sem range próprio usam UTG do 6max
+  const earlyFallback: Position[] = ['UTG+1', 'UTG+2', 'LJ']
+  if (earlyFallback.includes(position) && (!OPEN_RAISE_RANGES[position] || OPEN_RAISE_RANGES[position].length === 0)) {
+    return OPEN_RAISE_RANGES['UTG'] || []
+  }
   return OPEN_RAISE_RANGES[position] || []
 }
 
@@ -1412,10 +1317,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'call_rfi',
     villainAction: 'raise',
     villainPosition: 'UTG',
-    correctAction: 'call',
-    correctFrequency: 0.9,
-    explanation: 'AQo vs UTG open no BB: predominantemente call. Contra UTG tight range (~15%), AQo não tem equity suficiente para 3bet com segurança — pode estar bloqueado por AK/AA/KK frequentemente. Call é mais cuidadoso e mantém villain com mais mãos ruins no range.',
-    evComparison: { fold: 0, call: 2.8, raise: 2.5 }
+    correctAction: '3bet',
+    correctFrequency: 0.65,
+    explanation: 'AQo vs UTG open no BB: 3bet (65%). AQo está no range de 3bet do BB por bloquear AA/AK do villain. Vs UTG tight range, call também é defensável — solver mistura. Porém, AQo é forte o suficiente para reraize: extrai valor vs KK/QQ/AK e consegue fold equity vs JJ/TT.',
+    evComparison: { fold: 0, call: 2.8, raise: 3.1 }
   },
   {
     id: 'q071',
@@ -1438,10 +1343,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'call_rfi',
     villainAction: 'raise',
     villainPosition: 'BTN',
-    correctAction: '3bet',
-    correctFrequency: 0.6,
-    explanation: 'A9s no CO vs BTN open é um 3bet ou fold spot. CO está fora de posição vs BTN, então chamar não é ideal com mão que prefere potes grandes. A9s tem bloqueadores de Ace (reduz AA combos), boa equity e pode ganhar vs mais de 50% do range do BTN. 3bet é a jogada mais lucrativa aqui.',
-    evComparison: { fold: 0, call: 1.0, raise: 1.8 }
+    correctAction: 'call',
+    correctFrequency: 0.65,
+    explanation: 'A9s no CO vs BTN open: call. CO está OOP vs BTN, mas A9s tem equity suficiente e implied odds para jogar o flop. Não está no range de 3bet do CO (muito speculative como bluff OOP). Call é melhor — veja o flop, decida com mais informação. Fold também é defensável dado a posição desfavorável.',
+    evComparison: { fold: 0, call: 1.5, raise: 1.0 }
   },
   {
     id: 'q073',
@@ -1490,10 +1395,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'call_rfi',
     villainAction: 'raise',
     villainPosition: 'BTN',
-    correctAction: 'call',
-    correctFrequency: 0.65,
-    explanation: 'A3s vs BTN open no BB: mix entre call e 3bet. A3s tem bloqueadores de Ace (reduz combos de AA), boa equity com flush draw potencial e pode ser 3bet bluff. Porém, OOP no BB, call também é sólido. Solver mistura, com leve preferência por call.',
-    evComparison: { fold: 0, call: 1.2, raise: 1.4 }
+    correctAction: '3bet',
+    correctFrequency: 0.70,
+    explanation: 'A3s vs BTN open no BB: 3bet bluff. A3s bloqueia combos de AA do villain (Ace blocker), tem potential de nut flush draw e força fold de hands medíocres do BTN. GTO classifica A3s/A4s como bluffs de 3bet do BB. Call é aceitável, mas 3bet tem maior EV vs range wide do BTN.',
+    evComparison: { fold: 0, call: 1.2, raise: 1.6 }
   },
   {
     id: 'q077',

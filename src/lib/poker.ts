@@ -76,12 +76,15 @@ function expandPlus(hand: string): string[] {
     }
   } else {
     // Suited/offsuit: A2s+ → A2s,A3s,...,AKs
+    // RANKS está em ordem decrescente (A=0, K=1, ..., 2=12). r2Idx > r1Idx.
+    // Iteramos de r2Idx (carta menor) descendo até r1Idx+1 (carta maior que r1 é o próprio r1).
     const suffix = hand.slice(-1) === 's' || hand.slice(-1) === 'o' ? hand.slice(-1) : ''
     const r1 = hand[0] as Rank
-    const r2 = (suffix ? hand[1] : hand[1]) as Rank
+    const r2 = hand[1] as Rank
     const r2Idx = RANKS.indexOf(r2)
     const r1Idx = RANKS.indexOf(r1)
-    for (let i = r2Idx; i < r1Idx; i++) {
+    // Iteração correta: de r2Idx descendo até r1Idx+1 (exclui r1, mesma carta)
+    for (let i = r2Idx; i > r1Idx; i--) {
       results.push(r1 + RANKS[i] + suffix)
     }
   }
@@ -90,9 +93,18 @@ function expandPlus(hand: string): string[] {
 
 function expandRange(start: string, end: string): string[] {
   const results: string[] = []
+  // Caso especial: pares "66-99" (ambas cartas iguais em start e end)
+  if (start.length === 2 && start[0] === start[1] && end.length === 2 && end[0] === end[1]) {
+    const startIdx = RANKS.indexOf(start[0] as Rank)
+    const endIdx = RANKS.indexOf(end[0] as Rank)
+    for (let i = Math.min(startIdx, endIdx); i <= Math.max(startIdx, endIdx); i++) {
+      results.push(RANKS[i] + RANKS[i])
+    }
+    return results
+  }
   const suffix = start.slice(-1) === 's' || start.slice(-1) === 'o' ? start.slice(-1) : ''
-  const startR2 = (suffix ? start[1] : start[1]) as Rank
-  const endR2 = (suffix ? end[1] : end[1]) as Rank
+  const startR2 = start[1] as Rank
+  const endR2 = end[1] as Rank
   const r1 = start[0] as Rank
   const startIdx = RANKS.indexOf(startR2)
   const endIdx = RANKS.indexOf(endR2)
@@ -755,14 +767,36 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
 
   // ---- MÃOS FEITAS (ordem decrescente de força) ----
 
-  // Flush
+  // Straight Flush — verificar PRIMEIRO (categoria reportada como 'flush' com strength 99)
+  // Procura 5 cartas do mesmo naipe formando sequência onde hero contribui
+  for (const [suit, count] of Object.entries(suitMap)) {
+    if (count >= 5 && heroCards.some(c => c.suit === suit)) {
+      const suitCards = allCards.filter(c => c.suit === suit)
+      const suitIdxs = [...new Set(suitCards.map(c => RANKS.indexOf(c.rank)))].sort((a, b) => a - b)
+      // Verifica se existem 5 índices consecutivos
+      let isSF = false
+      for (let s = 0; s <= suitIdxs.length - 5; s++) {
+        if (suitIdxs[s + 4] - suitIdxs[s] === 4) { isSF = true; break }
+      }
+      // Wheel SF: A(0) + 2(11) + 3(10) + 4(9) + 5(8) do mesmo naipe
+      if (!isSF) {
+        const wheelSF = [0, 8, 9, 10, 11]
+        if (wheelSF.every(i => suitIdxs.includes(i))) isSF = true
+      }
+      if (isSF && heroCards.some(c => c.suit === suit)) {
+        return { category: 'flush', label: 'Straight Flush!', strength: 99, draws: [], description: 'Straight Flush! Mão quase-nuts — value bet grande, slow play ocasionalmente para induzir bluffs.' }
+      }
+    }
+  }
+
+  // Flush (não-straight)
   for (const [suit, count] of Object.entries(suitMap)) {
     if (count >= 5 && heroCards.some(c => c.suit === suit)) {
       return { category: 'flush', label: 'Flush!', strength: 88, draws, description: 'Flush completo! Mão muito forte — value bet médio a grande. Cheque raramente para equilibrar.' }
     }
   }
 
-  // Straight (ANTES de quads/FH para capturar straight flush em future-proof)
+  // Straight
   if (detectStraight(heroCards, board)) {
     const hasBoardFlushDraw = Object.values(suitMap).some(c => c >= 3)
     const desc = hasBoardFlushDraw
@@ -892,28 +926,34 @@ export function getGTODecision(
   position: 'IP' | 'OOP',
   potType: 'SRP' | '3bet',
   facingBet: boolean,
-  street: 'flop' | 'turn' | 'river' = 'flop'
+  street: 'flop' | 'turn' | 'river' = 'flop',
+  spr: number = 10
 ): GtoDecision {
   const { category, strength, draws } = handEval
   const { wet, dry, paired, monotone } = texture
+  // Ajuste SPR: stack curto favorece sizing maior e comprometimento; stack profundo favorece controle
+  const isShortSPR = spr <= 2   // stack ≤ 2× pot — muito comprometido
+  const isMidSPR   = spr > 2 && spr <= 5
+  const isDeepSPR  = spr > 12
   const hasDraw = draws.length > 0
   const isTurn = street === 'turn'
-
-  const isNutted = strength >= 85 ||
-    (category === 'straight' && !paired) ||
-    (category === 'flush' && !paired)
-  const isStrong = (strength >= 60 && strength < 85) ||
-    (category === 'straight' && paired) ||
-    (category === 'flush' && paired)
-  const isMedium = strength >= 35 && strength < 60
-  const isWeak = strength < 35
-
   const isRiver = street === 'river'
-  // No river, draws ou completaram ou viraram ar
-  const isMissedDraw = isRiver && ['draw_strong', 'draw_medium', 'draw_weak', 'overcards'].includes(category)
-  // No turn, draws valem menos (1 rua sobrando)
+
+  // No turn, draws valem menos (1 rua sobrando) — penalidade afeta classificação da mão
   const turnPenalty = isTurn ? -8 : 0
   const adjStrength = strength + turnPenalty
+
+  const isNutted = adjStrength >= 85 ||
+    (category === 'straight' && !paired) ||
+    (category === 'flush' && !paired)
+  const isStrong = (adjStrength >= 60 && adjStrength < 85) ||
+    (category === 'straight' && paired) ||
+    (category === 'flush' && paired)
+  const isMedium = adjStrength >= 35 && adjStrength < 60
+  const isWeak = adjStrength < 35
+
+  // No river, draws ou completaram ou viraram ar
+  const isMissedDraw = isRiver && ['draw_strong', 'draw_medium', 'draw_weak', 'overcards'].includes(category)
 
   // =========================================================
   // RIVER — lógica separada, sem draws, sizing polarizado
@@ -1006,6 +1046,12 @@ export function getGTODecision(
   }
 
   if (facingBet) {
+    // SPR baixo: stack está comprometido — raise com qualquer mão forte ou boa (maximiza valor)
+    if (isShortSPR && (isNutted || isStrong)) return {
+      primaryAction: 'raise', primaryFrequency: 0.95,
+      alternativeAction: 'call', alternativeFrequency: 0.05,
+      explanation: `${handEval.label} com SPR baixo (${spr.toFixed(1)}) — RAISE all-in (95%). Stack comprometido ao pot: levantar maximiza valor e nega equity de draws. Call apenas em spots raros para balancear.`
+    }
     if (isNutted) return {
       primaryAction: 'raise', primaryFrequency: isTurn ? 0.90 : 0.85,
       alternativeAction: 'call', alternativeFrequency: isTurn ? 0.10 : 0.15,
@@ -1046,6 +1092,8 @@ export function getGTODecision(
   // No turn: sizings maiores (sem 33%), villain chamou o flop então range é mais strong
   if (position === 'IP') {
     if (isNutted) {
+      // SPR baixo: stack comprometido — bet pot imediato, não slow play
+      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor.` }
       if (isTurn) {
         if (wet || monotone) return { primaryAction: 'bet_75', primaryFrequency: 0.80, alternativeAction: 'check', alternativeFrequency: 0.20, explanation: `${handEval.label} no turn em board molhado — bet 75% para extrair valor e negar equity final. Cheque 20% para slow play e induções.` }
         return { primaryAction: 'bet_67', primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `${handEval.label} no turn board seco — bet 67% para valor. Cheque 35% para induzir bluffs do villain no river.` }
@@ -1054,6 +1102,8 @@ export function getGTODecision(
       return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_50', alternativeFrequency: 0.45, explanation: `${handEval.label} em board seco — slow play com check (induz bluffs) e bet 50% para valor equilibrado.` }
     }
     if (isStrong) {
+      // SPR baixo: bet pot para comprometer logo
+      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.75, alternativeAction: 'bet_67', alternativeFrequency: 0.25, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (75%). Com stack comprometido, size grande maximiza valor antes de ir all-in.` }
       if (isTurn) {
         const sz: GtoAction = wet ? 'bet_75' : 'bet_67'
         return { primaryAction: sz, primaryFrequency: 0.70, alternativeAction: 'check', alternativeFrequency: 0.30, explanation: `${handEval.label} no turn — aposte ${wet ? '75%' : '67%'}. Villain chamou o flop, range dele é mais fraca; aposte para extrair valor e dificultar realização de draws.` }
@@ -1063,7 +1113,11 @@ export function getGTODecision(
       return { primaryAction: sizing, primaryFrequency: freqBet, alternativeAction: 'check', alternativeFrequency: 1 - freqBet, explanation: `${handEval.label} — aposte ${wet ? '67%' : '50%'} para valor e proteção.` }
     }
     if (category === 'tpwk' || (isMedium && !hasDraw)) {
+      // SPR baixo: aposta mais com mãos médias (impliedodds compensam menos)
+      if (isShortSPR) return { primaryAction: 'bet_50', primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet 50% (65%). Mãos médias precisam extrair valor agora; pot control é menos relevante quando stacks são pequenos.` }
       if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_50', alternativeFrequency: 0.25, explanation: `${handEval.label} no turn — cheque na maioria. Bet 50% ocasional como thin value em boards favoráveis. No turn, pot control é mais importante.` }
+      // Deep stack: mais pot control com mãos médias
+      if (isDeepSPR) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_33', alternativeFrequency: 0.25, explanation: `${handEval.label} IP deep stack (SPR ${spr.toFixed(1)}) — cheque (75%). Com stacks profundos, pot control com mãos médias evita situações difíceis nos próximos streets.` }
       if (dry) return { primaryAction: 'bet_33', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.45, explanation: `${handEval.label} em board seco — small bet (33%) captura valor. Cheque 45% para equilíbrio.` }
       return { primaryAction: 'check', primaryFrequency: 0.65, alternativeAction: 'bet_33', alternativeFrequency: 0.35, explanation: `${handEval.label} em board molhado — cheque com frequência. Bet 33% ocasional.` }
     }
@@ -1102,6 +1156,13 @@ export function getGTODecision(
     (!isTurn && hasDraw && strength >= 45 && draws.some(d => d.includes('Flush') || d === 'OESD'))
 
   if (isNutted) {
+    // SPR baixo: bet pot imediato OOP — não precisar de check-raise com stack comprometido
+    if (isShortSPR) return {
+      primaryAction: 'bet_pot', primaryFrequency: 0.88,
+      alternativeAction: 'check_raise', alternativeFrequency: 0.12,
+      checkRaiseCandidate: false,
+      explanation: `${handEval.label} OOP com SPR baixo (${spr.toFixed(1)}) — bet pot (88%). Stack comprometido: donk bet pot extrai valor imediato. Check-raise 12% para balancear.`
+    }
     if (isTurn) {
       return {
         primaryAction: 'check_raise', primaryFrequency: 0.65,

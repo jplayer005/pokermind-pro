@@ -10,8 +10,8 @@ import PlayingCard from './PlayingCard'
 import { Card as CardType } from '@/types'
 import { cn } from '@/lib/utils'
 
-// Coordenadas de cada assento (% do container)
-const SEAT_COORDS: Record<string, { top: string; left: string }> = {
+// Coordenadas HU / 6max: 6 assentos
+const SEAT_COORDS_6MAX: Record<string, { top: string; left: string }> = {
   UTG: { top: '8%',  left: '50%' },
   HJ:  { top: '20%', left: '76%' },
   CO:  { top: '52%', left: '87%' },
@@ -20,16 +20,28 @@ const SEAT_COORDS: Record<string, { top: string; left: string }> = {
   BB:  { top: '20%', left: '24%' },
 }
 
-// Posições ativas por formato de mesa
+// Coordenadas 9max: 9 assentos distribuídos ao redor do oval
+const SEAT_COORDS_9MAX: Record<string, { top: string; left: string }> = {
+  'UTG':   { top: '6%',  left: '30%' },
+  'UTG+1': { top: '6%',  left: '50%' },
+  'UTG+2': { top: '6%',  left: '70%' },
+  'LJ':    { top: '22%', left: '86%' },
+  'HJ':    { top: '50%', left: '90%' },
+  'CO':    { top: '68%', left: '83%' },
+  'BTN':   { top: '78%', left: '68%' },
+  'SB':    { top: '78%', left: '28%' },
+  'BB':    { top: '22%', left: '14%' },
+}
+
+function getSeatCoords(format: string): Record<string, { top: string; left: string }> {
+  return format === '9max' ? SEAT_COORDS_9MAX : SEAT_COORDS_6MAX
+}
+
+// Posições ativas por formato de mesa (MTT: HU, 6max, 9max)
 const SEATS_BY_FORMAT: Record<string, string[]> = {
-  HU:   ['BTN', 'BB'],
-  '3max': ['BTN', 'SB', 'BB'],
-  '4max': ['HJ', 'BTN', 'SB', 'BB'],
-  '5max': ['HJ', 'CO', 'BTN', 'SB', 'BB'],
+  HU:     ['BTN', 'BB'],
   '6max': ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '7max': ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '8max': ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
-  '9max': ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  '9max': ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
 }
 
 // Para pós-flop: IP = BTN, OOP = BB
@@ -142,7 +154,8 @@ export default function TrainingTable({
     ? (position === 'IP' ? 'BB' : 'BTN')
     : villainPosition
 
-  // Assentos ativos para o formato de mesa
+  // Coordenadas e assentos ativos para o formato de mesa
+  const seatCoords = getSeatCoords(tableFormat)
   const activeSeats = SEATS_BY_FORMAT[tableFormat] ?? SEATS_BY_FORMAT['6max']
 
   // Cartas do herói
@@ -160,8 +173,9 @@ export default function TrainingTable({
   // Assentos "fantasma" para postflop (CO e SB aparecem faded para dar profundidade)
   const ghostSeats = isPostflop ? ['CO', 'SB'] : []
 
+  const is9max = tableFormat === '9max'
   const cardSize = compact ? 'xs' : 'xs'
-  const tableAspect = compact ? '52%' : '58%'
+  const tableAspect = is9max ? '65%' : compact ? '52%' : '58%'
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -250,7 +264,7 @@ export default function TrainingTable({
         </div>
 
         {/* Assentos */}
-        {Object.entries(SEAT_COORDS).map(([seatId, coords]) => {
+        {Object.entries(seatCoords).map(([seatId, coords]) => {
           const isHero    = seatId === heroSeat
           const isVillain = seatId === villainSeat
           const isActive  = activeSeats.includes(seatId)
@@ -259,7 +273,8 @@ export default function TrainingTable({
           // Esconde assentos que não estão no formato (exceto herói)
           if (!isHero && !isVillain && !isActive && !isGhost) return null
 
-          const opacity = isHero || isVillain ? 1 : isActive ? 0.22 : 0.10
+          // 9max: todos os jogadores ativos aparecem mais visíveis (mesa mais "cheia")
+          const opacity = isHero || isVillain ? 1 : isActive ? (is9max ? 0.35 : 0.22) : 0.10
 
           return (
             <div
