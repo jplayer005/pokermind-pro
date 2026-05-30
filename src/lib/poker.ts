@@ -321,6 +321,13 @@ export interface BoardTexture {
   /** Board tem 4+ cartas consecutivas — qualquer overcard ou undercard completa straight.
    *  Mãos abaixo de straight (set/trips/two pair) ficam vulneráveis. */
   straightOnBoard: boolean
+  /** Board tem TRINCA (3 ou mais de mesmo rank): QQQ, KKK, etc.
+   *  QUALQUER pocket pair do villain = FH. QUALQUER carta do rank = quads.
+   *  Hero com straight, flush, two pair, etc. está MUITO vulnerável. */
+  boardTrips: boolean
+  /** Board tem DOIS PARES distintos (sem trinca): K-K-7-7-X.
+   *  Múltiplas FH no range do villain (qualquer carta de um dos ranks). */
+  boardDoublePaired: boolean
   topRank: Rank
   topRankIdx: number
   label: string
@@ -695,7 +702,7 @@ function detectStraightOnBoard(board: Card[]): boolean {
 
 export function analyzeBoardTexture(board: Card[]): BoardTexture {
   if (board.length < 3) {
-    return { wet: false, dry: true, paired: false, monotone: false, twoTone: false, connected: false, straightOnBoard: false, topRank: 'A', topRankIdx: 0, label: 'Neutro' }
+    return { wet: false, dry: true, paired: false, monotone: false, twoTone: false, connected: false, straightOnBoard: false, boardTrips: false, boardDoublePaired: false, topRank: 'A', topRankIdx: 0, label: 'Neutro' }
   }
   const rankIdxs = board.map(c => RANKS.indexOf(c.rank)).sort((a, b) => a - b)
   const suits = board.map(c => c.suit)
@@ -706,6 +713,13 @@ export function analyzeBoardTexture(board: Card[]): BoardTexture {
   const twoTone = maxSuit === 2
   const rankSet = new Set(board.map(c => c.rank))
   const paired = rankSet.size < board.length
+  // Estrutura de pares no board: trips, double-paired, etc.
+  const rankCounts: Record<string, number> = {}
+  for (const c of board) rankCounts[c.rank] = (rankCounts[c.rank] || 0) + 1
+  const countValues = Object.values(rankCounts)
+  const boardTrips = countValues.some(c => c >= 3)
+  const pairsCountExact = countValues.filter(c => c === 2).length
+  const boardDoublePaired = !boardTrips && pairsCountExact >= 2
   const spread = rankIdxs[rankIdxs.length - 1] - rankIdxs[0]
   const connected = !paired && spread <= 4
   const straightOnBoard = detectStraightOnBoard(board)
@@ -713,8 +727,17 @@ export function analyzeBoardTexture(board: Card[]): BoardTexture {
   const dry = !twoTone && !monotone && !connected && !paired
   const topRankIdx = rankIdxs[0]
   const topRank = RANKS[topRankIdx]
-  const label = straightOnBoard ? 'Straight no board' : monotone ? 'Monotone' : twoTone && connected ? 'Molhado (2-tone connected)' : twoTone ? 'Semi-molhado' : connected ? 'Conectado' : paired ? 'Pareado' : 'Seco'
-  return { wet, dry, paired, monotone, twoTone, connected, straightOnBoard, topRank, topRankIdx, label }
+  // Label prioriza ameaças mais perigosas
+  const label = straightOnBoard ? 'Straight no board'
+    : boardTrips ? 'Trinca no board'
+    : monotone ? 'Monotone'
+    : boardDoublePaired ? 'Duplo-Pareado'
+    : twoTone && connected ? 'Molhado (2-tone connected)'
+    : twoTone ? 'Semi-molhado'
+    : connected ? 'Conectado'
+    : paired ? 'Pareado'
+    : 'Seco'
+  return { wet, dry, paired, monotone, twoTone, connected, straightOnBoard, boardTrips, boardDoublePaired, topRank, topRankIdx, label }
 }
 
 // Helper: detecta straight completo (incluindo wheel A-2-3-4-5)
@@ -973,18 +996,22 @@ export function getGTODecision(
   spr: number = 10
 ): GtoDecision {
   const { category, strength, draws } = handEval
-  const { wet, dry, paired, monotone, straightOnBoard } = texture
-  // Categorias de mãos que perdem para straight/flush no board.
+  const { wet, dry, paired, monotone, straightOnBoard, boardTrips, boardDoublePaired } = texture
+  // Categorias de mãos que perdem para straight/flush/FH no board.
   const isBelowStraight = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk'].includes(category)
-  // Set/trips/etc são todas abaixo de flush também (FH e quads acima).
   const isBelowFlush = isBelowStraight || category === 'straight'
+  // Categorias que PERDEM para FH dominante: tudo abaixo de FH (inclui straight e flush).
+  const isBelowFH = isBelowFlush || category === 'flush'
 
   // ⚠️ POT CONTROL flags — usados nos branches IP/OOP nutted para reduzir sizing
   // quando o board permite mãos melhores no range do villain.
   const vulnerableToStraight = straightOnBoard && isBelowStraight
   const vulnerableToFlush = monotone && isBelowFlush
   const vulnerableFH = handEval.vulnerableFH === true
-  const anyVulnerability = vulnerableToStraight || vulnerableToFlush || vulnerableFH
+  // Board com TRINCA: qualquer pocket pair do villain = FH; qualquer carta = quads
+  // Board DUPLO-PAREADO: muitos FH possíveis (qualquer carta dos ranks pareados)
+  const vulnerableToBoardFH = (boardTrips || boardDoublePaired) && isBelowFH
+  const anyVulnerability = vulnerableToStraight || vulnerableToFlush || vulnerableFH || vulnerableToBoardFH
   // Ajuste SPR: stack curto favorece sizing maior e comprometimento; stack profundo favorece controle
   const isShortSPR = spr <= 2   // stack ≤ 2× pot — muito comprometido
   const isMidSPR   = spr > 2 && spr <= 5
@@ -1046,7 +1073,11 @@ export function getGTODecision(
             ? `board tem 4 cartas consecutivas — qualquer 9/4 (etc.) do villain = straight`
             : vulnerableToFlush
             ? `board MONOTONE (3+ do mesmo naipe) — qualquer carta do naipe do villain = flush`
-            : `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
+            : vulnerableFH
+            ? `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
+            : boardTrips
+            ? `board tem TRINCA — QUALQUER pocket pair do villain = full house; QUALQUER carta do rank da trinca = quads`
+            : `board DUPLO-PAREADO — múltiplas full houses possíveis no range do villain`
           return {
             primaryAction: 'bet_50', primaryFrequency: 0.40,
             alternativeAction: 'bet_33', alternativeFrequency: 0.30,
@@ -1190,7 +1221,11 @@ export function getGTODecision(
           ? `board tem 4 cartas consecutivas`
           : vulnerableToFlush
           ? `board monotone (3+ mesmo naipe) — flush completo possível`
-          : `FH com par no board maior que sua trinca`
+          : vulnerableFH
+          ? `FH com par no board maior que sua trinca`
+          : boardTrips
+          ? `board tem TRINCA — qualquer pocket pair = FH; qualquer card do rank = quads`
+          : `board duplo-pareado — múltiplas FH no range do villain`
         return {
           primaryAction: 'bet_50', primaryFrequency: 0.45,
           alternativeAction: 'check', alternativeFrequency: 0.25,
