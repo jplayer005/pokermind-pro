@@ -268,6 +268,11 @@ export default function PreflopTrainer() {
   const [showResult, setShowResult] = useState(false)
   const [showRange, setShowRange] = useState(false)
   const [questionStart, setQuestionStart] = useState(0)
+  // Buffer das últimas N questões para evitar repetição imediata (anti-loop)
+  const recentQuestionsRef = useRef<string[]>([])
+  const RECENT_BUFFER = 5
+  // Contador de questões — usado como display key para forçar re-animação mesmo quando o ID se repete
+  const [questionSequence, setQuestionSequence] = useState(0)
 
   // Estatísticas da sessão atual
   const [sessionStats, setSessionStats] = useState({ total: 0, correct: 0 })
@@ -310,6 +315,14 @@ export default function PreflopTrainer() {
     const dueIds = getDueQuestions()
     const dueInBank = bankPool.filter(q => dueIds.includes(q.id))
 
+    // Anti-loop: evita repetir as últimas N questões mostradas (quando há alternativas)
+    const recent = recentQuestionsRef.current
+    const filterRecent = <T extends { id: string }>(pool: T[]): T[] => {
+      if (pool.length <= 1) return pool
+      const filtered = pool.filter(q => !recent.includes(q.id))
+      return filtered.length > 0 ? filtered : pool
+    }
+
     // Probabilidade do banco proporcional ao número de mãos únicas — evita repetição (bug K4s)
     const uniqueHandsInBank = new Set(bankPool.map(q => q.hand)).size
     const bankProb = bankPool.length === 0 ? 0 :
@@ -319,12 +332,14 @@ export default function PreflopTrainer() {
     let question: PreflopDrillQuestion
 
     if (dueInBank.length > 0) {
-      // SM-2: usar questão com revisão mais atrasada
-      question = dueInBank[0]
+      // SM-2: rotaciona entre as questões vencidas (evita repetir a mesma)
+      const dueFiltered = filterRecent(dueInBank)
+      question = dueFiltered[Math.floor(Math.random() * dueFiltered.length)]
       setQuestionSM2Type('review')
     } else if (Math.random() < bankProb) {
-      // Verifica se é primeira vez vendo essa questão (totalAttempts = 0)
-      const picked = bankPool[Math.floor(Math.random() * bankPool.length)]
+      // Sorteia do banco evitando as últimas N mostradas
+      const bankFiltered = filterRecent(bankPool)
+      const picked = bankFiltered[Math.floor(Math.random() * bankFiltered.length)]
       const sm2Stats = useSpacedRepetitionStore.getState().getQuestionStats(picked.id)
       setQuestionSM2Type(sm2Stats ? null : 'new')
       question = picked
@@ -387,11 +402,16 @@ export default function PreflopTrainer() {
     // squeeze com call equilibrado, ou SB vs BB com mixed strategy (raise/limp).
     // Questões geradas dinamicamente (`gen_*`) sempre usam a fórmula.
 
+    // Atualiza buffer anti-loop (mantém só as últimas N IDs)
+    const nextRecent = [question.id, ...recentQuestionsRef.current].slice(0, RECENT_BUFFER)
+    recentQuestionsRef.current = nextRecent
+
     setCurrentQuestion(question)
     setUserAnswer(null)
     setShowResult(false)
     setShowRange(false)
     setQuestionStart(Date.now())
+    setQuestionSequence(s => s + 1)
   }, [scenario, position, isRandomPosition, stackDepth, heroStack, handPool, poolPosition, allHandsList, villainPosition, tableFormat, getDueQuestions, defaultDifficulty])
 
   // ---- RESPOSTA DO USUÁRIO ----
@@ -1000,7 +1020,8 @@ export default function PreflopTrainer() {
         <AnimatePresence>
           {isSessionActive && currentQuestion && (
             <motion.div
-              key={currentQuestion.id}
+              // sequência garante re-mount/re-animação mesmo quando o id da questão se repete
+              key={`${currentQuestion.id}-${questionSequence}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}

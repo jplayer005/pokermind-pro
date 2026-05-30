@@ -508,13 +508,24 @@ interface SpacedRepetitionStore {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0]
+  // Usa data LOCAL para alinhar com a percepção do usuário (não UTC).
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function addDays(date: string, days: number): string {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  // Fix: `new Date("YYYY-MM-DD")` é interpretado como UTC midnight.
+  // Em timezones negativos (ex: UTC-3 Brasil) o getDate() local retorna o dia ANTERIOR,
+  // e setDate(+1) é absorvido pelo offset → addDays retorna o mesmo dia.
+  // Solução: parse manual + Date.UTC para operar 100% em UTC,
+  //          e o resultado é uma data calendário válida independente de timezone.
+  const [y, m, d] = date.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().split('T')[0]
 }
 
 export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
@@ -549,12 +560,24 @@ export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
             interval = 1
           }
 
+          // Guard: nextReview SEMPRE > today (mínimo +1 dia).
+          // Corrige eventuais corrupções herdadas do bug de timezone em addDays.
+          let nextReview = addDays(today, interval)
+          if (nextReview <= today) nextReview = addDays(today, Math.max(1, interval))
+          if (nextReview <= today) {
+            // Fallback final: força avanço de 1 dia via Date UTC explícito
+            const [y, m, d] = today.split('-').map(Number)
+            const dt = new Date(Date.UTC(y, m - 1, d))
+            dt.setUTCDate(dt.getUTCDate() + 1)
+            nextReview = dt.toISOString().split('T')[0]
+          }
+
           const updated: QuestionSM2Data = {
             ...existing,
             interval,
             repetitions,
             easeFactor,
-            nextReview: addDays(today, interval),
+            nextReview,
             totalAttempts: existing.totalAttempts + 1,
             totalCorrect: existing.totalCorrect + (isCorrect ? 1 : 0),
             lastSeen: today,
