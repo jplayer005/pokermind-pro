@@ -314,6 +314,9 @@ export interface BoardTexture {
   monotone: boolean
   twoTone: boolean
   connected: boolean
+  /** Board tem 4+ cartas consecutivas — qualquer overcard ou undercard completa straight.
+   *  Mãos abaixo de straight (set/trips/two pair) ficam vulneráveis. */
+  straightOnBoard: boolean
   topRank: Rank
   topRankIdx: number
   label: string
@@ -670,9 +673,25 @@ export function analyzeBlockerEffects(heroCards: [Card, Card]): BlockerEffect[] 
   }).slice(0, 6) // máximo 6 blockers mais relevantes
 }
 
+// Detecta se o board tem 4+ cartas consecutivas (qualquer overcard ou undercard
+// dessas 4 completa straight para o villain). Inclui detecção da wheel parcial.
+function detectStraightOnBoard(board: Card[]): boolean {
+  if (board.length < 4) return false
+  const idxsSet = new Set(board.map(c => RANKS.indexOf(c.rank)))
+  const idxs = [...idxsSet].sort((a, b) => a - b)
+  // 4 cartas consecutivas dentro de uma janela de 4 posições
+  for (let i = 0; i <= idxs.length - 4; i++) {
+    if (idxs[i + 3] - idxs[i] === 3) return true
+  }
+  // Wheel parcial: A + 3 cartas de {2,3,4,5}
+  const wheelIdxs = [0, 8, 9, 10, 11] // A, 5, 4, 3, 2
+  if (wheelIdxs.filter(i => idxsSet.has(i)).length >= 4) return true
+  return false
+}
+
 export function analyzeBoardTexture(board: Card[]): BoardTexture {
   if (board.length < 3) {
-    return { wet: false, dry: true, paired: false, monotone: false, twoTone: false, connected: false, topRank: 'A', topRankIdx: 0, label: 'Neutro' }
+    return { wet: false, dry: true, paired: false, monotone: false, twoTone: false, connected: false, straightOnBoard: false, topRank: 'A', topRankIdx: 0, label: 'Neutro' }
   }
   const rankIdxs = board.map(c => RANKS.indexOf(c.rank)).sort((a, b) => a - b)
   const suits = board.map(c => c.suit)
@@ -685,12 +704,13 @@ export function analyzeBoardTexture(board: Card[]): BoardTexture {
   const paired = rankSet.size < board.length
   const spread = rankIdxs[rankIdxs.length - 1] - rankIdxs[0]
   const connected = !paired && spread <= 4
+  const straightOnBoard = detectStraightOnBoard(board)
   const wet = (monotone || twoTone) && connected
   const dry = !twoTone && !monotone && !connected && !paired
   const topRankIdx = rankIdxs[0]
   const topRank = RANKS[topRankIdx]
-  const label = monotone ? 'Monotone' : twoTone && connected ? 'Molhado (2-tone connected)' : twoTone ? 'Semi-molhado' : connected ? 'Conectado' : paired ? 'Pareado' : 'Seco'
-  return { wet, dry, paired, monotone, twoTone, connected, topRank, topRankIdx, label }
+  const label = straightOnBoard ? 'Straight no board' : monotone ? 'Monotone' : twoTone && connected ? 'Molhado (2-tone connected)' : twoTone ? 'Semi-molhado' : connected ? 'Conectado' : paired ? 'Pareado' : 'Seco'
+  return { wet, dry, paired, monotone, twoTone, connected, straightOnBoard, topRank, topRankIdx, label }
 }
 
 // Helper: detecta straight completo (incluindo wheel A-2-3-4-5)
@@ -933,7 +953,12 @@ export function getGTODecision(
   spr: number = 10
 ): GtoDecision {
   const { category, strength, draws } = handEval
-  const { wet, dry, paired, monotone } = texture
+  const { wet, dry, paired, monotone, straightOnBoard } = texture
+  // Mãos categoricamente "nutadas" mas que perdem para straight no board
+  // (set, trips, two pair, overpair, top pair). Precisam de POT CONTROL —
+  // bet pot rouba valor vs villain straight e não folda mais.
+  const isBelowStraight = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk'].includes(category)
+  const vulnerableToStraight = straightOnBoard && isBelowStraight
   // Ajuste SPR: stack curto favorece sizing maior e comprometimento; stack profundo favorece controle
   const isShortSPR = spr <= 2   // stack ≤ 2× pot — muito comprometido
   const isMidSPR   = spr > 2 && spr <= 5
@@ -989,9 +1014,19 @@ export function getGTODecision(
     // River acting first
     if (position === 'IP') {
       if (isNutted) {
+        // ⚠️ Board com straight (5-6-7-8 etc) + hero abaixo de straight → POT CONTROL.
+        // Bet pot só extrai mais de pares fortes que foldam de qualquer jeito, e
+        // perde MUITO vs villain com straight (que sempre paga).
+        if (vulnerableToStraight) {
+          return {
+            primaryAction: 'bet_50', primaryFrequency: 0.40,
+            alternativeAction: 'bet_33', alternativeFrequency: 0.30,
+            alsoAcceptable: ['check', 'bet_67'],
+            explanation: `${handEval.label} no river IP — ⚠️ board tem 4 cartas consecutivas. Apesar da força categórica, qualquer 9 ou 4 (ou outras conectoras) te bate. POT CONTROL: bet 33-50% extrai valor de top pair/overpair sem inflar quando villain tem straight. Check também válido (50%). EVITE bet 75%/pot — villain com straight te paga mais; pares fortes foldam pra qualquer aposta.`
+          }
+        }
         // Em board pareado/monotone, 67% é o sizing mais frequente (range capped);
         // em boards dry/favoráveis, pot extrai mais valor (range polarizado).
-        // Mas com NUTS, qualquer bet grande é GTO-válido — não punir o usuário.
         const sz: GtoAction = paired || monotone ? 'bet_67' : 'bet_pot'
         const altSz: GtoAction = paired || monotone ? 'bet_pot' : 'bet_67'
         return {
@@ -1028,12 +1063,25 @@ export function getGTODecision(
     }
 
     // River OOP
-    if (isNutted) return {
-      primaryAction: 'check_raise', primaryFrequency: 0.55,
-      alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
-      alsoAcceptable: ['bet_67', 'bet_75'],
-      checkRaiseCandidate: true,
-      explanation: `${handEval.label} OOP no river — Check-Raise (55%): linha mais valiosa com nuts OOP. Deixa villain c-bet ou bluff e você levanta. Donk bet pot (25%) também excelente — range polarizado no river permite overbets. Bet 67% e 75% também válidos.`
+    if (isNutted) {
+      // ⚠️ Vulnerável a straight: check-raise vira armadilha — villain straight
+      // te dobra. Check-call ou pequeno donk são as linhas seguras.
+      if (vulnerableToStraight) {
+        return {
+          primaryAction: 'check', primaryFrequency: 0.50,
+          alternativeAction: 'bet_33', alternativeFrequency: 0.30,
+          alsoAcceptable: ['bet_50'],
+          checkRaiseCandidate: false,
+          explanation: `${handEval.label} OOP no river — ⚠️ board tem 4 cartas consecutivas. POT CONTROL é crítico OOP: cheque (50%) e decida com base no sizing do villain (call vs raises pequenos, fold a overbet em alguns spots). Donk pequeno (33%) extrai valor de top pair sem arriscar check-raise. NUNCA check-raise — villain com straight te dobra.`
+        }
+      }
+      return {
+        primaryAction: 'check_raise', primaryFrequency: 0.55,
+        alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
+        alsoAcceptable: ['bet_67', 'bet_75'],
+        checkRaiseCandidate: true,
+        explanation: `${handEval.label} OOP no river — Check-Raise (55%): linha mais valiosa com nuts OOP. Deixa villain c-bet ou bluff e você levanta. Donk bet pot (25%) também excelente — range polarizado no river permite overbets. Bet 67% e 75% também válidos.`
+      }
     }
     if (isStrong) return {
       primaryAction: 'check', primaryFrequency: 0.65,
