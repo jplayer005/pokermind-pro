@@ -79,6 +79,39 @@ function textureBadgeVariant(label: string): 'crimson' | 'emerald' | 'gold' | 'b
 // ---- SETUP PHASE ----
 type StreetMode = 'full' | 'flop_only' | 'turn_only' | 'river_only'
 
+// Filtros de categoria — restringe quais spots o usuário quer treinar
+type HandCategoryFilter = 'any' | 'nutted' | 'strong' | 'medium' | 'draws' | 'weak' | 'air'
+type TextureFilter = 'any' | 'dry' | 'wet' | 'paired' | 'monotone'
+
+// Agrupamento de categorias do PostflopHandCategory em buckets jogáveis
+const CATEGORY_GROUPS: Record<HandCategoryFilter, string[]> = {
+  any:     [],
+  nutted:  ['quads', 'full_house', 'flush', 'straight', 'set'],
+  strong:  ['trips', 'two_pair', 'overpair', 'tptk', 'tpgk'],
+  medium:  ['tpwk', 'middle_pair', 'underpair'],
+  draws:   ['draw_strong', 'draw_medium', 'draw_weak'],
+  weak:    ['bottom_pair'],
+  air:     ['overcards', 'air'],
+}
+
+const CATEGORY_FILTER_OPTIONS: { id: HandCategoryFilter; label: string; icon: string; sub: string }[] = [
+  { id: 'any',     label: 'Qualquer',  icon: '🎲', sub: 'Todas as mãos'             },
+  { id: 'nutted',  label: 'Nutadas',   icon: '🏆', sub: 'Set, straight, flush, FH'  },
+  { id: 'strong',  label: 'Fortes',    icon: '💪', sub: 'TPTK, two pair, overpair'  },
+  { id: 'medium',  label: 'Médias',    icon: '📊', sub: 'TPWK, middle pair, under'  },
+  { id: 'draws',   label: 'Draws',     icon: '🎯', sub: 'FD, OESD, gutshot'         },
+  { id: 'weak',    label: 'Fracas',    icon: '📉', sub: 'Par baixo'                 },
+  { id: 'air',     label: 'Ar',        icon: '💨', sub: 'Overcards, nada'           },
+]
+
+const TEXTURE_FILTER_OPTIONS: { id: TextureFilter; label: string; icon: string }[] = [
+  { id: 'any',      label: 'Qualquer',  icon: '🎲' },
+  { id: 'dry',      label: 'Seco',      icon: '🟢' },
+  { id: 'wet',      label: 'Molhado',   icon: '🟠' },
+  { id: 'paired',   label: 'Pareado',   icon: '🔵' },
+  { id: 'monotone', label: 'Monotone',  icon: '🔴' },
+]
+
 interface SetupConfig {
   position: HeroPos
   potType: PotType
@@ -86,6 +119,8 @@ interface SetupConfig {
   potSize: number
   effectiveStack: number
   streetMode: StreetMode
+  handCategoryFilter: HandCategoryFilter
+  textureFilter: TextureFilter
 }
 
 function SetupPanel({ onStart }: { onStart: (cfg: SetupConfig) => void }) {
@@ -95,6 +130,8 @@ function SetupPanel({ onStart }: { onStart: (cfg: SetupConfig) => void }) {
   const [potSize, setPotSize] = useState(10)
   const [effectiveStack, setEffectiveStack] = useState(100)
   const [streetMode, setStreetMode] = useState<StreetMode>('full')
+  const [handCategoryFilter, setHandCategoryFilter] = useState<HandCategoryFilter>('any')
+  const [textureFilter, setTextureFilter] = useState<TextureFilter>('any')
 
   return (
     <motion.div
@@ -238,7 +275,86 @@ function SetupPanel({ onStart }: { onStart: (cfg: SetupConfig) => void }) {
         </div>
       </Card>
 
-      <Button variant="gold" size="lg" onClick={() => onStart({ position, potType, scenario, potSize, effectiveStack, streetMode })} className="w-full">
+      {/* Filtro: Categoria de mão */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs text-text-muted uppercase tracking-wider">Categoria de Mão</div>
+          {handCategoryFilter !== 'any' && (
+            <button
+              onClick={() => setHandCategoryFilter('any')}
+              className="text-[10px] text-accent-blue underline"
+            >
+              limpar
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {CATEGORY_FILTER_OPTIONS.map(({ id, label, icon, sub }) => (
+            <button
+              key={id}
+              onClick={() => setHandCategoryFilter(id)}
+              className={cn(
+                'py-2 px-2 rounded-xl text-xs font-bold border text-left transition-all',
+                handCategoryFilter === id
+                  ? 'bg-purple-500/15 border-purple-500/40 text-purple-300'
+                  : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+              )}
+            >
+              <div>{icon} {label}</div>
+              <div className="text-[9px] font-normal opacity-70 mt-0.5">{sub}</div>
+            </button>
+          ))}
+        </div>
+        {handCategoryFilter !== 'any' && (
+          <p className="text-[10px] text-text-muted mt-2 font-body">
+            Só serão geradas mãos da categoria <span className="text-purple-300 font-semibold">{CATEGORY_FILTER_OPTIONS.find(o => o.id === handCategoryFilter)?.label}</span>.
+          </p>
+        )}
+      </Card>
+
+      {/* Filtro: Textura do board */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs text-text-muted uppercase tracking-wider">Textura do Board</div>
+          {textureFilter !== 'any' && (
+            <button
+              onClick={() => setTextureFilter('any')}
+              className="text-[10px] text-accent-blue underline"
+            >
+              limpar
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {TEXTURE_FILTER_OPTIONS.map(({ id, label, icon }) => (
+            <button
+              key={id}
+              onClick={() => setTextureFilter(id)}
+              className={cn(
+                'py-2 rounded-xl text-[11px] font-bold border transition-all',
+                textureFilter === id
+                  ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
+                  : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+              )}
+            >
+              <div className="text-sm">{icon}</div>
+              <div>{label}</div>
+            </button>
+          ))}
+        </div>
+        {textureFilter !== 'any' && (
+          <p className="text-[10px] text-text-muted mt-2 font-body">
+            Só boards com textura <span className="text-cyan-300 font-semibold">{TEXTURE_FILTER_OPTIONS.find(o => o.id === textureFilter)?.label}</span>.
+          </p>
+        )}
+      </Card>
+
+      <Button
+        variant="gold"
+        size="lg"
+        onClick={() => onStart({ position, potType, scenario, potSize, effectiveStack, streetMode, handCategoryFilter, textureFilter })}
+        className="w-full"
+      >
         <Play size={16} />
         Iniciar Drill Pós-Flop
       </Button>
@@ -317,6 +433,21 @@ function spotKey(
   textureClass: TextureClass
 ): string {
   return `${category}_${position}_${potType}_${street}_${textureClass}`
+}
+
+// Helpers de filtro — checam se um candidato passa pelos filtros da config
+function matchesCategoryFilter(handCategory: string, filter: HandCategoryFilter): boolean {
+  if (filter === 'any') return true
+  return CATEGORY_GROUPS[filter].includes(handCategory)
+}
+
+function matchesTextureFilter(texture: BoardTexture, filter: TextureFilter): boolean {
+  if (filter === 'any') return true
+  if (filter === 'dry') return texture.dry
+  if (filter === 'wet') return texture.wet
+  if (filter === 'paired') return texture.paired
+  if (filter === 'monotone') return texture.monotone
+  return false
 }
 
 // Score de "interesse" para sort de candidatos. Quanto maior, mais o spot
@@ -424,44 +555,105 @@ function generateOneCandidate(cfg: SetupConfig): DrillState {
   }
 }
 
-// Geração principal: candidate sampling enviesado pelo review queue.
-// Gera N candidatos, escolhe o de maior "interest score" (mais relevante para
-// o usuário praticar agora — categorias erradas/recentes têm prioridade).
+// Verifica se um candidato passa pelos filtros da config (categoria + textura).
+// Para turn_only/river_only, o "spot relevante" é o da rua final.
+function candidatePassesFilters(candidate: DrillState, cfg: SetupConfig, street: 'flop' | 'turn' | 'river'): boolean {
+  const handEval =
+    street === 'turn'  ? candidate.turnHandEval :
+    street === 'river' ? candidate.riverHandEval :
+                         candidate.handEval
+  if (!handEval) return false
+  if (!matchesCategoryFilter(handEval.category, cfg.handCategoryFilter)) return false
+  // Texture: para flop usa drill.texture, para turn/river recomputa
+  let texture: BoardTexture
+  if (street === 'flop') {
+    texture = candidate.texture
+  } else if (street === 'turn' && candidate.turnCard) {
+    texture = analyzeBoardTexture([...candidate.board, candidate.turnCard])
+  } else if (street === 'river' && candidate.riverCard) {
+    const board = [...candidate.board, ...(candidate.turnCard ? [candidate.turnCard] : []), candidate.riverCard]
+    texture = analyzeBoardTexture(board)
+  } else {
+    return false
+  }
+  return matchesTextureFilter(texture, cfg.textureFilter)
+}
+
+// Geração principal: candidate sampling enviesado pelo review queue + filtros.
+// 1. Gera até MAX_ATTEMPTS candidatos brutos
+// 2. Mantém só os que passam pelos filtros de categoria/textura da config
+// 3. Para os filtrados, calcula "interest score" via review queue
+// 4. Escolhe o de maior score
+// Se filtros excluem tudo (filtro muito restritivo), fallback: ignora filtros.
 function generateDrillState(cfg: SetupConfig): DrillState {
-  // Modos turn_only/river_only: sem optimização (geração simples)
-  if (cfg.streetMode === 'turn_only') {
-    const base = generateOneCandidate(cfg)
-    return { ...advanceTurn(base, cfg), answered: true }
-  }
-  if (cfg.streetMode === 'river_only') {
-    let state = generateOneCandidate(cfg)
-    state = advanceTurn(state, cfg)
-    return { ...advanceRiver(state, cfg), answered: true, turnAnswered: true }
+  const MAX_ATTEMPTS = 80
+  const TARGET_CANDIDATES = 5
+  const filtersActive = cfg.handCategoryFilter !== 'any' || cfg.textureFilter !== 'any'
+
+  // ---- Modos turn_only/river_only: gera candidatos avançados até turn/river ----
+  if (cfg.streetMode === 'turn_only' || cfg.streetMode === 'river_only') {
+    const street: 'turn' | 'river' = cfg.streetMode === 'turn_only' ? 'turn' : 'river'
+    const candidates: DrillState[] = []
+    let attempts = 0
+    while (candidates.length < TARGET_CANDIDATES && attempts < MAX_ATTEMPTS) {
+      attempts++
+      let cand = generateOneCandidate(cfg)
+      cand = advanceTurn(cand, cfg)
+      if (street === 'river') cand = advanceRiver(cand, cfg)
+      if (!filtersActive || candidatePassesFilters(cand, cfg, street)) {
+        candidates.push(cand)
+      }
+    }
+    if (candidates.length === 0) {
+      // Fallback: ignora filtros
+      let fallback = generateOneCandidate(cfg)
+      fallback = advanceTurn(fallback, cfg)
+      if (street === 'river') fallback = advanceRiver(fallback, cfg)
+      return street === 'turn'
+        ? { ...fallback, answered: true }
+        : { ...fallback, answered: true, turnAnswered: true }
+    }
+    // Escolhe melhor por score (baseado na rua relevante)
+    let bestIdx = 0, bestScore = -Infinity
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i]
+      const eval_ = street === 'turn' ? c.turnHandEval : c.riverHandEval
+      if (!eval_) continue
+      const board = street === 'turn' ? [...c.board, c.turnCard!] : [...c.board, c.turnCard!, c.riverCard!]
+      const texture = analyzeBoardTexture(board)
+      const key = spotKey(eval_.category, cfg.position, cfg.potType, street, textureToClass(texture))
+      const s = scoreCandidate(usePostflopReviewStore.getState().getProfile(key))
+      if (s > bestScore) { bestScore = s; bestIdx = i }
+    }
+    const best = candidates[bestIdx]
+    return street === 'turn'
+      ? { ...best, answered: true }
+      : { ...best, answered: true, turnAnswered: true }
   }
 
-  // Modo flop_only / full: candidate sampling baseado em review queue
-  const CANDIDATE_COUNT = 5
+  // ---- Modo full / flop_only: candidate sampling sobre o FLOP ----
   const candidates: DrillState[] = []
-  const scores: number[] = []
-
-  for (let i = 0; i < CANDIDATE_COUNT; i++) {
-    const candidate = generateOneCandidate(cfg)
-    const key = spotKey(
-      candidate.handEval.category,
-      cfg.position,
-      cfg.potType,
-      'flop',
-      textureToClass(candidate.texture),
-    )
-    const profile = usePostflopReviewStore.getState().getProfile(key)
-    candidates.push(candidate)
-    scores.push(scoreCandidate(profile))
+  let attempts = 0
+  while (candidates.length < TARGET_CANDIDATES && attempts < MAX_ATTEMPTS) {
+    attempts++
+    const c = generateOneCandidate(cfg)
+    if (!filtersActive || candidatePassesFilters(c, cfg, 'flop')) {
+      candidates.push(c)
+    }
   }
 
-  // Escolhe candidato com maior score
-  let bestIdx = 0
-  for (let i = 1; i < scores.length; i++) {
-    if (scores[i] > scores[bestIdx]) bestIdx = i
+  // Filtros excluíram tudo? Fallback: gera 1 candidato sem filtro
+  if (candidates.length === 0) {
+    return generateOneCandidate(cfg)
+  }
+
+  // Score cada candidato e escolhe o melhor
+  let bestIdx = 0, bestScore = -Infinity
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i]
+    const key = spotKey(c.handEval.category, cfg.position, cfg.potType, 'flop', textureToClass(c.texture))
+    const s = scoreCandidate(usePostflopReviewStore.getState().getProfile(key))
+    if (s > bestScore) { bestScore = s; bestIdx = i }
   }
   return candidates[bestIdx]
 }
@@ -783,6 +975,16 @@ export default function PostflopTrainer() {
                   <Badge variant="neutral">{config.scenario === 'facing_bet' ? 'Villain Apostou' : 'Primeiro a Agir'}</Badge>
                   <Badge variant="gold">{config.potSize} BB pot</Badge>
                   <Badge variant="neutral">{config.effectiveStack} BB stack</Badge>
+                  {config.handCategoryFilter !== 'any' && (
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                      {CATEGORY_FILTER_OPTIONS.find(o => o.id === config.handCategoryFilter)?.icon} {CATEGORY_FILTER_OPTIONS.find(o => o.id === config.handCategoryFilter)?.label}
+                    </span>
+                  )}
+                  {config.textureFilter !== 'any' && (
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                      {TEXTURE_FILTER_OPTIONS.find(o => o.id === config.textureFilter)?.icon} {TEXTURE_FILTER_OPTIONS.find(o => o.id === config.textureFilter)?.label}
+                    </span>
+                  )}
                 </div>
               </Card>
 
