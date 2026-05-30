@@ -82,6 +82,87 @@ export const POSTFLOP_PREFLOP_RANGES = {
   ],
 } as const
 
+// ------- ORDEM DE AÇÃO POSTFLOP (mais OOP → mais IP) -------
+// Postflop: SB age primeiro (mais OOP), BTN por último (mais IP).
+// Quanto MAIOR o índice, MAIS IP.
+export const POSTFLOP_POSITION_ORDER: Position[] = [
+  'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN'
+]
+
+export function computeIPOOP(heroPos: Position, villainPos: Position): 'IP' | 'OOP' {
+  const order = POSTFLOP_POSITION_ORDER
+  const hIdx = order.indexOf(heroPos)
+  const vIdx = order.indexOf(villainPos)
+  return hIdx > vIdx ? 'IP' : 'OOP'
+}
+
+// ------- RANGE PREFLOP DO HERO POR POSIÇÃO ESPECÍFICA -------
+// Substitui POSTFLOP_PREFLOP_RANGES (que era fixo BTN/BB) por algo dinâmico
+// baseado nas posições reais de hero e villain.
+//
+// Lógica:
+//  • SRP — quem não é blind = opener, quem é blind = defensor
+//    - Hero opener: usa OPEN_RAISE_RANGES[heroPos]
+//    - Hero defensor BB: usa BB_DEFENSE_RANGES[villainPos]
+//    - Hero defensor SB: BB defense (com leve aperto)
+//    - SB vs BB: usa SB_VS_BB_RAISE_RANGES / BB_VS_SB_DEFENSE_RANGES
+//  • 3-bet pot — quem 3-betou vs quem chamou o 3-bet
+//    - Hero blind 3-bettor: THREE_BET_RANGES[heroPos]
+//    - Hero opener que chamou 3-bet: range de call-3bet IP (tighter)
+//    - Hero não-blind 3-bettor (squeeze-like): THREE_BET_RANGES[heroPos]
+export function getHeroPreflopRangeByPosition(
+  heroPos: Position,
+  villainPos: Position,
+  potType: 'SRP' | '3bet'
+): string[] {
+  const heroIsBlind = heroPos === 'SB' || heroPos === 'BB'
+  const villainIsBlind = villainPos === 'SB' || villainPos === 'BB'
+
+  if (potType === 'SRP') {
+    // SB vs BB explícito
+    if (heroPos === 'SB' && villainPos === 'BB') return [...SB_VS_BB_RAISE_RANGES]
+    if (heroPos === 'BB' && villainPos === 'SB') return [...BB_VS_SB_DEFENSE_RANGES]
+
+    // Hero é opener (não-blind), villain defende
+    if (!heroIsBlind && villainIsBlind) {
+      return [...(OPEN_RAISE_RANGES[heroPos] || OPEN_RAISE_RANGES['BTN'] || [])]
+    }
+    // Hero defende blind, villain abriu
+    if (heroIsBlind && !villainIsBlind) {
+      if (heroPos === 'BB') {
+        return [...(BB_DEFENSE_RANGES[villainPos] || BB_DEFENSE_RANGES['BTN'] || [])]
+      }
+      // SB defense: aproxima como BB defense (sem mãos mais marginais)
+      const bbDef = BB_DEFENSE_RANGES[villainPos] || BB_DEFENSE_RANGES['BTN'] || []
+      // SB defende mais tight que BB (precisa de equity contra 2 players potencial)
+      return [...bbDef].slice(0, Math.floor(bbDef.length * 0.75))
+    }
+    // Ambos não-blinds (ex: CO open + BTN call) — hero é caller late position
+    if (!heroIsBlind && !villainIsBlind) {
+      // Hero call IP em SRP: range mais tight que o open dele (mãos que jogam bem em posição)
+      return [...(OPEN_RAISE_RANGES[heroPos] || OPEN_RAISE_RANGES['BTN'] || [])]
+    }
+    // Ambos blinds: já tratado acima — fallback
+    return [...(OPEN_RAISE_RANGES['BTN'] || [])]
+  }
+
+  // === 3-bet pot ===
+  // Hero blind 3-bettor (mais comum)
+  if (heroIsBlind && !villainIsBlind) {
+    return [...(THREE_BET_RANGES[heroPos] || THREE_BET_RANGES['BB'] || [])]
+  }
+  // Hero opener que chamou 3-bet — usa range estática IP de call 3bet
+  if (!heroIsBlind && villainIsBlind) {
+    return [...POSTFLOP_PREFLOP_RANGES.THREEBET_IP]
+  }
+  // Hero não-blind 3-bettor (squeeze ou 3-bet IP/OOP em pots multipos)
+  if (!heroIsBlind && !villainIsBlind) {
+    return [...(THREE_BET_RANGES[heroPos] || THREE_BET_RANGES['CO'] || [])]
+  }
+  // Ambos blinds em 3-bet pot (SB 3-bets BB, raro mas possível)
+  return [...(THREE_BET_RANGES[heroPos] || THREE_BET_RANGES['BB'] || [])]
+}
+
 // ------- FORMATO DE MESA: POSIÇÕES DISPONÍVEIS -------
 // A lógica de range é baseada em "quantos jogadores ficam atrás de você"
 // HU BTN = 1 atrás; 9max UTG = 8 atrás

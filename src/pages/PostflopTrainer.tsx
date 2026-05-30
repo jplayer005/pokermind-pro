@@ -20,7 +20,8 @@ import {
   classifyTurnCard, generateHandCombos, countCombos, runMonteCarloEquityPostflop,
 } from '@/lib/poker'
 import type { PostflopHandEval, BoardTexture, GtoDecision, BoardAdvantageAnalysis, BlockerEffect, TurnCardInfo, MonteCarloResult } from '@/lib/poker'
-import { POSTFLOP_PREFLOP_RANGES, MARGINAL_HANDS } from '@/data/ranges'
+import { MARGINAL_HANDS, getHeroPreflopRangeByPosition, computeIPOOP } from '@/data/ranges'
+import type { Position } from '@/types'
 
 // ---- TIPOS ----
 type HeroPos = 'IP' | 'OOP'
@@ -70,20 +71,16 @@ function strengthTextColor(strength: number): string {
 }
 
 // Mini componente de exibição de equity. Reusado no flop/turn/river.
-function EquityCard({ equity, street, potType, position }: {
+function EquityCard({ equity, street, villainPos }: {
   equity: MonteCarloResult
   street: 'flop' | 'turn' | 'river'
-  potType: PotType
-  position: HeroPos
+  villainPos: Position
 }) {
   const eqPct = Math.round(equity.equity * 100)
   const eqColor = eqPct >= 60 ? 'text-emerald-400' : eqPct >= 40 ? 'text-yellow-400' : 'text-red-400'
   const eqBar = eqPct >= 60 ? 'bg-emerald-500' : eqPct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
   const streetLabel = street === 'flop' ? 'no flop' : street === 'turn' ? 'no turn' : 'no river'
-  const villainSide = position === 'IP' ? 'OOP' : 'IP'
-  const rangeLabel = potType === 'SRP'
-    ? (villainSide === 'OOP' ? 'BB Defense vs BTN' : 'BTN Open')
-    : (villainSide === 'OOP' ? 'Range de 3-Bet' : 'Range de Call ao 3-Bet')
+  const rangeLabel = `range estimado do villain (${villainPos})`
 
   return (
     <Card className="p-4">
@@ -122,7 +119,7 @@ function EquityCard({ equity, street, potType, position }: {
         </div>
       </div>
       <p className="text-[10px] text-text-muted leading-relaxed">
-        Vs range estimado do villain ({rangeLabel}). {equity.totalRuns} simulações Monte Carlo.
+        Vs {rangeLabel}. {equity.totalRuns} simulações Monte Carlo.
       </p>
     </Card>
   )
@@ -173,7 +170,9 @@ const TEXTURE_FILTER_OPTIONS: { id: TextureFilter; label: string; icon: string }
 ]
 
 interface SetupConfig {
-  position: HeroPos
+  position: HeroPos                       // derivado de hero/villain preflop positions
+  heroPreflopPosition: Position
+  villainPreflopPosition: Position
   potType: PotType
   scenario: FacingScenario
   potSize: number
@@ -183,8 +182,18 @@ interface SetupConfig {
   textureFilter: TextureFilter
 }
 
+// Posições preflop disponíveis no seletor (6-max, mais comum)
+const PREFLOP_POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+
 function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) => void; initialConfig?: Partial<SetupConfig> }) {
-  const [position, setPosition] = useState<HeroPos>(initialConfig?.position ?? 'IP')
+  // Defaults inteligentes baseados em IP/OOP recebido (compat com Dashboard navigation)
+  const defaultHero: Position = initialConfig?.heroPreflopPosition
+    ?? (initialConfig?.position === 'OOP' ? 'BB' : 'BTN')
+  const defaultVillain: Position = initialConfig?.villainPreflopPosition
+    ?? (initialConfig?.position === 'OOP' ? 'BTN' : 'BB')
+
+  const [heroPreflopPosition, setHeroPreflopPosition] = useState<Position>(defaultHero)
+  const [villainPreflopPosition, setVillainPreflopPosition] = useState<Position>(defaultVillain)
   const [potType, setPotType] = useState<PotType>(initialConfig?.potType ?? 'SRP')
   const [scenario, setScenario] = useState<FacingScenario>(initialConfig?.scenario ?? 'first_to_act')
   const [potSize, setPotSize] = useState(initialConfig?.potSize ?? 10)
@@ -193,32 +202,80 @@ function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) =>
   const [handCategoryFilter, setHandCategoryFilter] = useState<HandCategoryFilter>(initialConfig?.handCategoryFilter ?? 'any')
   const [textureFilter, setTextureFilter] = useState<TextureFilter>(initialConfig?.textureFilter ?? 'any')
 
+  // IP/OOP derivado das posições preflop
+  const derivedPosition: HeroPos = computeIPOOP(heroPreflopPosition, villainPreflopPosition)
+
+  // Se hero e villain forem a mesma posição, força villain para próximo válido
+  if (heroPreflopPosition === villainPreflopPosition) {
+    const alternative = PREFLOP_POSITIONS.find(p => p !== heroPreflopPosition) ?? 'BB'
+    setTimeout(() => setVillainPreflopPosition(alternative), 0)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
-      {/* Posição */}
-      <Card className="p-4">
-        <div className="text-xs text-text-muted uppercase tracking-wider mb-3">Sua Posição</div>
-        <div className="grid grid-cols-2 gap-2">
-          {(['IP', 'OOP'] as HeroPos[]).map(pos => (
-            <button
-              key={pos}
-              onClick={() => setPosition(pos)}
-              className={cn(
-                'py-3 rounded-xl text-sm font-mono font-bold border transition-all',
-                position === pos
-                  ? pos === 'IP'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                    : 'bg-red-500/15 border-red-500/40 text-red-400'
-                  : 'bg-bg-overlay border-border-subtle text-text-muted'
-              )}
-            >
-              {pos === 'IP' ? '✅ IP (Em Posição)' : '❌ OOP (Fora Posição)'}
-            </button>
-          ))}
+      {/* Posições preflop (hero + villain) */}
+      <Card className="p-4 space-y-3">
+        <div>
+          <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Sua Posição (Preflop)</div>
+          <div className="grid grid-cols-6 gap-1">
+            {PREFLOP_POSITIONS.map(pos => (
+              <button
+                key={`hero-${pos}`}
+                onClick={() => setHeroPreflopPosition(pos)}
+                className={cn(
+                  'py-2 rounded-lg text-[11px] font-mono font-bold border transition-all',
+                  heroPreflopPosition === pos
+                    ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                    : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+                )}
+              >
+                {pos}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Posição do Villain</div>
+          <div className="grid grid-cols-6 gap-1">
+            {PREFLOP_POSITIONS.map(pos => {
+              const isDisabled = pos === heroPreflopPosition
+              return (
+                <button
+                  key={`villain-${pos}`}
+                  onClick={() => !isDisabled && setVillainPreflopPosition(pos)}
+                  disabled={isDisabled}
+                  className={cn(
+                    'py-2 rounded-lg text-[11px] font-mono font-bold border transition-all',
+                    villainPreflopPosition === pos
+                      ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
+                      : isDisabled
+                      ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed'
+                      : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+                  )}
+                >
+                  {pos}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 pt-2 border-t border-border-subtle">
+          <span className="text-[10px] text-text-muted uppercase tracking-wider">No postflop:</span>
+          <span className={cn(
+            'text-xs font-mono font-bold px-2 py-0.5 rounded border',
+            derivedPosition === 'IP'
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+              : 'bg-red-500/15 text-red-400 border-red-500/30'
+          )}>
+            {derivedPosition === 'IP' ? '✅ Você = IP' : '❌ Você = OOP'}
+          </span>
+          <span className="text-[10px] text-text-muted ml-auto font-body">
+            Ranges amostrados pela posição real
+          </span>
         </div>
       </Card>
 
@@ -412,7 +469,13 @@ function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) =>
       <Button
         variant="gold"
         size="lg"
-        onClick={() => onStart({ position, potType, scenario, potSize, effectiveStack, streetMode, handCategoryFilter, textureFilter })}
+        onClick={() => onStart({
+          position: derivedPosition,
+          heroPreflopPosition,
+          villainPreflopPosition,
+          potType, scenario, potSize, effectiveStack, streetMode,
+          handCategoryFilter, textureFilter,
+        })}
         className="w-full"
       >
         <Play size={16} />
@@ -500,21 +563,14 @@ function spotKey(
 }
 
 // Retorna range estimado do villain para o spot — usado no cálculo de equity.
-// É o range OPOSTO ao do hero (se hero é IP, villain é OOP, etc).
-function getVillainRange(potType: PotType, position: HeroPos): string[] {
-  if (potType === 'SRP') {
-    return position === 'IP'
-      ? [...POSTFLOP_PREFLOP_RANGES.SRP_OOP]
-      : [...POSTFLOP_PREFLOP_RANGES.SRP_IP]
-  }
-  return position === 'IP'
-    ? [...POSTFLOP_PREFLOP_RANGES.THREEBET_OOP]
-    : [...POSTFLOP_PREFLOP_RANGES.THREEBET_IP]
+// Agora usa a função dinâmica por posição (villain vs hero, com positions trocadas).
+function getVillainRange(cfg: SetupConfig): string[] {
+  return getHeroPreflopRangeByPosition(cfg.villainPreflopPosition, cfg.heroPreflopPosition, cfg.potType)
 }
 
 // Equity Monte Carlo com 400 iterações (~80-150ms — snappy o suficiente).
-function computeEquity(heroCards: [CardType, CardType], board: CardType[], potType: PotType, position: HeroPos): MonteCarloResult {
-  const villainRange = getVillainRange(potType, position)
+function computeEquity(heroCards: [CardType, CardType], board: CardType[], cfg: SetupConfig): MonteCarloResult {
+  const villainRange = getVillainRange(cfg)
   return runMonteCarloEquityPostflop(heroCards, board, villainRange, 400)
 }
 
@@ -573,11 +629,8 @@ function scoreCandidate(profile: PostflopSpotProfile | null): number {
 //   • 75% das vezes — mão do range pré-flop típico, com MARGINAIS-in boostadas 3×
 //   • 25% das vezes — mão MARGINAL fora do range típico, para variar e ensinar
 //     o usuário a reconhecer situações onde "essa mão não deveria estar aqui"
-function pickHeroCardsFromRange(potType: PotType, position: HeroPos, boardCards: CardType[]): [CardType, CardType] {
-  const key = potType === 'SRP'
-    ? (position === 'IP' ? 'SRP_IP' : 'SRP_OOP')
-    : (position === 'IP' ? 'THREEBET_IP' : 'THREEBET_OOP')
-  const range = POSTFLOP_PREFLOP_RANGES[key]
+function pickHeroCardsFromRange(cfg: SetupConfig, boardCards: CardType[]): [CardType, CardType] {
+  const range = getHeroPreflopRangeByPosition(cfg.heroPreflopPosition, cfg.villainPreflopPosition, cfg.potType)
   const rangeSet = new Set<string>(range)
 
   // Pool ponderado:
@@ -617,14 +670,14 @@ function pickHeroCardsFromRange(potType: PotType, position: HeroPos, boardCards:
 // Gera UM candidato de drill state (board + hero + análise de flop + equity)
 function generateOneCandidate(cfg: SetupConfig): DrillState {
   const boardCards = generateRandomCards(3) as [CardType, CardType, CardType]
-  const heroCards = pickHeroCardsFromRange(cfg.potType, cfg.position, boardCards)
+  const heroCards = pickHeroCardsFromRange(cfg, boardCards)
   const texture = analyzeBoardTexture(boardCards)
   const handEval = evaluatePostflopHand(heroCards, boardCards)
   const flopSPR = cfg.potSize > 0 ? Math.round((cfg.effectiveStack / cfg.potSize) * 10) / 10 : 10
   const gtoDecision = getGTODecision(handEval, texture, cfg.position, cfg.potType, cfg.scenario === 'facing_bet', 'flop', flopSPR)
   const boardAdvantage = analyzeBoardAdvantage(texture, cfg.potType, cfg.position)
   const blockerEffects = analyzeBlockerEffects(heroCards)
-  const flopEquity = computeEquity(heroCards, boardCards, cfg.potType, cfg.position)
+  const flopEquity = computeEquity(heroCards, boardCards, cfg)
   return {
     board: boardCards, heroCards, handEval, texture,
     gtoDecision, boardAdvantage, blockerEffects,
@@ -757,7 +810,7 @@ function advanceTurn(drill: DrillState, cfg: SetupConfig): DrillState {
   const turnSPR = turnEstimatedPot > 0 ? Math.round((turnRemainingStack / turnEstimatedPot) * 10) / 10 : 10
   // facing_bet só é o estado inicial do flop — no turn/river hero atua primeiro após villain check
   const turnGtoDecision = getGTODecision(turnHandEval, turnTexture, cfg.position, cfg.potType, false, 'turn', turnSPR)
-  const turnEquity = computeEquity(drill.heroCards, fullBoard, cfg.potType, cfg.position)
+  const turnEquity = computeEquity(drill.heroCards, fullBoard, cfg)
   return {
     ...drill,
     phase: 'turn',
@@ -781,7 +834,7 @@ function advanceRiver(drill: DrillState, cfg: SetupConfig): DrillState {
   const riverRemainingStack = Math.max(1, cfg.effectiveStack - totalInvestmentPerPlayer)
   const riverSPR = riverEstimatedPot > 0 ? Math.round((riverRemainingStack / riverEstimatedPot) * 10) / 10 : 10
   const riverGtoDecision = getGTODecision(riverHandEval, riverTexture, cfg.position, cfg.potType, false, 'river', riverSPR)
-  const riverEquity = computeEquity(drill.heroCards, fullBoard, cfg.potType, cfg.position)
+  const riverEquity = computeEquity(drill.heroCards, fullBoard, cfg)
   return {
     ...drill,
     phase: 'river',
@@ -847,8 +900,14 @@ export default function PostflopTrainer() {
   // Auto-start quando vem do Dashboard "Pontos Fracos" — usa defaults para campos não setados
   useEffect(() => {
     if (navState?.autoStart && !config) {
+      const ipOop = navState.position ?? 'IP'
+      // Defaults inteligentes: IP=BTN vs BB, OOP=BB vs BTN (combos mais comuns)
+      const heroPos: Position = ipOop === 'IP' ? 'BTN' : 'BB'
+      const villainPos: Position = ipOop === 'IP' ? 'BB' : 'BTN'
       const cfg: SetupConfig = {
-        position: navState.position ?? 'IP',
+        position: ipOop,
+        heroPreflopPosition: heroPos,
+        villainPreflopPosition: villainPos,
         potType: navState.potType ?? 'SRP',
         scenario: 'first_to_act',
         potSize: 10,
@@ -1105,6 +1164,9 @@ export default function PostflopTrainer() {
               <Card className="p-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={config.position === 'IP' ? 'emerald' : 'crimson'}>{config.position}</Badge>
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-accent-gold/15 text-accent-gold border border-accent-gold/30">
+                    {config.heroPreflopPosition} vs {config.villainPreflopPosition}
+                  </span>
                   <Badge variant="blue">{config.potType}</Badge>
                   <Badge variant="neutral">{config.scenario === 'facing_bet' ? 'Villain Apostou' : 'Primeiro a Agir'}</Badge>
                   <Badge variant="gold">{config.potSize} BB pot</Badge>
@@ -1286,7 +1348,7 @@ export default function PostflopTrainer() {
 
                     {/* Equity vs range estimado do villain */}
                     {drill.flopEquity && (
-                      <EquityCard equity={drill.flopEquity} street="flop" potType={config.potType} position={config.position} />
+                      <EquityCard equity={drill.flopEquity} street="flop" villainPos={config.villainPreflopPosition} />
                     )}
 
                     {/* Textura do board */}
@@ -1644,7 +1706,7 @@ export default function PostflopTrainer() {
 
                           {/* Equity vs range no turn */}
                           {drill.turnEquity && (
-                            <EquityCard equity={drill.turnEquity} street="turn" potType={config.potType} position={config.position} />
+                            <EquityCard equity={drill.turnEquity} street="turn" villainPos={config.villainPreflopPosition} />
                           )}
 
                           {/* Navegação após turn */}
@@ -1872,7 +1934,7 @@ export default function PostflopTrainer() {
 
                           {/* Equity final vs range no river */}
                           {drill.riverEquity && (
-                            <EquityCard equity={drill.riverEquity} street="river" potType={config.potType} position={config.position} />
+                            <EquityCard equity={drill.riverEquity} street="river" villainPos={config.villainPreflopPosition} />
                           )}
 
                           {/* ======= MULTI-STREET SUMMARY (só no modo full) ======= */}
