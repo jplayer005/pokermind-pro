@@ -28,18 +28,23 @@ interface CalcConfig {
   isPremium?: boolean
 }
 
+// Ordem: das mais essenciais (decisão em toda mão) para as mais situacionais.
+//   1-5: ferramentas core — uso diário em qualquer mão (pot odds, outs, MDF, EV, SPR)
+//   6-8: úteis em spots específicos (equity Monte Carlo, fold equity, combos)
+//   9-10: ICM (só torneios)
+//   11:   rake (raro consultar em mesa)
 const CALCULATORS: CalcConfig[] = [
   { id: 'potodds',   label: 'Pot Odds',    icon: '📐', description: 'Calcule se uma call é matematicamente correta' },
-  { id: 'ev',        label: 'EV',          icon: '⚖️', description: 'Compare EV entre fold, call e raise' },
-  { id: 'mdf',       label: 'MDF',         icon: '🛡', description: 'Frequência mínima de defesa contra bets' },
   { id: 'outs',      label: 'Outs',        icon: '🎲', description: 'Converta outs em equity (regra 4 e 2)' },
+  { id: 'mdf',       label: 'MDF',         icon: '🛡', description: 'Frequência mínima de defesa contra bets' },
+  { id: 'ev',        label: 'EV',          icon: '⚖️', description: 'Compare EV entre fold, call e raise' },
   { id: 'spr',       label: 'SPR',         icon: '📊', description: 'Stack-to-Pot Ratio e comprometimento' },
-  { id: 'foldequity',label: 'Fold Equity', icon: '🎯', description: 'Fold equity mínima para bluffs' },
   { id: 'equity',    label: 'Equity MC',   icon: '🔬', description: 'Equity real via simulação Monte Carlo' },
+  { id: 'foldequity',label: 'Fold Equity', icon: '🎯', description: 'Fold equity mínima para bluffs' },
   { id: 'combos',    label: 'Combinações', icon: '🧮', description: 'Treino de contagem de combos e blockers' },
-  { id: 'rake',      label: 'Rake',        icon: '💸', description: 'Impacto do rake no EV e nas mãos marginais' },
   { id: 'icmdrill',  label: 'ICM Drill',   icon: '🏆', description: 'Decisões situacionais com ICM em torneios' },
   { id: 'icm',       label: 'ICM Calc',    icon: '🥇', description: 'Calculadora ICM para distribuição de chips' },
+  { id: 'rake',      label: 'Rake',        icon: '💸', description: 'Impacto do rake no EV e nas mãos marginais' },
 ]
 
 // ------- CALCULADORA POT ODDS -------
