@@ -361,7 +361,6 @@ interface TrainingStore {
   startSession: (mode: DrillSession['mode'], scenario: DrillSession['scenario']) => void
   answerQuestion: (result: DrillResult) => void
   endSession: () => void
-  getAccuracyByPosition: () => Record<string, number>
   totalQuestionsToday: number
   lastResetDate: string
   resetProgress: () => void
@@ -371,7 +370,7 @@ interface TrainingStore {
 
 export const useTrainingStore = create<TrainingStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       currentSession: null,
       sessionHistory: [],
       totalQuestionsToday: 0,
@@ -437,26 +436,6 @@ export const useTrainingStore = create<TrainingStore>()(
             .slice(0, 10),
         })),
 
-      getAccuracyByPosition: () => {
-        const { sessionHistory } = get()
-        const byPosition: Record<string, { correct: number; total: number }> = {}
-
-        sessionHistory.forEach((session) => {
-          session.questions.forEach((q) => {
-            if (!byPosition[q.hand[0]]) {
-              byPosition[q.hand[0]] = { correct: 0, total: 0 }
-            }
-            byPosition[q.hand[0]].total++
-            if (q.isCorrect) byPosition[q.hand[0]].correct++
-          })
-        })
-
-        const result: Record<string, number> = {}
-        Object.entries(byPosition).forEach(([pos, data]) => {
-          result[pos] = data.total > 0 ? data.correct / data.total : 0
-        })
-        return result
-      },
     }),
     {
       name: 'pokermind-training',

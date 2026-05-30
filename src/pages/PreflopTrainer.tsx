@@ -214,14 +214,21 @@ export default function PreflopTrainer() {
   const [scenario, setScenario] = useState<ScenarioType>(initScenario)
   const [position, setPosition] = useState<Position>(initPosition)
   const [villainPosition, setVillainPosition] = useState<Position>('BTN')
-  const [stackDepth, setStackDepth] = useState(100) // push/fold específico
+  const [stackDepth, setStackDepth] = useState(15) // push/fold específico (5-25bb)
   const [heroStack, setHeroStack] = useState(100)    // stack geral da sessão (25-200bb)
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isRandomPosition, setIsRandomPosition] = useState(true)
   const [poolPosition, setPoolPosition] = useState<Position>('BTN')
 
-  // Posições válidas para o villain (quem abriu) no cenário bb_defense
-  const VILLAIN_OPEN_POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB']
+  // Posições válidas para o villain (quem abriu) no cenário bb_defense.
+  // Filtra dinamicamente pelo formato — em 9max inclui UTG+1/UTG+2/LJ; em 6max só UTG-SB.
+  const VILLAIN_OPEN_POSITIONS: Position[] = (
+    tableFormat === '9max'
+      ? ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB']
+      : tableFormat === 'HU'
+      ? ['BTN']
+      : ['UTG', 'HJ', 'CO', 'BTN', 'SB']
+  )
 
   const STACK_OPTIONS = [25, 40, 50, 75, 100, 150, 200]
 
@@ -374,46 +381,11 @@ export default function PreflopTrainer() {
       }
     }
 
-    // ---- OVERRIDE SISTÊMICO: garante que correctAction de questões do banco bate com o grid ----
-    // O grid é sempre construído da fórmula (getRangeForScenario + THREE_BET_RANGES).
-    // Algumas questões do banco têm correctAction desatualizado vs o range data.
-    // Esta correção recalcula a ação correta e atualiza a questão antes de exibi-la.
-    if (!question.id.startsWith('gen_')) {
-      const bankRange = getRangeForScenario(
-        question.scenario as ScenarioType,
-        question.position,
-        stackDepth,
-        tableFormat,
-        question.villainPosition ?? villainPosition
-      )
-      const bankEvalRange = question.scenario === 'open_raise'
-        ? applyStackAdjustment(bankRange, heroStack)
-        : bankRange
-      const bankIsInRange = bankEvalRange.includes(question.hand)
-      const bankFormulaAction = getCorrectActionForScenario(
-        question.scenario as ScenarioType,
-        bankIsInRange,
-        question.hand,
-        question.position
-      )
-      if (bankFormulaAction !== question.correctAction) {
-        const sl: Record<string, string> = {
-          open_raise: 'open raise', push_fold: 'push/fold', '3bet': '3-bet', '4bet': '4-bet',
-          squeeze: 'squeeze', bb_defense: 'defesa do BB', call_rfi: 'call vs raise', sb_vs_bb: 'SB vs BB',
-        }
-        const al: Record<string, string> = {
-          raise: 'RAISE', fold: 'FOLD', jam: 'JAM', '3bet': '3-BET', '4bet': '4-BET', call: 'CALL', limp: 'LIMP',
-        }
-        question = {
-          ...question,
-          correctAction: bankFormulaAction,
-          explanation: bankIsInRange
-            ? `${question.hand} está dentro do range de ${sl[question.scenario] ?? question.scenario} do ${question.position}. A jogada correta é ${al[bankFormulaAction] ?? bankFormulaAction}.`
-            : `${question.hand} está fora do range de ${sl[question.scenario] ?? question.scenario} do ${question.position}. A mão não tem equity suficiente nesta situação — FOLD é a jogada correta.`,
-          evComparison: undefined,
-        }
-      }
-    }
+    // Bank questions são curadas com decisões GTO refinadas (frequências, gtoMix,
+    // explicações específicas). Confiamos no correctAction do banco — a fórmula binária
+    // "está no range?" não captura exceções como A5s vs UTG=fold, JJ vs BB 3bet=call,
+    // squeeze com call equilibrado, ou SB vs BB com mixed strategy (raise/limp).
+    // Questões geradas dinamicamente (`gen_*`) sempre usam a fórmula.
 
     setCurrentQuestion(question)
     setUserAnswer(null)
@@ -970,7 +942,7 @@ export default function PreflopTrainer() {
                   {STACK_OPTIONS.map(s => (
                     <button
                       key={s}
-                      onClick={() => { setHeroStack(s); if (scenario === 'push_fold') setStackDepth(s) }}
+                      onClick={() => { setHeroStack(s); if (scenario === 'push_fold') setStackDepth(Math.min(25, Math.max(5, s))) }}
                       className={cn(
                         'py-2 rounded-lg text-[10px] font-mono font-bold border transition-all',
                         heroStack === s
