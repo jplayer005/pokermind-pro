@@ -283,7 +283,17 @@ export default function PreflopTrainer() {
       ? ['BTN', 'BB']
       : ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
   )
-  const VALID_VILLAIN_SET = new Set(getValidVillainPositions(scenario, position, tableFormat))
+  // Quando hero é aleatório, o seletor de villain deve aceitar qualquer posição que seja
+  // válida para PELO MENOS UM hero possível no cenário — evita bloquear todos os botões.
+  const VALID_VILLAIN_SET = new Set(
+    isRandomPosition
+      ? ALL_VILLAIN_POSITIONS_BY_FORMAT.filter(pos =>
+          (POSITIONS_BY_FORMAT[tableFormat] ?? [])
+            .filter(p => POSITIONS_BY_SCENARIO[scenario].includes(p))
+            .some(heroP => getValidVillainPositions(scenario, heroP, tableFormat).includes(pos))
+        )
+      : getValidVillainPositions(scenario, position, tableFormat)
+  )
   const VILLAIN_OPEN_POSITIONS: Position[] = [...VALID_VILLAIN_SET] // mantém compat para outros usos
   // Cenários onde o seletor de villain faz sentido
   const SHOWS_VILLAIN_SELECTOR = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze'].includes(scenario)
@@ -369,7 +379,7 @@ export default function PreflopTrainer() {
       if (betterVillain) setVillainPosition(betterVillain)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [position, scenario, tableFormat])
+  }, [position, scenario, tableFormat, isRandomPosition])
 
   // ---- GERAÇÃO DE QUESTÃO (lógica reestruturada) ----
   //
@@ -1199,8 +1209,8 @@ export default function PreflopTrainer() {
                     <Badge variant="neutral">
                       {({'open_raise':'Open Raise','push_fold':'Push/Fold','3bet':'3-Bet','4bet':'4-Bet','squeeze':'Squeeze','bb_defense':'BB Defense','call_rfi':'Call RFI','sb_vs_bb':'SB vs BB'} as Record<string,string>)[currentQuestion.scenario] ?? currentQuestion.scenario}
                     </Badge>
-                    {currentQuestion.villainPosition && (
-                      <Badge variant="neutral">vs {currentQuestion.villainPosition}</Badge>
+                    {SHOWS_VILLAIN_SELECTOR && villainPosition && (
+                      <Badge variant="neutral">vs {villainPosition}</Badge>
                     )}
                     {questionSM2Type === 'review' && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">

@@ -98,6 +98,25 @@ function getRangeForScenario(
   }
 }
 
+// Mãos que CALL em squeeze IP (realizam equity multiway, implied odds > squeeze EV)
+const SQUEEZE_CALL_RANGES: Partial<Record<Position, string[]>> = {
+  'BTN': ['TT', '99', '88', 'JTs', 'T9s', '98s'],
+  'CO':  ['TT', '99'],
+}
+
+// Mãos que CALL um 3-bet (too strong to fold, not strong enough to always 4-bet)
+const FOUR_BET_CALL_RANGES: Partial<Record<Position, string[]>> = {
+  'UTG':   ['TT', 'JJ'],
+  'UTG+1': ['TT', 'JJ'],
+  'UTG+2': ['TT', 'JJ'],
+  'LJ':    ['TT', 'JJ'],
+  'HJ':    ['TT', 'JJ', 'AQs'],
+  'CO':    ['TT', 'JJ', 'AQs', 'AJs'],
+  'BTN':   ['TT', 'JJ', 'AQs', 'AJs'],
+  'SB':    ['TT', 'JJ'],
+  'BB':    ['TT', 'JJ', 'AQs'],
+}
+
 function getCorrectActionForScenario(
   scenario: Scenario,
   isInRange: boolean,
@@ -113,8 +132,7 @@ function getCorrectActionForScenario(
   if (scenario === 'squeeze') {
     const squeezeRange = SQUEEZE_RANGES[position] || []
     if (squeezeRange.includes(hand)) return '3bet'
-    const openRange = OPEN_RAISE_RANGES[position] || []
-    if (openRange.includes(hand)) return 'call'
+    if (SQUEEZE_CALL_RANGES[position]?.includes(hand)) return 'call'
     return 'fold'
   }
   if (scenario === '3bet') {
@@ -129,8 +147,7 @@ function getCorrectActionForScenario(
   if (scenario === '4bet') {
     const fourBet = FOUR_BET_RANGES[position] || []
     if (fourBet.includes(hand)) return '4bet'
-    const openRange = OPEN_RAISE_RANGES[position] || []
-    if (openRange.includes(hand)) return 'call'
+    if (FOUR_BET_CALL_RANGES[position]?.includes(hand)) return 'call'
     return 'fold'
   }
   if (!isInRange) return 'fold'
@@ -576,7 +593,7 @@ console.log('🔍 Auditoria 8/8: Campos obrigatórios no card de treino (pré-fl
 const PREFLOP_CARD_REQUIRED_FIELDS: Array<keyof typeof DRILL_QUESTIONS[0]> = [
   'position', 'heroStack', 'scenario', 'hand',
 ]
-const PREFLOP_VILLAIN_SCENARIOS = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze', 'sb_vs_bb']
+const PREFLOP_VILLAIN_SCENARIOS = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze']
 
 for (const q of DRILL_QUESTIONS) {
   for (const field of PREFLOP_CARD_REQUIRED_FIELDS) {
@@ -648,6 +665,83 @@ for (const page of PAGES_TO_AUDIT) {
         type: 'stats_tracking_missing',
         hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
         details: `${page.label}: padrão ausente — "${req.description}". Stats de sessão podem não ser registrados.`,
+      })
+    }
+  }
+}
+
+// ============================================================
+// AUDITORIA 10: VALID_VILLAIN_SET COM HERO ALEATÓRIO
+// Quando hero é "Aleatório", o conjunto de villains válidos deve ser
+// não-vazio para cada cenário+formato — caso contrário a UI bloqueia
+// todos os botões de villain sem razão.
+// ============================================================
+console.log('🔍 Auditoria 10: VALID_VILLAIN_SET com hero aleatório...')
+
+for (const fmt of FORMATS) {
+  for (const sc of VILLAIN_SELECTOR_SCENARIOS) {
+    const scenarioPos = (POSITIONS_BY_SCENARIO_LOCAL as Record<string, Position[]>)[sc] ?? []
+    const formatPos = POSITIONS_BY_FORMAT[fmt] ?? []
+    const validHeroes = formatPos.filter(p => scenarioPos.includes(p))
+    if (validHeroes.length === 0) continue // cenário não existe nesse formato
+
+    const unionVillains = new Set<Position>()
+    for (const heroP of validHeroes) {
+      getValidVillainPositions(sc, heroP, fmt).forEach(v => unionVillains.add(v))
+    }
+
+    if (unionVillains.size === 0) {
+      add({
+        severity: 'critical',
+        type: 'villain_selector_empty_random_hero',
+        hand: 'N/A', position: 'BTN', scenario: sc as Scenario,
+        details: `[${fmt}] ${sc}: hero aleatório → union de villains válidos é VAZIO. Todos os botões de villain ficariam bloqueados.`,
+      })
+    } else {
+      // INFO: lista os villains disponíveis com hero aleatório (confirma o fix)
+      // (omitido do relatório para não poluir — só reporta erro se vazio)
+    }
+  }
+}
+console.log(`   ${VILLAIN_SELECTOR_SCENARIOS.length * FORMATS.length} combinações cenário×formato verificadas.`)
+
+// ============================================================
+// AUDITORIA 11 (ESTÁTICA): BADGE DE VILLAIN NO CARD DE SESSÃO
+// Verifica se o card de treino do PreflopTrainer usa o state da
+// sessão (villainPosition) para mostrar o villain ativo — não só
+// currentQuestion.villainPosition (que pode ser undefined).
+// ============================================================
+console.log('🔍 Auditoria 11 (estática): Badge villain no card de sessão...')
+
+{
+  let src = ''
+  try {
+    src = readFileSync(resolve('src/pages/PreflopTrainer.tsx'), 'utf-8')
+  } catch {
+    add({
+      severity: 'critical',
+      type: 'card_badge_file_not_found',
+      hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
+      details: `PreflopTrainer.tsx não encontrado — não foi possível verificar badge de villain.`,
+    })
+  }
+  if (src) {
+    const hasSessionVillainBadge = /SHOWS_VILLAIN_SELECTOR\s*&&\s*villainPosition/.test(src)
+    if (!hasSessionVillainBadge) {
+      add({
+        severity: 'warning',
+        type: 'card_badge_uses_question_villain_only',
+        hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
+        details: `PreflopTrainer.tsx: card de treino não usa villainPosition (state) como badge — filtro de villain ativo pode não aparecer no card.`,
+      })
+    }
+    const hasRandomHeroVillainFix = /isRandomPosition[\s\S]{0,200}POSITIONS_BY_SCENARIO\[scenario\][\s\S]{0,200}getValidVillainPositions/.test(src)
+    if (!hasRandomHeroVillainFix) {
+      add({
+        severity: 'warning',
+        type: 'villain_restriction_ignores_random_hero',
+        hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
+        details: `PreflopTrainer.tsx: VALID_VILLAIN_SET não considera hero aleatório — botões de villain podem ser incorretamente bloqueados quando hero="Aleatória".`,
       })
     }
   }
