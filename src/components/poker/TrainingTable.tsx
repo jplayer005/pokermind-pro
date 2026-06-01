@@ -87,7 +87,7 @@ function villainActionLabel(scenario: string): string | null {
     case '4bet':       return '4-Bet'
     case 'bb_defense': return 'Raise'
     case 'squeeze':    return 'Raise'
-    case 'call_rfi':   return 'Raise'
+    case 'vs_raise':   return 'Raise'
     default:           return null
   }
 }
@@ -101,7 +101,7 @@ function scenarioLabel(scenario: string): string {
     '4bet':      '4-Bet',
     bb_defense:  'BB Defense',
     squeeze:     'Squeeze',
-    call_rfi:    'vs Raise (RFI)',
+    vs_raise:    'vs Raise',
     sb_vs_bb:    'SB vs BB',
   }
   return MAP[scenario] ?? scenario

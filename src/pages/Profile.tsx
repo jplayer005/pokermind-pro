@@ -185,7 +185,7 @@ function ScenarioPerformance({ sessionHistory }: { sessionHistory: any[] }) {
     sb_vs_bb: 'SB vs BB',
     squeeze: 'Squeeze',
     '4bet': '4-Bet',
-    call_rfi: 'Call RFI',
+    vs_raise: 'vs Raise',
     postflop: 'Pós-Flop',
   }
   const perf = Object.entries(scenarios).map(([key, label]) => {

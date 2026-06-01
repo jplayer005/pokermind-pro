@@ -103,7 +103,7 @@ function computeWeakSpots(sessions: DrillSession[]) {
     push_fold:  'Push/Fold',
     '3bet':     '3-Bet',
     bb_defense: 'Defesa BB',
-    call_rfi:   'Call vs RFI',
+    vs_raise:   'vs Raise',
     '4bet':     '4-Bet',
     squeeze:    'Squeeze',
     sb_vs_bb:   'SB vs BB',
@@ -131,7 +131,7 @@ function computeWeakSpots(sessions: DrillSession[]) {
 function computeScenarioAccuracy(sessions: DrillSession[]) {
   const LABELS: Record<string, string> = {
     open_raise: 'Open Raise', push_fold: 'Push/Fold', '3bet': '3-Bet',
-    bb_defense: 'BB Defense', call_rfi: 'vs Raise', '4bet': '4-Bet',
+    bb_defense: 'BB Defense', vs_raise: 'vs Raise', '4bet': '4-Bet',
     squeeze: 'Squeeze', sb_vs_bb: 'SB vs BB', postflop: 'Pós-Flop',
   }
   const map: Record<string, { c: number; t: number }> = {}
@@ -162,7 +162,7 @@ function getWeekStart(offsetWeeks: number): Date {
 function computeWeeklyByScenario(sessions: DrillSession[], weekOffset: number) {
   const LABELS: Record<string, string> = {
     open_raise: 'Open Raise', push_fold: 'Push/Fold', '3bet': '3-Bet',
-    bb_defense: 'BB Defense', call_rfi: 'vs Raise', '4bet': '4-Bet',
+    bb_defense: 'BB Defense', vs_raise: 'vs Raise', '4bet': '4-Bet',
     squeeze: 'Squeeze', sb_vs_bb: 'SB vs BB', postflop: 'Pós-Flop',
   }
   const weekStart = getWeekStart(weekOffset).getTime()

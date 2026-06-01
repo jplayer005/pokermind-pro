@@ -1,7 +1,7 @@
-// ============================================================
-// AUDITORIA AUTOMÁTICA DE SPOTS PRÉ-FLOP
-// Percorre o banco de questões + simula spots aleatórios e reporta
-// inconsistências entre grid, bank correctAction, fórmula e EV.
+﻿// ============================================================
+// AUDITORIA AUTOMÃTICA DE SPOTS PRÃ‰-FLOP
+// Percorre o banco de questÃµes + simula spots aleatÃ³rios e reporta
+// inconsistÃªncias entre grid, bank correctAction, fÃ³rmula e EV.
 // Rodar: npm run audit
 // ============================================================
 
@@ -34,13 +34,13 @@ import {
 } from '../src/lib/poker'
 import type { Position, Action } from '../src/types'
 
-type Scenario = 'open_raise' | 'push_fold' | '3bet' | 'bb_defense' | 'call_rfi' | '4bet' | 'squeeze' | 'sb_vs_bb'
+type Scenario = 'open_raise' | 'push_fold' | '3bet' | 'bb_defense' | 'vs_raise' | '4bet' | 'squeeze' | 'sb_vs_bb'
 
 const ALL_HANDS = generateHandGrid().flat()
 const RNG = () => Math.random()
 const randomFrom = <T>(arr: T[]) => arr[Math.floor(RNG() * arr.length)]
 
-// ---- replicação da lógica do PreflopTrainer ----
+// ---- replicaÃ§Ã£o da lÃ³gica do PreflopTrainer ----
 
 function resolveBBDefenseRange(villainPos: Position): string[] {
   const direct = BB_DEFENSE_RANGES[villainPos] || []
@@ -86,7 +86,7 @@ function getRangeForScenario(
     }
     case '3bet': return THREE_BET_RANGES[position] || []
     case 'bb_defense': return resolveBBDefenseRange(villainPos)
-    case 'call_rfi':
+    case 'vs_raise':
       if (position === 'BB') return resolveBBDefenseRange(villainPos)
       const ipDefense = getIPDefenseRange(position, villainPos)
       if (ipDefense) return ipDefense
@@ -98,13 +98,13 @@ function getRangeForScenario(
   }
 }
 
-// Mãos que CALL em squeeze IP (realizam equity multiway, implied odds > squeeze EV)
+// MÃ£os que CALL em squeeze IP (realizam equity multiway, implied odds > squeeze EV)
 const SQUEEZE_CALL_RANGES: Partial<Record<Position, string[]>> = {
   'BTN': ['TT', '99', '88', 'JTs', 'T9s', '98s'],
   'CO':  ['TT', '99'],
 }
 
-// Mãos que CALL um 3-bet (too strong to fold, not strong enough to always 4-bet)
+// MÃ£os que CALL um 3-bet (too strong to fold, not strong enough to always 4-bet)
 const FOUR_BET_CALL_RANGES: Partial<Record<Position, string[]>> = {
   'UTG':   ['TT', 'JJ'],
   'UTG+1': ['TT', 'JJ'],
@@ -156,7 +156,7 @@ function getCorrectActionForScenario(
     case '3bet': return '3bet'
     case '4bet': return '4bet'
     case 'bb_defense':
-    case 'call_rfi': {
+    case 'vs_raise': {
       const threeBetRange =
         (position === 'BB' && villainPos === 'SB') ? BB_VS_SB_3BET_RANGES
         : (THREE_BET_RANGES[position] || [])
@@ -166,7 +166,7 @@ function getCorrectActionForScenario(
   }
 }
 
-// ---- TIPOS DE INCONSISTÊNCIA ----
+// ---- TIPOS DE INCONSISTÃŠNCIA ----
 interface Finding {
   severity: 'critical' | 'warning' | 'info'
   type: string
@@ -184,9 +184,9 @@ function add(f: Finding) {
 }
 
 // ============================================================
-// AUDITORIA 1: BANK QUESTIONS vs FÓRMULA DINÂMICA
+// AUDITORIA 1: BANK QUESTIONS vs FÃ“RMULA DINÃ‚MICA
 // ============================================================
-console.log('🔍 Auditoria 1/8: Bank questions vs fórmula dinâmica (pré-flop)...')
+console.log('ðŸ” Auditoria 1/8: Bank questions vs fÃ³rmula dinÃ¢mica (prÃ©-flop)...')
 
 for (const q of DRILL_QUESTIONS) {
   const sc = q.scenario as Scenario
@@ -195,26 +195,26 @@ for (const q of DRILL_QUESTIONS) {
   const isInRange = range.includes(q.hand)
   const dynamicAction = getCorrectActionForScenario(sc, isInRange, q.hand, q.position, villainPos)
 
-  // Diferença entre bank e fórmula
+  // DiferenÃ§a entre bank e fÃ³rmula
   if (q.correctAction !== dynamicAction) {
-    // Aceitável se for spot de mistura (correctFrequency < 0.85)
+    // AceitÃ¡vel se for spot de mistura (correctFrequency < 0.85)
     const isMix = (q.correctFrequency ?? 1) < 0.85
     add({
       severity: isMix ? 'info' : 'warning',
       type: 'bank_vs_formula_mismatch',
       hand: q.hand, position: q.position, villainPos,
       scenario: sc,
-      details: `Bank correctAction=${q.correctAction} (freq ${q.correctFrequency}), fórmula diz ${dynamicAction}. ${isMix ? 'Mix GTO esperado.' : '⚠️ Conflito hard.'}`,
+      details: `Bank correctAction=${q.correctAction} (freq ${q.correctFrequency}), fÃ³rmula diz ${dynamicAction}. ${isMix ? 'Mix GTO esperado.' : 'âš ï¸ Conflito hard.'}`,
     })
   }
 
-  // EV data contradiz o próprio correctAction
+  // EV data contradiz o prÃ³prio correctAction
   if (q.evComparison) {
     const evs = Object.entries(q.evComparison)
     const sorted = evs.sort(([, a], [, b]) => (b as number) - (a as number))
     const topAction = sorted[0][0]
     const topEv = sorted[0][1] as number
-    // Mapeamento bank EV → action
+    // Mapeamento bank EV â†’ action
     const evToAction: Record<string, string> = { raise: '3bet|4bet|raise|jam', call: 'call', fold: 'fold' }
     const matchesPattern = (corrAction: string, evKey: string) => {
       const accepted = (evToAction[evKey] ?? evKey).split('|')
@@ -226,18 +226,18 @@ for (const q of DRILL_QUESTIONS) {
         type: 'bank_ev_inconsistent',
         hand: q.hand, position: q.position, villainPos,
         scenario: sc,
-        details: `correctAction=${q.correctAction}, mas EV max é "${topAction}" com +${topEv} BB e freq ${q.correctFrequency} (>=0.85 → não é mix).`,
+        details: `correctAction=${q.correctAction}, mas EV max Ã© "${topAction}" com +${topEv} BB e freq ${q.correctFrequency} (>=0.85 â†’ nÃ£o Ã© mix).`,
       })
     }
   }
 }
 
 // ============================================================
-// AUDITORIA 2: GRID COLORING vs CORRECT ACTION (call_rfi/bb_defense)
+// AUDITORIA 2: GRID COLORING vs CORRECT ACTION (vs_raise/bb_defense)
 // ============================================================
-console.log('🔍 Auditoria 2/8: Grid coloring vs correctAction (pré-flop)...')
+console.log('ðŸ” Auditoria 2/8: Grid coloring vs correctAction (prÃ©-flop)...')
 
-const RFI_SCENARIOS: Scenario[] = ['call_rfi', 'bb_defense']
+const RFI_SCENARIOS: Scenario[] = ['vs_raise', 'bb_defense']
 const HERO_POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
 const OPENERS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB']
 
@@ -268,19 +268,19 @@ for (const scenario of RFI_SCENARIOS) {
 
 // ============================================================
 // AUDITORIA 2.3: VALIDADE DE COMBOS hero/villain
-// Hero != villain. Para call_rfi/3bet/squeeze, hero age depois do villain.
+// Hero != villain. Para vs_raise/3bet/squeeze, hero age depois do villain.
 // Para 4bet, hero age antes do villain.
 // ============================================================
-console.log('🔍 Auditoria 3/8: Validade hero/villain (mesma posição? ordem preflop?)...')
+console.log('ðŸ” Auditoria 3/8: Validade hero/villain (mesma posiÃ§Ã£o? ordem preflop?)...')
 
-const SCENARIOS_WITH_VILLAIN = ['call_rfi', 'bb_defense', '3bet', '4bet', 'squeeze']
+const SCENARIOS_WITH_VILLAIN = ['vs_raise', 'bb_defense', '3bet', '4bet', 'squeeze']
 
 // 1. Auditoria dos bank questions
 for (const q of DRILL_QUESTIONS) {
   if (!SCENARIOS_WITH_VILLAIN.includes(q.scenario as string)) continue
   if (!q.villainPosition) continue
 
-  // Mesma posição?
+  // Mesma posiÃ§Ã£o?
   if (q.position === q.villainPosition) {
     add({
       severity: 'critical',
@@ -295,7 +295,7 @@ for (const q of DRILL_QUESTIONS) {
   // Ordem preflop correta?
   const heroIdx = preflopIdx(q.position)
   const vilIdx = preflopIdx(q.villainPosition)
-  if (q.scenario === 'call_rfi' || q.scenario === '3bet' || q.scenario === 'squeeze') {
+  if (q.scenario === 'vs_raise' || q.scenario === '3bet' || q.scenario === 'squeeze') {
     // Hero deve agir DEPOIS do villain
     if (heroIdx <= vilIdx) {
       add({
@@ -307,14 +307,14 @@ for (const q of DRILL_QUESTIONS) {
       })
     }
   } else if (q.scenario === '4bet') {
-    // Hero abriu, villain 3-betou — villain age depois
+    // Hero abriu, villain 3-betou â€” villain age depois
     if (vilIdx <= heroIdx) {
       add({
         severity: 'critical',
         type: 'hero_villain_invalid_order',
         hand: q.hand, position: q.position, villainPos: q.villainPosition,
         scenario: q.scenario as Scenario,
-        details: `Bank ${q.id}: 4bet — villain ${q.villainPosition} (idx ${vilIdx}) deveria agir DEPOIS do hero ${q.position} (idx ${heroIdx}).`,
+        details: `Bank ${q.id}: 4bet â€” villain ${q.villainPosition} (idx ${vilIdx}) deveria agir DEPOIS do hero ${q.position} (idx ${heroIdx}).`,
       })
     }
   } else if (q.scenario === 'bb_defense') {
@@ -331,13 +331,13 @@ for (const q of DRILL_QUESTIONS) {
         severity: 'critical', type: 'bb_defense_wrong_villain',
         hand: q.hand, position: q.position, villainPos: q.villainPosition,
         scenario: q.scenario as Scenario,
-        details: `Bank ${q.id}: bb_defense exige villain ≠ BB.`,
+        details: `Bank ${q.id}: bb_defense exige villain â‰  BB.`,
       })
     }
   }
 }
 
-// 2. Sampling: gera 50 combos aleatórios e verifica se getValidVillainPositions cobre todos
+// 2. Sampling: gera 50 combos aleatÃ³rios e verifica se getValidVillainPositions cobre todos
 let invalidCombosFound = 0
 for (let i = 0; i < 50; i++) {
   const scenario = SCENARIOS_WITH_VILLAIN[Math.floor(Math.random() * SCENARIOS_WITH_VILLAIN.length)]
@@ -356,23 +356,23 @@ for (let i = 0; i < 50; i++) {
 }
 
 // ============================================================
-// AUDITORIA 2.5: STACK ADJUSTMENT — confere que TODOS os cenários
+// AUDITORIA 2.5: STACK ADJUSTMENT â€” confere que TODOS os cenÃ¡rios
 // (exceto push_fold) usam applyStackAdjustment para ajustar com heroStack
 // ============================================================
-console.log('🔍 Auditoria 4/8: Stack adjustment em todos os cenários (pré-flop)...')
+console.log('ðŸ” Auditoria 4/8: Stack adjustment em todos os cenÃ¡rios (prÃ©-flop)...')
 
 // Replica EXATAMENTE o path do PreflopTrainer.
-// Se o effective range em 50bb for IGUAL ao em 100bb (e tiver mãos especulativas),
-// significa que esse cenário NÃO está aplicando stack adjustment.
+// Se o effective range em 50bb for IGUAL ao em 100bb (e tiver mÃ£os especulativas),
+// significa que esse cenÃ¡rio NÃƒO estÃ¡ aplicando stack adjustment.
 function preflopTrainerEffectiveRange(scenario: Scenario, position: Position, villainPos: Position, heroStack: number): string[] {
   const base = getRangeForScenario(scenario, position, 100, villainPos)
   return scenario !== 'push_fold' ? applyStackAdjustment(base, heroStack) : base
 }
 
-// Mãos especulativas que SOMEM em stack 50bb (per applyStackAdjustment)
+// MÃ£os especulativas que SOMEM em stack 50bb (per applyStackAdjustment)
 const SHALLOW_STACK_VICTIMS = ['A4s','A5s','22','33','44','76s','87s','65s','K5s','K6s']
 
-const STACK_CHECK_SCENARIOS: Scenario[] = ['open_raise', '3bet', '4bet', 'bb_defense', 'call_rfi', 'squeeze', 'sb_vs_bb']
+const STACK_CHECK_SCENARIOS: Scenario[] = ['open_raise', '3bet', '4bet', 'bb_defense', 'vs_raise', 'squeeze', 'sb_vs_bb']
 for (const scenario of STACK_CHECK_SCENARIOS) {
   const positions: Position[] = scenario === 'bb_defense' ? ['BB']
     : scenario === 'sb_vs_bb' ? ['SB']
@@ -381,8 +381,8 @@ for (const scenario of STACK_CHECK_SCENARIOS) {
     for (const villainPos of ['UTG', 'CO', 'BTN'] as Position[]) {
       const r100 = preflopTrainerEffectiveRange(scenario, hero, villainPos, 100)
       const r50 = preflopTrainerEffectiveRange(scenario, hero, villainPos, 50)
-      // Se range em 50bb é IDÊNTICO ao de 100bb E o range tinha mãos especulativas,
-      // o stack adjustment NÃO foi aplicado.
+      // Se range em 50bb Ã© IDÃŠNTICO ao de 100bb E o range tinha mÃ£os especulativas,
+      // o stack adjustment NÃƒO foi aplicado.
       const hadSpec = r100.some(h => SHALLOW_STACK_VICTIMS.includes(h))
       const unchanged = r100.length === r50.length && r100.every(h => r50.includes(h))
       if (hadSpec && unchanged) {
@@ -390,7 +390,7 @@ for (const scenario of STACK_CHECK_SCENARIOS) {
           severity: 'critical',
           type: 'stack_adjustment_missing',
           hand: 'N/A', position: hero, villainPos, scenario,
-          details: `${scenario} ${hero} vs ${villainPos}: range em 50bb é idêntico ao 100bb — stack adjustment não aplicado.`,
+          details: `${scenario} ${hero} vs ${villainPos}: range em 50bb Ã© idÃªntico ao 100bb â€” stack adjustment nÃ£o aplicado.`,
         })
       }
     }
@@ -398,12 +398,12 @@ for (const scenario of STACK_CHECK_SCENARIOS) {
 }
 
 // ============================================================
-// AUDITORIA 3: 100 SPOTS ALEATÓRIOS (cobre paths não testados acima)
+// AUDITORIA 3: 100 SPOTS ALEATÃ“RIOS (cobre paths nÃ£o testados acima)
 // ============================================================
-console.log('🔍 Auditoria 5/8: 100 spots aleatórios (pré-flop)...')
+console.log('ðŸ” Auditoria 5/8: 100 spots aleatÃ³rios (prÃ©-flop)...')
 
 const SAMPLE_COUNT = 100
-const SAMPLE_SCENARIOS: Scenario[] = ['open_raise', 'push_fold', '3bet', '4bet', 'bb_defense', 'call_rfi', 'squeeze', 'sb_vs_bb']
+const SAMPLE_SCENARIOS: Scenario[] = ['open_raise', 'push_fold', '3bet', '4bet', 'bb_defense', 'vs_raise', 'squeeze', 'sb_vs_bb']
 
 for (let i = 0; i < SAMPLE_COUNT; i++) {
   const scenario = randomFrom(SAMPLE_SCENARIOS)
@@ -431,23 +431,23 @@ for (let i = 0; i < SAMPLE_COUNT; i++) {
       severity: isMix ? 'info' : 'critical',
       type: 'sampled_bank_dynamic_mismatch',
       hand, position: heroPos, villainPos, scenario,
-      details: `Sample #${i}: bank ${matching.id} diz ${matching.correctAction} (freq ${matching.correctFrequency}), fórmula diz ${dynamicAction}.`,
+      details: `Sample #${i}: bank ${matching.id} diz ${matching.correctAction} (freq ${matching.correctFrequency}), fÃ³rmula diz ${dynamicAction}.`,
     })
   }
 }
 
 // ============================================================
-// AUDITORIA 4: PÓS-FLOP — vulnerabilidades de board + sizing GTO
-// Gera 300 spots aleatórios e verifica:
+// AUDITORIA 4: PÃ“S-FLOP â€” vulnerabilidades de board + sizing GTO
+// Gera 300 spots aleatÃ³rios e verifica:
 //  - Vulnerability flags disparam quando deveriam (straight/flush/FH on board)
-//  - Mão "nutada" em board vulnerável NÃO recomenda bet_pot/bet_75
-//  - primaryAction sempre tem freq >= alternativeAction (após normalizeGtoDecision)
-//  - alsoAcceptable não duplica primary/alternative
+//  - MÃ£o "nutada" em board vulnerÃ¡vel NÃƒO recomenda bet_pot/bet_75
+//  - primaryAction sempre tem freq >= alternativeAction (apÃ³s normalizeGtoDecision)
+//  - alsoAcceptable nÃ£o duplica primary/alternative
 // ============================================================
-console.log('🔍 Auditoria 6/8: Pós-flop (vulnerabilidades + sizing GTO)...')
+console.log('ðŸ” Auditoria 6/8: PÃ³s-flop (vulnerabilidades + sizing GTO)...')
 
 const POSTFLOP_VULNERABLE_CATEGORIES = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk']
-const DANGEROUS_NUT_SIZINGS: string[] = ['bet_75', 'bet_pot']  // não devem aparecer como primary em spots vulneráveis
+const DANGEROUS_NUT_SIZINGS: string[] = ['bet_75', 'bet_pot']  // nÃ£o devem aparecer como primary em spots vulnerÃ¡veis
 
 let postflopChecks = 0
 const POSTFLOP_SAMPLE = 300
@@ -466,8 +466,8 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
   const decision = getGTODecision(handEval, texture, heroPosition, potType, facingBet, 'river', 10)
   postflopChecks++
 
-  // ---- 1. Normalização primary/alternative ----
-  // Após normalizeGtoDecision, primaryFrequency deve ser >= alternativeFrequency
+  // ---- 1. NormalizaÃ§Ã£o primary/alternative ----
+  // ApÃ³s normalizeGtoDecision, primaryFrequency deve ser >= alternativeFrequency
   if (decision.alternativeAction && (decision.alternativeFrequency ?? 0) > decision.primaryFrequency) {
     add({
       severity: 'critical',
@@ -479,7 +479,7 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
     })
   }
 
-  // ---- 2. alsoAcceptable não pode incluir primary nem alternative ----
+  // ---- 2. alsoAcceptable nÃ£o pode incluir primary nem alternative ----
   if (decision.alsoAcceptable) {
     for (const acc of decision.alsoAcceptable) {
       if (acc === decision.primaryAction || acc === decision.alternativeAction) {
@@ -489,14 +489,14 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
           hand: `${heroCards[0].rank}-${heroCards[1].rank}`,
           position: heroPosition as any,
           scenario: 'open_raise' as Scenario,
-          details: `[postflop] alsoAcceptable inclui ${acc} que já é primary/alt.`,
+          details: `[postflop] alsoAcceptable inclui ${acc} que jÃ¡ Ã© primary/alt.`,
         })
         break
       }
     }
   }
 
-  // ---- 3. Spots vulneráveis NÃO devem recomendar bet grande pra hero abaixo de FH ----
+  // ---- 3. Spots vulnerÃ¡veis NÃƒO devem recomendar bet grande pra hero abaixo de FH ----
   const isVulnBoard = texture.straightOnBoard || texture.monotone || texture.boardTrips || texture.boardDoublePaired
   const heroBelowFH = POSTFLOP_VULNERABLE_CATEGORIES.includes(handEval.category)
   if (isVulnBoard && heroBelowFH && DANGEROUS_NUT_SIZINGS.includes(decision.primaryAction)) {
@@ -510,11 +510,11 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
       hand: `${heroCards[0].rank}${heroCards[1].rank} (${handEval.category})`,
       position: heroPosition as any,
       scenario: 'open_raise' as Scenario,
-      details: `[postflop] ${heroPosition} ${potType} — board ${why}, hero ${handEval.category}, mas primary=${decision.primaryAction}. Pot control esperado (bet_33/50/check).`,
+      details: `[postflop] ${heroPosition} ${potType} â€” board ${why}, hero ${handEval.category}, mas primary=${decision.primaryAction}. Pot control esperado (bet_33/50/check).`,
     })
   }
 
-  // ---- 4. handEval.vulnerableFH só pode ser true se categoria é full_house ----
+  // ---- 4. handEval.vulnerableFH sÃ³ pode ser true se categoria Ã© full_house ----
   if (handEval.vulnerableFH && handEval.category !== 'full_house') {
     add({
       severity: 'warning',
@@ -527,21 +527,21 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
   }
 }
 
-console.log(`   ${postflopChecks} spots pós-flop checados.`)
+console.log(`   ${postflopChecks} spots pÃ³s-flop checados.`)
 
 // ============================================================
-// AUDITORIA 7: CONSISTÊNCIA DO SELETOR HERO/VILLAIN
-// Para cada cenário com seletor de villain, verifica que:
-//  a) getValidVillainPositions nunca retorna lista vazia quando hero tem posição válida
-//  b) Para todo villain retornado, getValidHeroPositions não retorna lista vazia
-//     (garante que o villain não bloqueia TODOS os heroes — bug exibido na UI)
+// AUDITORIA 7: CONSISTÃŠNCIA DO SELETOR HERO/VILLAIN
+// Para cada cenÃ¡rio com seletor de villain, verifica que:
+//  a) getValidVillainPositions nunca retorna lista vazia quando hero tem posiÃ§Ã£o vÃ¡lida
+//  b) Para todo villain retornado, getValidHeroPositions nÃ£o retorna lista vazia
+//     (garante que o villain nÃ£o bloqueia TODOS os heroes â€” bug exibido na UI)
 // ============================================================
-console.log('🔍 Auditoria 7/8: Consistência do seletor hero/villain (UI positions)...')
+console.log('ðŸ” Auditoria 7/8: ConsistÃªncia do seletor hero/villain (UI positions)...')
 
-const VILLAIN_SELECTOR_SCENARIOS = ['call_rfi', '3bet', '4bet', 'squeeze', 'bb_defense'] as const
+const VILLAIN_SELECTOR_SCENARIOS = ['vs_raise', '3bet', '4bet', 'squeeze', 'bb_defense'] as const
 type VillainScenario = typeof VILLAIN_SELECTOR_SCENARIOS[number]
 const POSITIONS_BY_SCENARIO_LOCAL: Record<VillainScenario, Position[]> = {
-  call_rfi:   ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  vs_raise:   ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   '3bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   '4bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
   squeeze:    ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
@@ -555,18 +555,18 @@ for (const scenario of VILLAIN_SELECTOR_SCENARIOS) {
     const heroPositions = POSITIONS_BY_SCENARIO_LOCAL[scenario].filter(p => formatPositions.includes(p))
 
     for (const hero of heroPositions) {
-      // a) Verifica se hero tem pelo menos um villain válido
+      // a) Verifica se hero tem pelo menos um villain vÃ¡lido
       const validVillains = getValidVillainPositions(scenario, hero, fmt)
       if (validVillains.length === 0) {
         add({
           severity: 'info',
           type: 'selector_no_valid_villain',
           hand: 'N/A', position: hero, scenario: scenario as Scenario,
-          details: `[${fmt}] ${scenario} hero=${hero}: getValidVillainPositions retorna vazio → hero fica sem opção de villain (restrição esperada do poker).`,
+          details: `[${fmt}] ${scenario} hero=${hero}: getValidVillainPositions retorna vazio â†’ hero fica sem opÃ§Ã£o de villain (restriÃ§Ã£o esperada do poker).`,
         })
       }
 
-      // b) Para cada villain válido, verifica se ainda sobra algum hero válido
+      // b) Para cada villain vÃ¡lido, verifica se ainda sobra algum hero vÃ¡lido
       for (const villain of validVillains) {
         const validHeroes = getValidHeroPositions(scenario, villain, fmt, heroPositions)
         if (validHeroes.length === 0) {
@@ -574,7 +574,7 @@ for (const scenario of VILLAIN_SELECTOR_SCENARIOS) {
             severity: 'critical',
             type: 'selector_villain_blocks_all_heroes',
             hand: 'N/A', position: hero, villainPos: villain, scenario: scenario as Scenario,
-            details: `[${fmt}] ${scenario} villain=${villain}: getValidHeroPositions retorna vazio → UI desabilitaria TODOS os botões de hero.`,
+            details: `[${fmt}] ${scenario} villain=${villain}: getValidHeroPositions retorna vazio â†’ UI desabilitaria TODOS os botÃµes de hero.`,
           })
         }
       }
@@ -584,16 +584,16 @@ for (const scenario of VILLAIN_SELECTOR_SCENARIOS) {
 
 // ============================================================
 // AUDITORIA 8: FILTROS DO CARD DE TREINO
-// Verifica que todos os filtros ativos do pré-flop estarão
-// presentes no card de contexto durante a sessão:
-// - position, heroStack, scenario, hand, villainPosition (quando aplicável)
+// Verifica que todos os filtros ativos do prÃ©-flop estarÃ£o
+// presentes no card de contexto durante a sessÃ£o:
+// - position, heroStack, scenario, hand, villainPosition (quando aplicÃ¡vel)
 // ============================================================
-console.log('🔍 Auditoria 8/8: Campos obrigatórios no card de treino (pré-flop)...')
+console.log('ðŸ” Auditoria 8/8: Campos obrigatÃ³rios no card de treino (prÃ©-flop)...')
 
 const PREFLOP_CARD_REQUIRED_FIELDS: Array<keyof typeof DRILL_QUESTIONS[0]> = [
   'position', 'heroStack', 'scenario', 'hand',
 ]
-const PREFLOP_VILLAIN_SCENARIOS = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze']
+const PREFLOP_VILLAIN_SCENARIOS = ['bb_defense', 'vs_raise', '3bet', '4bet', 'squeeze']
 
 for (const q of DRILL_QUESTIONS) {
   for (const field of PREFLOP_CARD_REQUIRED_FIELDS) {
@@ -603,7 +603,7 @@ for (const q of DRILL_QUESTIONS) {
         type: 'card_missing_required_field',
         hand: q.hand || 'N/A', position: q.position || ('?' as Position),
         scenario: q.scenario as Scenario,
-        details: `Bank ${q.id}: campo "${field}" ausente/vazio — badge não será exibido no card de treino.`,
+        details: `Bank ${q.id}: campo "${field}" ausente/vazio â€” badge nÃ£o serÃ¡ exibido no card de treino.`,
       })
     }
   }
@@ -613,7 +613,7 @@ for (const q of DRILL_QUESTIONS) {
       type: 'card_missing_villain_badge',
       hand: q.hand, position: q.position,
       scenario: q.scenario as Scenario,
-      details: `Bank ${q.id}: cenário ${q.scenario} tem seletor de villain mas villainPosition não definido — badge "vs X" não aparecerá no card.`,
+      details: `Bank ${q.id}: cenÃ¡rio ${q.scenario} tem seletor de villain mas villainPosition nÃ£o definido â€” badge "vs X" nÃ£o aparecerÃ¡ no card.`,
     })
   }
 }
@@ -621,13 +621,13 @@ for (const q of DRILL_QUESTIONS) {
 console.log(`   ${DRILL_QUESTIONS.length} bank questions auditadas para campos do card.`)
 
 // ============================================================
-// AUDITORIA 9 (ESTÁTICA): TRACKING DE STATS NAS PÁGINAS
-// Verifica se as páginas de treino chamam updateStats ao encerrar
-// sessão (studyTimeMinutes, totalQuestions, totalCorrect).
-// Como não executa código React, apenas valida presença de padrões
-// nos arquivos fonte via texto — sinaliza regressões.
+// AUDITORIA 9 (ESTÃTICA): TRACKING DE STATS NAS PÃGINAS
+// Verifica se as pÃ¡ginas de treino chamam updateStats ao encerrar
+// sessÃ£o (studyTimeMinutes, totalQuestions, totalCorrect).
+// Como nÃ£o executa cÃ³digo React, apenas valida presenÃ§a de padrÃµes
+// nos arquivos fonte via texto â€” sinaliza regressÃµes.
 // ============================================================
-console.log('🔍 Verificação 9 (estática): Tracking de stats nas páginas de treino...')
+console.log('ðŸ” VerificaÃ§Ã£o 9 (estÃ¡tica): Tracking de stats nas pÃ¡ginas de treino...')
 
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
@@ -654,7 +654,7 @@ for (const page of PAGES_TO_AUDIT) {
       severity: 'critical',
       type: 'stats_tracking_file_not_found',
       hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
-      details: `${page.label}: arquivo ${page.file} não encontrado.`,
+      details: `${page.label}: arquivo ${page.file} nÃ£o encontrado.`,
     })
     continue
   }
@@ -664,26 +664,26 @@ for (const page of PAGES_TO_AUDIT) {
         severity: 'critical',
         type: 'stats_tracking_missing',
         hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
-        details: `${page.label}: padrão ausente — "${req.description}". Stats de sessão podem não ser registrados.`,
+        details: `${page.label}: padrÃ£o ausente â€” "${req.description}". Stats de sessÃ£o podem nÃ£o ser registrados.`,
       })
     }
   }
 }
 
 // ============================================================
-// AUDITORIA 10: VALID_VILLAIN_SET COM HERO ALEATÓRIO
-// Quando hero é "Aleatório", o conjunto de villains válidos deve ser
-// não-vazio para cada cenário+formato — caso contrário a UI bloqueia
-// todos os botões de villain sem razão.
+// AUDITORIA 10: VALID_VILLAIN_SET COM HERO ALEATÃ“RIO
+// Quando hero Ã© "AleatÃ³rio", o conjunto de villains vÃ¡lidos deve ser
+// nÃ£o-vazio para cada cenÃ¡rio+formato â€” caso contrÃ¡rio a UI bloqueia
+// todos os botÃµes de villain sem razÃ£o.
 // ============================================================
-console.log('🔍 Auditoria 10: VALID_VILLAIN_SET com hero aleatório...')
+console.log('ðŸ” Auditoria 10: VALID_VILLAIN_SET com hero aleatÃ³rio...')
 
 for (const fmt of FORMATS) {
   for (const sc of VILLAIN_SELECTOR_SCENARIOS) {
     const scenarioPos = (POSITIONS_BY_SCENARIO_LOCAL as Record<string, Position[]>)[sc] ?? []
     const formatPos = POSITIONS_BY_FORMAT[fmt] ?? []
     const validHeroes = formatPos.filter(p => scenarioPos.includes(p))
-    if (validHeroes.length === 0) continue // cenário não existe nesse formato
+    if (validHeroes.length === 0) continue // cenÃ¡rio nÃ£o existe nesse formato
 
     const unionVillains = new Set<Position>()
     for (const heroP of validHeroes) {
@@ -695,23 +695,23 @@ for (const fmt of FORMATS) {
         severity: 'critical',
         type: 'villain_selector_empty_random_hero',
         hand: 'N/A', position: 'BTN', scenario: sc as Scenario,
-        details: `[${fmt}] ${sc}: hero aleatório → union de villains válidos é VAZIO. Todos os botões de villain ficariam bloqueados.`,
+        details: `[${fmt}] ${sc}: hero aleatÃ³rio â†’ union de villains vÃ¡lidos Ã© VAZIO. Todos os botÃµes de villain ficariam bloqueados.`,
       })
     } else {
-      // INFO: lista os villains disponíveis com hero aleatório (confirma o fix)
-      // (omitido do relatório para não poluir — só reporta erro se vazio)
+      // INFO: lista os villains disponÃ­veis com hero aleatÃ³rio (confirma o fix)
+      // (omitido do relatÃ³rio para nÃ£o poluir â€” sÃ³ reporta erro se vazio)
     }
   }
 }
-console.log(`   ${VILLAIN_SELECTOR_SCENARIOS.length * FORMATS.length} combinações cenário×formato verificadas.`)
+console.log(`   ${VILLAIN_SELECTOR_SCENARIOS.length * FORMATS.length} combinaÃ§Ãµes cenÃ¡rioÃ—formato verificadas.`)
 
 // ============================================================
-// AUDITORIA 11 (ESTÁTICA): BADGE DE VILLAIN NO CARD DE SESSÃO
+// AUDITORIA 11 (ESTÃTICA): BADGE DE VILLAIN NO CARD DE SESSÃƒO
 // Verifica se o card de treino do PreflopTrainer usa o state da
-// sessão (villainPosition) para mostrar o villain ativo — não só
+// sessÃ£o (villainPosition) para mostrar o villain ativo â€” nÃ£o sÃ³
 // currentQuestion.villainPosition (que pode ser undefined).
 // ============================================================
-console.log('🔍 Auditoria 11 (estática): Badge villain no card de sessão...')
+console.log('ðŸ” Auditoria 11 (estÃ¡tica): Badge villain no card de sessÃ£o...')
 
 {
   let src = ''
@@ -722,7 +722,7 @@ console.log('🔍 Auditoria 11 (estática): Badge villain no card de sessão...'
       severity: 'critical',
       type: 'card_badge_file_not_found',
       hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
-      details: `PreflopTrainer.tsx não encontrado — não foi possível verificar badge de villain.`,
+      details: `PreflopTrainer.tsx nÃ£o encontrado â€” nÃ£o foi possÃ­vel verificar badge de villain.`,
     })
   }
   if (src) {
@@ -732,7 +732,7 @@ console.log('🔍 Auditoria 11 (estática): Badge villain no card de sessão...'
         severity: 'warning',
         type: 'card_badge_uses_question_villain_only',
         hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
-        details: `PreflopTrainer.tsx: card de treino não usa villainPosition (state) como badge — filtro de villain ativo pode não aparecer no card.`,
+        details: `PreflopTrainer.tsx: card de treino nÃ£o usa villainPosition (state) como badge â€” filtro de villain ativo pode nÃ£o aparecer no card.`,
       })
     }
     const hasRandomHeroVillainFix = /isRandomPosition[\s\S]{0,200}POSITIONS_BY_SCENARIO\[scenario\][\s\S]{0,200}getValidVillainPositions/.test(src)
@@ -741,17 +741,17 @@ console.log('🔍 Auditoria 11 (estática): Badge villain no card de sessão...'
         severity: 'warning',
         type: 'villain_restriction_ignores_random_hero',
         hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
-        details: `PreflopTrainer.tsx: VALID_VILLAIN_SET não considera hero aleatório — botões de villain podem ser incorretamente bloqueados quando hero="Aleatória".`,
+        details: `PreflopTrainer.tsx: VALID_VILLAIN_SET nÃ£o considera hero aleatÃ³rio â€” botÃµes de villain podem ser incorretamente bloqueados quando hero="AleatÃ³ria".`,
       })
     }
   }
 }
 
 // ============================================================
-// RELATÓRIO FINAL
+// RELATÃ“RIO FINAL
 // ============================================================
 console.log('\n' + '='.repeat(70))
-console.log('📊 RELATÓRIO DE AUDITORIA')
+console.log('ðŸ“Š RELATÃ“RIO DE AUDITORIA')
 console.log('='.repeat(70))
 
 const byType = findings.reduce<Record<string, Finding[]>>((acc, f) => {
@@ -771,7 +771,7 @@ console.log(`  Warning:  ${bySeverity.warning || 0}`)
 console.log(`  Info:     ${bySeverity.info || 0}`)
 
 for (const [type, items] of Object.entries(byType)) {
-  // Ordena por severidade: critical → warning → info, depois alfabético
+  // Ordena por severidade: critical â†’ warning â†’ info, depois alfabÃ©tico
   const ordered = items.slice().sort((a, b) => {
     const sev = { critical: 0, warning: 1, info: 2 } as const
     const sa = sev[a.severity], sb = sev[b.severity]
@@ -780,7 +780,7 @@ for (const [type, items] of Object.entries(byType)) {
   console.log(`\n--- ${type} (${items.length}) ---`)
   const showLimit = items.some(i => i.severity !== 'info') ? items.length : 15
   for (const f of ordered.slice(0, showLimit)) {
-    const sev = f.severity === 'critical' ? '🔴' : f.severity === 'warning' ? '🟡' : '🔵'
+    const sev = f.severity === 'critical' ? 'ðŸ”´' : f.severity === 'warning' ? 'ðŸŸ¡' : 'ðŸ”µ'
     console.log(`${sev} [${f.scenario}] ${f.hand} ${f.position}${f.villainPos ? ` vs ${f.villainPos}` : ''}`)
     console.log(`   ${f.details}`)
   }
@@ -788,5 +788,5 @@ for (const [type, items] of Object.entries(byType)) {
 }
 
 console.log('\n' + '='.repeat(70))
-console.log(findings.length === 0 ? '✅ Tudo consistente!' : `⚠️ ${findings.length} inconsistências encontradas`)
+console.log(findings.length === 0 ? 'âœ… Tudo consistente!' : `âš ï¸ ${findings.length} inconsistÃªncias encontradas`)
 console.log('='.repeat(70))

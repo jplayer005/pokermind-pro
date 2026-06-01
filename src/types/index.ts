@@ -43,7 +43,7 @@ export interface RangeMatrix {
 // ------- TREINO PRÉ-FLOP -------
 export type PreflopScenario =
   | 'open_raise'
-  | 'call_rfi'
+  | 'vs_raise'
   | '3bet'
   | '4bet'
   | 'push_fold'

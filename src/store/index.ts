@@ -180,7 +180,7 @@ export const useUserStore = create<UserStore>()(
           const sbVsBbTotal     = (byScenario['sb_vs_bb'] || 0)
           const squeezeTotal    = (byScenario['squeeze'] || 0)
           const fourBetTotal    = (byScenario['4bet'] || 0)
-          const callRfiTotal    = (byScenario['call_rfi'] || 0)
+          const callRfiTotal    = (byScenario['vs_raise'] || 0)
           const postflopTotal   = (byScenario['postflop'] || 0)
 
           // Maior número de questões em uma única sessão
