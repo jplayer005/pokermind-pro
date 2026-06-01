@@ -139,7 +139,7 @@ function getCorrectActionForScenario(
   }
   if (!isInRaiseRange) return 'fold'
   switch (scenario) {
-    case 'push_fold':  return 'jam'
+    case 'push_fold':  return 'shove'
     case '3bet':       return '3bet'
     case '4bet':       return '4bet'
     // bb_defense e vs_raise: diferenciar call vs 3bet usando THREE_BET_RANGES.
@@ -232,13 +232,13 @@ const ACTIONS: { action: Action; label: string; color: string; shortcut: string 
   { action: 'raise', label: 'Raise', color: 'bg-accent-gold/10 border-accent-gold/30 text-accent-gold', shortcut: 'R' },
   { action: '3bet',  label: '3-Bet', color: 'bg-orange-500/10 border-orange-500/30 text-orange-400', shortcut: '3' },
   { action: '4bet',  label: '4-Bet', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400', shortcut: '4' },
-  { action: 'jam',   label: 'Jam',   color: 'bg-accent-crimson/10 border-accent-crimson/30 text-accent-crimson', shortcut: 'J' },
+  { action: 'shove',   label: 'Shove',   color: 'bg-accent-crimson/10 border-accent-crimson/30 text-accent-crimson', shortcut: 'J' },
 ]
 
 // AÃ§Ãµes visÃ­veis por cenÃ¡rio (evita mostrar todos os botÃµes sempre)
 const ACTIONS_BY_SCENARIO: Record<ScenarioType, Action[]> = {
   open_raise: ['fold', 'raise'],
-  push_fold:  ['fold', 'jam'],
+  push_fold:  ['fold', 'shove'],
   '3bet':     ['fold', 'call', '3bet'],
   bb_defense: ['fold', 'call', '3bet'],
   vs_raise:   ['fold', 'call', '3bet'],
@@ -500,7 +500,7 @@ export default function PreflopTrainer() {
         squeeze: 'squeeze', bb_defense: 'defesa do BB', vs_raise: 'call vs raise', sb_vs_bb: 'SB vs BB',
       }
       const actionLabels: Record<string, string> = {
-        raise: 'RAISE (abrir o pot)', fold: 'FOLD (descartar)', jam: 'JAM (all-in)',
+        raise: 'RAISE (abrir o pot)', fold: 'FOLD (descartar)', shove: 'JAM (all-in)',
         '3bet': '3-BET (reraise)', '4bet': '4-BET (re-reraise)', call: 'CALL (chamar)', limp: 'LIMP (completar BB)',
       }
       const stackNote = scenario !== 'push_fold' && heroStack < 100
@@ -740,7 +740,7 @@ export default function PreflopTrainer() {
     return scenario !== 'push_fold' ? applyStackAdjustment(base, heroStack) : base
   })()
   const heatmapAction: Action =
-    scenario === 'push_fold'  ? 'jam'   :
+    scenario === 'push_fold'  ? 'shove'   :
     scenario === '3bet'       ? '3bet'  :
     scenario === 'squeeze'    ? '3bet'  :
     scenario === '4bet'       ? '4bet'  :
@@ -1360,7 +1360,7 @@ export default function PreflopTrainer() {
                                 const isCorrect = act === currentQuestion.correctAction
                                 const labels: Record<string, string> = {
                                   raise: 'Raise', fold: 'Fold', limp: 'Limp',
-                                  call: 'Call', '3bet': '3-Bet', '4bet': '4-Bet', jam: 'Jam',
+                                  call: 'Call', '3bet': '3-Bet', '4bet': '4-Bet', shove: 'Shove',
                                 }
                                 return (
                                   <div key={act} className="flex items-center gap-2">
@@ -1404,7 +1404,7 @@ export default function PreflopTrainer() {
                               const isPositive = val > 0
                               const isNegative = val < 0
                               const actionLabels: Record<string, string> = {
-                                fold: 'Fold', call: 'Call', raise: 'Raise', '3bet': '3-Bet', jam: 'Jam'
+                                fold: 'Fold', call: 'Call', raise: 'Raise', '3bet': '3-Bet', shove: 'Shove'
                               }
                               return (
                                 <div key={act} className={cn(

@@ -906,7 +906,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'BTN',
     heroStack: 10,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
     explanation: 'Com 10 BBs no BTN, 87s Ã© um push lucrativo. A mÃ£o tem boa equidade quando chamada (suited conectors tÃªm ~40% vs range de call razoÃ¡vel) e suficiente fold equity para ser profitable.',
     evComparison: { fold: 0, call: 0, raise: 1.4 }
@@ -1027,9 +1027,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'SB',
     heroStack: 12,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: 'A9o com 12 BBs no SB Ã© um jam claro. Com stack curto, A9o tem equity suficiente contra o range de call do BB e fold equity para lucrar. Abrir/fold desperdiÃ§a chips; jam Ã© a jogada correta.',
+    explanation: 'A9o com 12 BBs no SB Ã© um shove claro. Com stack curto, A9o tem equity suficiente contra o range de call do BB e fold equity para lucrar. Abrir/fold desperdiÃ§a chips; shove Ã© a jogada correta.',
     evComparison: { fold: 0, call: 0, raise: 1.8 }
   },
   {
@@ -1038,9 +1038,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'BTN',
     heroStack: 8,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: 'Com 8 BBs no BTN, 55 Ã© um jam muito lucrativo. Pares mÃ©dios/pequenos jamam de forma muito ampla com stack curto pois tÃªm ~50% vs overcards quando chamados e excelente fold equity contra os blinds.',
+    explanation: 'Com 8 BBs no BTN, 55 Ã© um shove muito lucrativo. Pares mÃ©dios/pequenos shoveiam de forma muito ampla com stack curto pois tÃªm ~50% vs overcards quando chamados e excelente fold equity contra os blinds.',
     evComparison: { fold: 0, call: 0, raise: 2.1 }
   },
   // --- BB Defense ---
@@ -1213,7 +1213,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BB',
     correctAction: '4bet',
     correctFrequency: 0.75,
-    explanation: 'A5s Ã© o 4-bet bluff padrÃ£o. Motivos: (1) Bloqueia combos de AA â€” reduzo de 6 para 3 os combos que me batem; (2) Bloqueia AK, AQ â€” mÃ£os que o villain chamaria; (3) Quando chamado, tenho nut flush draw + overcard. EstratÃ©gia: 4-bet/fold vs jam do villain.',
+    explanation: 'A5s Ã© o 4-bet bluff padrÃ£o. Motivos: (1) Bloqueia combos de AA â€” reduzo de 6 para 3 os combos que me batem; (2) Bloqueia AK, AQ â€” mÃ£os que o villain chamaria; (3) Quando chamado, tenho nut flush draw + overcard. EstratÃ©gia: 4-bet/fold vs shove do villain.',
     evComparison: { fold: 0, call: 0.8, raise: 1.6 }
   },
   {
@@ -2093,7 +2093,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BTN',
     correctAction: '4bet',
     correctFrequency: 1.0,
-    explanation: 'AKs Ã© sempre 4bet â€” Ã© a mÃ£o de valor mÃ¡ximo nÃ£o-par. Vs BTN 3bet, vocÃª tem equity forte e quer construir pote. AKs tambÃ©m bloqueia combos de AA (1 Ace fora) e pode ganhar flops como A-x-x ou K-x-x. 4bet/fold vs jam (preserva equity).',
+    explanation: 'AKs Ã© sempre 4bet â€” Ã© a mÃ£o de valor mÃ¡ximo nÃ£o-par. Vs BTN 3bet, vocÃª tem equity forte e quer construir pote. AKs tambÃ©m bloqueia combos de AA (1 Ace fora) e pode ganhar flops como A-x-x ou K-x-x. 4bet/fold vs shove (preserva equity).',
     evComparison: { fold: 0, call: 5.0, raise: 8.0 }
   },
   {
@@ -2119,7 +2119,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BTN',
     correctAction: 'call',
     correctFrequency: 0.9,
-    explanation: 'TT vs BTN 3bet no UTG: principalmente call. TT Ã© uma mÃ£o de mÃ©dio valor que nÃ£o tem equity para 4bet frequentemente vs BTN 3bet range (QQ+/AKs+). Call e realize equity. Se 4bet, BTN pode jam com KK/AA â€” vocÃª estÃ¡ em mau spot. Call e jogue a mÃ£o OOP cuidadosamente.',
+    explanation: 'TT vs BTN 3bet no UTG: principalmente call. TT Ã© uma mÃ£o de mÃ©dio valor que nÃ£o tem equity para 4bet frequentemente vs BTN 3bet range (QQ+/AKs+). Call e realize equity. Se 4bet, BTN pode shove com KK/AA â€” vocÃª estÃ¡ em mau spot. Call e jogue a mÃ£o OOP cuidadosamente.',
     evComparison: { fold: 0, call: 4.0, raise: 3.0 }
   },
   {
@@ -2626,9 +2626,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'BTN',
     heroStack: 12,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: '66 no BTN com 12bb: push. BTN push range a ~10-15bb inclui 66+ confortavelmente. VocÃª tem fold equity considerÃ¡vel vs SB/BB, e quando chamado, 66 tem ~45-50% equity vs maioria dos call ranges. Jam Ã© correto â€” esperar por mÃ£os melhores com 12bb Ã© muito passivo.',
+    explanation: '66 no BTN com 12bb: push. BTN push range a ~10-15bb inclui 66+ confortavelmente. VocÃª tem fold equity considerÃ¡vel vs SB/BB, e quando chamado, 66 tem ~45-50% equity vs maioria dos call ranges. Shove Ã© correto â€” esperar por mÃ£os melhores com 12bb Ã© muito passivo.',
     evComparison: { fold: 0, call: 0, raise: 2.5 }
   },
   {
@@ -2637,9 +2637,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'SB',
     heroStack: 10,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: 'KTo no SB com 10bb: jam. SB push range a 10bb Ã© amplo â€” vs apenas BB, vocÃª tem excelente fold equity e KTo estÃ¡ claramente no range. KTo tem ~58% equity vs BB call range. Push para ganhar os blinds ou entrar em pote com equity positiva. Fold seria muito passivo.',
+    explanation: 'KTo no SB com 10bb: shove. SB push range a 10bb Ã© amplo â€” vs apenas BB, vocÃª tem excelente fold equity e KTo estÃ¡ claramente no range. KTo tem ~58% equity vs BB call range. Push para ganhar os blinds ou entrar em pote com equity positiva. Fold seria muito passivo.',
     evComparison: { fold: 0, call: 0, raise: 3.0 }
   },
   {
@@ -2648,9 +2648,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'CO',
     heroStack: 8,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 0.85,
-    explanation: '87s no CO com 8bb: jam. Com stack curtÃ­ssimo, conectores suited perdem implied odds mas tÃªm equity de push. A 8bb, 87s tem fold equity suficiente e ~38% equity quando chamado. O push EV Ã© positivo por causa do fold equity vs 3 players. Push Ã© correto.',
+    explanation: '87s no CO com 8bb: shove. Com stack curtÃ­ssimo, conectores suited perdem implied odds mas tÃªm equity de push. A 8bb, 87s tem fold equity suficiente e ~38% equity quando chamado. O push EV Ã© positivo por causa do fold equity vs 3 players. Push Ã© correto.',
     evComparison: { fold: 0, call: 0, raise: 1.8 }
   },
   {
@@ -2661,7 +2661,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'push_fold',
     correctAction: 'fold',
     correctFrequency: 0.7,
-    explanation: 'Q9o no BTN com 15bb: fold/jam mix, levemente fold. A 15bb, o push range do BTN estÃ¡ entre ~50-60% das mÃ£os, mas Q9o Ã© borderline. Solver mistura aqui â€” a 15bb tem mais opÃ§Ãµes (pode abrir para 2.5x). Jam com Q9o pode ser chamado por mÃ£os que dominam. Fold/abertura normal sÃ£o preferÃ­veis.',
+    explanation: 'Q9o no BTN com 15bb: fold/shove mix, levemente fold. A 15bb, o push range do BTN estÃ¡ entre ~50-60% das mÃ£os, mas Q9o Ã© borderline. Solver mistura aqui â€” a 15bb tem mais opÃ§Ãµes (pode abrir para 2.5x). Shove com Q9o pode ser chamado por mÃ£os que dominam. Fold/abertura normal sÃ£o preferÃ­veis.',
     evComparison: { fold: 0, call: 0, raise: 0.3 }
   },
   {
@@ -2670,9 +2670,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'SB',
     heroStack: 12,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 0.9,
-    explanation: 'JTo no SB com 12bb: jam. SB push range a 12bb inclui JTo claramente. Vs apenas BB, vocÃª tem ~55% fold equity e JTo tem boa equity quando chamado (~45%). Push maximiza EV â€” muito melhor que limp/fold ou min-raise que desperdiÃ§a stack.',
+    explanation: 'JTo no SB com 12bb: shove. SB push range a 12bb inclui JTo claramente. Vs apenas BB, vocÃª tem ~55% fold equity e JTo tem boa equity quando chamado (~45%). Push maximiza EV â€” muito melhor que limp/fold ou min-raise que desperdiÃ§a stack.',
     evComparison: { fold: 0, call: 0, raise: 2.8 }
   },
   {
@@ -2692,9 +2692,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'HJ',
     heroStack: 10,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: '55 no HJ com 10bb: jam. Par mÃ©dio com fold equity razoÃ¡vel e equity de ~50% quando chamado vs overcards. HJ push range a 10bb inclui 55+. Push faz sentido â€” vocÃª pode ganhar cegos imediatamente ou entrar em coinflip favorÃ¡vel. Fold seria muito tight com 10bb.',
+    explanation: '55 no HJ com 10bb: shove. Par mÃ©dio com fold equity razoÃ¡vel e equity de ~50% quando chamado vs overcards. HJ push range a 10bb inclui 55+. Push faz sentido â€” vocÃª pode ganhar cegos imediatamente ou entrar em coinflip favorÃ¡vel. Fold seria muito tight com 10bb.',
     evComparison: { fold: 0, call: 0, raise: 2.2 }
   },
   {
@@ -2703,9 +2703,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'BTN',
     heroStack: 8,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: 'K8s no BTN com 8bb: jam obrigatÃ³rio. Com 8bb, quase toda mÃ£o razoÃ¡vel Ã© push no BTN. K8s tem excelente equity quando chamado (boa equity vs A-x, domina K7s-), e fold equity considerÃ¡vel vs SB/BB. Push tudo que tem equity positiva a 8bb na BTN.',
+    explanation: 'K8s no BTN com 8bb: shove obrigatÃ³rio. Com 8bb, quase toda mÃ£o razoÃ¡vel Ã© push no BTN. K8s tem excelente equity quando chamado (boa equity vs A-x, domina K7s-), e fold equity considerÃ¡vel vs SB/BB. Push tudo que tem equity positiva a 8bb na BTN.',
     evComparison: { fold: 0, call: 0, raise: 3.5 }
   },
   {
@@ -2714,9 +2714,9 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     position: 'CO',
     heroStack: 15,
     scenario: 'push_fold',
-    correctAction: 'jam',
+    correctAction: 'shove',
     correctFrequency: 1.0,
-    explanation: '99 no CO com 15bb: jam. Par mÃ©dio-alto com equity sÃ³lida. CO push range a 15bb inclui claramente 99. Quando chamado, 99 tem ~70% vs broadways e ~55% vs Ax. Fold equity razoÃ¡vel vs 3 players. Push maximiza EV â€” nÃ£o hÃ¡ razÃ£o para fold com 99 a 15bb.',
+    explanation: '99 no CO com 15bb: shove. Par mÃ©dio-alto com equity sÃ³lida. CO push range a 15bb inclui claramente 99. Quando chamado, 99 tem ~70% vs broadways e ~55% vs Ax. Fold equity razoÃ¡vel vs 3 players. Push maximiza EV â€” nÃ£o hÃ¡ razÃ£o para fold com 99 a 15bb.',
     evComparison: { fold: 0, call: 0, raise: 4.0 }
   },
 ]

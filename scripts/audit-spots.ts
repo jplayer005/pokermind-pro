@@ -152,7 +152,7 @@ function getCorrectActionForScenario(
   }
   if (!isInRange) return 'fold'
   switch (scenario) {
-    case 'push_fold': return 'jam'
+    case 'push_fold': return 'shove'
     case '3bet': return '3bet'
     case '4bet': return '4bet'
     case 'bb_defense':
@@ -215,7 +215,7 @@ for (const q of DRILL_QUESTIONS) {
     const topAction = sorted[0][0]
     const topEv = sorted[0][1] as number
     // Mapeamento bank EV â†’ action
-    const evToAction: Record<string, string> = { raise: '3bet|4bet|raise|jam', call: 'call', fold: 'fold' }
+    const evToAction: Record<string, string> = { raise: '3bet|4bet|raise|shove', call: 'call', fold: 'fold' }
     const matchesPattern = (corrAction: string, evKey: string) => {
       const accepted = (evToAction[evKey] ?? evKey).split('|')
       return accepted.includes(corrAction)

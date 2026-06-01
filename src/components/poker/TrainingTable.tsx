@@ -74,7 +74,7 @@ function actionBadgeClass(action: string): string {
     case 'raise': case 'open':       return 'bg-yellow-500/25 text-yellow-400 border-yellow-500/40'
     case '3bet':                     return 'bg-orange-500/25 text-orange-400 border-orange-500/40'
     case '4bet':                     return 'bg-purple-500/25 text-purple-400 border-purple-500/40'
-    case 'jam':                      return 'bg-red-600/30 text-red-300 border-red-600/40'
+    case 'shove':                      return 'bg-red-600/30 text-red-300 border-red-600/40'
     case 'limp':                     return 'bg-blue-500/25 text-blue-400 border-blue-500/40'
     default:                         return 'bg-bg-elevated text-text-muted border-border-subtle'
   }

@@ -21,7 +21,7 @@ export type PositionShort = 'UTG' | 'HJ' | 'CO' | 'BTN' | 'SB' | 'BB'
 export type TableFormat = 'HU' | '6max' | '9max'
 
 // ------- AÇÕES DE POKER -------
-export type Action = 'fold' | 'call' | 'raise' | 'check' | '3bet' | '4bet' | 'jam' | 'limp'
+export type Action = 'fold' | 'call' | 'raise' | 'check' | '3bet' | '4bet' | 'shove' | 'limp'
 export type Street = 'preflop' | 'flop' | 'turn' | 'river'
 
 // ------- RANGE -------

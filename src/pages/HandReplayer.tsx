@@ -198,7 +198,7 @@ function PokerTable({ hand, currentStep, showVillainCards }: PokerTableProps) {
                       lastAction.action === 'call' && 'bg-emerald-500/20 text-emerald-400',
                       lastAction.action === 'check' && 'bg-blue-500/20 text-blue-400',
                       (lastAction.action === 'raise' || lastAction.action === '3bet') && 'bg-yellow-500/20 text-yellow-400',
-                      lastAction.action === 'jam' && 'bg-red-600/30 text-red-300',
+                      lastAction.action === 'shove' && 'bg-red-600/30 text-red-300',
                     )}
                   >
                     {lastAction.action}{lastAction.amount ? ` ${lastAction.amount}` : ''}
@@ -235,7 +235,7 @@ function ActionTimeline({ actions, currentStep, onStep }: TimelineProps) {
     check: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     raise: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
     '3bet': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-    jam: 'bg-red-600/30 text-red-200 border-red-600/40',
+    shove: 'bg-red-600/30 text-red-200 border-red-600/40',
   }
 
   return (
