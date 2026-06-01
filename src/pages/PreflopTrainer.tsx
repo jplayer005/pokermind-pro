@@ -12,7 +12,7 @@ import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
-import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange } from '@/data/ranges'
+import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange, BB_VS_SB_3BET_RANGES } from '@/data/ranges'
 import { randomHand, classifyHandStrength, generateHandGrid } from '@/lib/poker'
 import { formatPercent, shuffle, getDifficultyXPMultiplier } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -97,11 +97,22 @@ function getCorrectActionForScenario(
   scenario: ScenarioType,
   isInRaiseRange: boolean,
   hand?: string,
-  position?: Position
+  position?: Position,
+  villainPosition?: Position
 ): Action {
   if (scenario === 'sb_vs_bb') {
     if (isInRaiseRange) return 'raise'
     if (hand && SB_VS_BB_LIMP_RANGES.includes(hand)) return 'limp'
+    return 'fold'
+  }
+  // Para squeeze: hand pode estar OU no squeeze range (→ 3bet) OU no open range
+  // do hero (→ flat call, multiway). Apenas hand fora de ambos é fold.
+  if (scenario === 'squeeze') {
+    const squeezeRange = position ? (SQUEEZE_RANGES[position] || []) : []
+    if (hand && squeezeRange.includes(hand)) return '3bet'
+    // Verifica se está no open range (flat call)
+    const openRange = position ? (OPEN_RAISE_RANGES[position] || []) : []
+    if (hand && openRange.includes(hand)) return 'call'
     return 'fold'
   }
   if (!isInRaiseRange) return 'fold'
@@ -109,12 +120,15 @@ function getCorrectActionForScenario(
     case 'push_fold':  return 'jam'
     case '3bet':       return '3bet'
     case '4bet':       return '4bet'
-    case 'squeeze':    return '3bet'
-    // bb_defense e call_rfi: diferenciar call vs 3bet usando THREE_BET_RANGES
+    // bb_defense e call_rfi: diferenciar call vs 3bet usando THREE_BET_RANGES.
+    // Caso especial: BB vs SB usa BB_VS_SB_3BET_RANGES (mais wide que o range padrão BB).
     case 'bb_defense':
     case 'call_rfi': {
       if (hand && position) {
-        const threeBetRange = THREE_BET_RANGES[position] || []
+        const threeBetRange =
+          (position === 'BB' && villainPosition === 'SB')
+            ? BB_VS_SB_3BET_RANGES
+            : (THREE_BET_RANGES[position] || [])
         return threeBetRange.includes(hand) ? '3bet' : 'call'
       }
       return 'call'
@@ -390,7 +404,7 @@ export default function PreflopTrainer() {
       // Gera questão dinâmica para essa mão
       setQuestionSM2Type(null)
       const isInRange = range.includes(hand)
-      const correctAction = getCorrectActionForScenario(scenario, isInRange, hand, effectivePos)
+      const correctAction = getCorrectActionForScenario(scenario, isInRange, hand, effectivePos, villainPosition)
 
       const scenarioLabels: Record<ScenarioType, string> = {
         open_raise: 'open raise', push_fold: 'push/fold', '3bet': '3-bet', '4bet': '4-bet',
@@ -641,10 +655,14 @@ export default function PreflopTrainer() {
     scenario === 'bb_defense' ? 'call'  :
     scenario === 'sb_vs_bb'   ? 'raise' : 'raise'
 
-  // call_rfi e bb_defense: diferencia call (verde) vs 3bet (laranja) no grid
+  // call_rfi e bb_defense: diferencia call (verde) vs 3bet (laranja) no grid.
+  // Caso especial: BB vs SB usa BB_VS_SB_3BET_RANGES (mais wide).
   const rangeMap: Record<string, Action | 'mixed'> = {}
   if (scenario === 'call_rfi' || scenario === 'bb_defense') {
-    const threeBetHands = THREE_BET_RANGES[rangePosition] || []
+    const threeBetHands =
+      (rangePosition === 'BB' && villainPosition === 'SB')
+        ? BB_VS_SB_3BET_RANGES
+        : (THREE_BET_RANGES[rangePosition] || [])
     currentRange.forEach(h => { rangeMap[h] = threeBetHands.includes(h) ? '3bet' : 'call' })
   } else {
     currentRange.forEach(h => { rangeMap[h] = heatmapAction })

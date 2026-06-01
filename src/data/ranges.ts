@@ -321,7 +321,7 @@ export const OPEN_RAISE_RANGES: Record<Position, string[]> = {
     'JTs',
   ],
   'HJ': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66',
+    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
     'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s',
     'AKo', 'AQo', 'AJo', 'ATo',
     'KQs', 'KJs', 'KTs', 'K9s',
@@ -362,7 +362,7 @@ export const OPEN_RAISE_RANGES: Record<Position, string[]> = {
     'QJs', 'QTs', 'Q9s',
     'JTs', 'J9s',
     'T9s', '98s', '87s', '76s',
-    'KQo', 'KJo',
+    'KQo', 'KJo', 'KTo',
     'QJo',
   ],
   'BB':     [], // BB defende, não open-raise normalmente
@@ -440,7 +440,7 @@ export const THREE_BET_RANGES: Record<Position, string[]> = {
   'BTN':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s', 'A4s', 'K5s'],
   'CO':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AJs', 'AKo', 'A5s'],
   'SB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A5s', 'A4s', 'A3s', 'KQs'],
-  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A9s', 'A4s', 'A3s', 'KJs'],
+  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A9s', 'A4s', 'A3s', 'KQs', 'KJs'],
   'UTG':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo'],
   'UTG+1':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'],
   'UTG+2':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'], // similar a UTG+1
@@ -470,8 +470,10 @@ export const SQUEEZE_RANGES: Record<Position, string[]> = {
   'UTG+2': ['AA', 'KK', 'AKs', 'AKo'],
   'LJ':    ['AA', 'KK', 'QQ', 'AKs', 'AKo', 'A5s'],
   'BTN': [
-    // BTN squeeze vs open+caller: range sólido, IP
-    'AA', 'KK', 'QQ', 'JJ', 'TT',
+    // BTN squeeze vs open+caller: range sólido, IP.
+    // TT removido — em squeeze IP vs single late open+caller, TT é mais call
+    // (realiza equity multiway, não bloqueia AK/AQ). Ver q039.
+    'AA', 'KK', 'QQ', 'JJ',
     'AKs', 'AQs', 'AJs',
     'AKo', 'AQo',
     'A5s', 'A4s', // bluffs com bloqueadores
@@ -520,7 +522,8 @@ export const PUSH_FOLD_RANGES: Record<number, Record<Position, string[]>> = {
     'BTN': ['AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
             'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
             'AKo', 'AQo', 'AJo', 'ATo', 'A9o', 'A8o', 'A7o',
-            'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'KQo', 'KJo'],
+            'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'KQo', 'KJo',
+            'QJs', 'QTs', 'JTs', 'T9s', '98s', '87s', '76s'],
     'CO': ['AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
            'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s',
            'AKo', 'AQo', 'AJo', 'ATo', 'A9o',
@@ -740,7 +743,7 @@ export const BB_VS_SB_DEFENSE_RANGES: string[] = [
 // BB vs SB: 3-bet range (mais agressivo que vs outras posições pois SB é wide)
 export const BB_VS_SB_3BET_RANGES: string[] = [
   'AA','KK','QQ','JJ','TT','99',
-  'AKs','AQs','AJs','ATs','AKo','AQo',
+  'AKs','AQs','AJs','ATs','A9s','AKo','AQo',
   'A5s','A4s','A3s','A2s', // bluffs com bloqueadores
   'KQs','KJs','QJs',       // suited broadways
   'T9s','98s',              // suited connectors para equity
@@ -766,7 +769,7 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     heroStack: 100,
     scenario: 'open_raise',
     correctAction: 'fold',
-    correctFrequency: 0.85,
+    correctFrequency: 0.7,
     explanation: 'JTs no UTG é uma mão marginal. Em posição early, o range deve ser tight. JTs joga bem em posição mas perde muito valor OOP. A maioria dos solvers dobra JTs no UTG em 6-max, apesar de ser uma borderline spot.',
     evComparison: { fold: 0, call: 0, raise: 0.1 }
   },
