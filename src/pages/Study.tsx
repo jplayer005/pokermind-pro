@@ -3,13 +3,14 @@
 // Cursos, flashcards com revisão espaçada, meta-game e quizzes
 // ============================================================
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Zap, Clock, ChevronRight, ChevronDown, RotateCcw, Check, X, Brain, DollarSign } from 'lucide-react'
 import { Card, Badge, Button, SectionHeader, ProgressBar, PremiumLock } from '@/components/ui'
 import { COURSES_DATA, FLASHCARDS_DATA } from '@/data/ranges'
 import { cn } from '@/lib/utils'
 import { Flashcard } from '@/types'
+import { useUserStore } from '@/store'
 
 type StudyTab = 'courses' | 'flashcards' | 'metagame' | 'notes'
 
@@ -120,6 +121,7 @@ function CourseCard({ course }: { course: typeof COURSES_DATA[0] }) {
 
 // ------- SISTEMA DE FLASHCARDS -------
 function FlashcardSystem() {
+  const { addXP, updateStats, updateStreak } = useUserStore()
   const [cards, setCards] = useState<Flashcard[]>(
     FLASHCARDS_DATA.map(f => ({ ...f, nextReview: Date.now() }))
   )
@@ -127,15 +129,31 @@ function FlashcardSystem() {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [sessionStats, setSessionStats] = useState({ correct: 0, incorrect: 0 })
+  const sessionStartRef = useRef<number>(Date.now())
 
   const currentCard = cards[currentIdx]
 
   function handleAnswer(correct: boolean) {
-    setSessionStats(prev => ({
-      correct: prev.correct + (correct ? 1 : 0),
-      incorrect: prev.incorrect + (correct ? 0 : 1),
-    }))
+    const newStats = {
+      correct: sessionStats.correct + (correct ? 1 : 0),
+      incorrect: sessionStats.incorrect + (correct ? 0 : 1),
+    }
+    setSessionStats(newStats)
+    if (correct) addXP(5)
+
     if (currentIdx + 1 >= cards.length) {
+      const sessionDuration = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 60000))
+      const total = newStats.correct + newStats.incorrect
+      const store = useUserStore.getState()
+      updateStats({
+        studyTimeMinutes: store.profile.stats.studyTimeMinutes + sessionDuration,
+        totalQuestions: store.profile.stats.totalQuestions + total,
+        totalCorrect: store.profile.stats.totalCorrect + newStats.correct,
+        accuracy: (store.profile.stats.totalCorrect + newStats.correct) /
+                  Math.max(1, store.profile.stats.totalQuestions + total),
+        flashcardsReviewed: (store.profile.stats.flashcardsReviewed || 0) + total,
+      })
+      updateStreak()
       setIsFinished(true)
     } else {
       setCurrentIdx(prev => prev + 1)
@@ -148,6 +166,7 @@ function FlashcardSystem() {
     setIsFlipped(false)
     setIsFinished(false)
     setSessionStats({ correct: 0, incorrect: 0 })
+    sessionStartRef.current = Date.now()
   }
 
   if (isFinished) {

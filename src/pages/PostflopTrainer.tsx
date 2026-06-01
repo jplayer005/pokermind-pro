@@ -1055,18 +1055,19 @@ export default function PostflopTrainer() {
   const handleNext = useCallback(() => {
     if (!config) return
     const sessionDuration = currentSession
-      ? Math.round((Date.now() - currentSession.startedAt) / 60000)
+      ? Math.max(1, Math.round((Date.now() - currentSession.startedAt) / 60000))
       : 0
     endSession()
-    const newTotal = profile.stats.totalQuestions + sessionStats.total
-    const newCorrect = profile.stats.totalCorrect + Math.round(sessionStats.correct)
     if (sessionStats.total > 0) {
+      const s = useUserStore.getState().profile.stats
+      const newTotal = s.totalQuestions + sessionStats.total
+      const newCorrect = s.totalCorrect + Math.round(sessionStats.correct)
       updateStats({
         totalQuestions: newTotal,
         totalCorrect: newCorrect,
         accuracy: newTotal > 0 ? newCorrect / newTotal : 0,
-        studyTimeMinutes: profile.stats.studyTimeMinutes + sessionDuration,
-        totalSessions: profile.stats.totalSessions + 1,
+        studyTimeMinutes: s.studyTimeMinutes + sessionDuration,
+        totalSessions: s.totalSessions + 1,
       })
       updateStreak()
       syncAchievements(useTrainingStore.getState().sessionHistory, useTrainingStore.getState().competitionHighScores)
@@ -1074,22 +1075,23 @@ export default function PostflopTrainer() {
     setSessionStats({ total: 0, correct: 0 })
     startSession('drill', 'postflop')
     setDrill(generateDrillState(config))
-  }, [config, currentSession, endSession, updateStats, updateStreak, syncAchievements, profile, sessionStats, startSession])
+  }, [config, currentSession, endSession, updateStats, updateStreak, syncAchievements, startSession, sessionStats])
 
   const handleEnd = useCallback(() => {
     if (sessionStats.total > 0) {
       const sessionDuration = currentSession
-        ? Math.round((Date.now() - currentSession.startedAt) / 60000)
+        ? Math.max(1, Math.round((Date.now() - currentSession.startedAt) / 60000))
         : 0
       endSession()
-      const newTotal = profile.stats.totalQuestions + sessionStats.total
-      const newCorrect = profile.stats.totalCorrect + Math.round(sessionStats.correct)
+      const s = useUserStore.getState().profile.stats
+      const newTotal = s.totalQuestions + sessionStats.total
+      const newCorrect = s.totalCorrect + Math.round(sessionStats.correct)
       updateStats({
         totalQuestions: newTotal,
         totalCorrect: newCorrect,
         accuracy: newTotal > 0 ? newCorrect / newTotal : 0,
-        studyTimeMinutes: profile.stats.studyTimeMinutes + sessionDuration,
-        totalSessions: profile.stats.totalSessions + 1,
+        studyTimeMinutes: s.studyTimeMinutes + sessionDuration,
+        totalSessions: s.totalSessions + 1,
       })
       updateStreak()
       syncAchievements(useTrainingStore.getState().sessionHistory, useTrainingStore.getState().competitionHighScores)
@@ -1098,7 +1100,7 @@ export default function PostflopTrainer() {
     }
     setConfig(null)
     setDrill(null)
-  }, [sessionStats, currentSession, endSession, updateStats, updateStreak, syncAchievements, profile])
+  }, [sessionStats, currentSession, endSession, updateStats, updateStreak, syncAchievements])
 
   const currentPhase = drill?.phase ?? 'flop'
   const actions = config?.scenario === 'facing_bet'
@@ -1189,6 +1191,11 @@ export default function PostflopTrainer() {
                     <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
                       {TEXTURE_FILTER_OPTIONS.find(o => o.id === config.textureFilter)?.icon} {TEXTURE_FILTER_OPTIONS.find(o => o.id === config.textureFilter)?.label}
                     </span>
+                  )}
+                  {config.streetMode !== 'full' && (
+                    <Badge variant="neutral">
+                      {config.streetMode === 'flop_only' ? 'Flop' : config.streetMode === 'turn_only' ? 'Turn' : 'River'}
+                    </Badge>
                   )}
                 </div>
               </Card>

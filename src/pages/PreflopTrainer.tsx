@@ -349,11 +349,24 @@ export default function PreflopTrainer() {
   const competitionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Auto-correção: se villainPosition virou inválida (após mudança de hero/scenario/format),
-  // troca para a primeira posição válida.
+  // troca para a primeira posição válida. Também garante que o villain escolhido
+  // não deixe zero posições de hero válidas (evita bloqueio total do seletor de hero).
   useEffect(() => {
     if (VILLAIN_OPEN_POSITIONS.length === 0) return
+    const pickFirstValid = () => setVillainPosition(VILLAIN_OPEN_POSITIONS[0])
     if (!VILLAIN_OPEN_POSITIONS.includes(villainPosition)) {
-      setVillainPosition(VILLAIN_OPEN_POSITIONS[0])
+      pickFirstValid()
+      return
+    }
+    // Villain está na lista válida, mas pode ainda deixar hero sem opções (ex: villain=UTG em 4-bet)
+    const validHero = getValidHeroPositions(scenario, villainPosition, tableFormat, POSITIONS_BY_SCENARIO[scenario])
+    if (validHero.length === 0) {
+      // Tenta encontrar um villain que deixe pelo menos uma posição de hero válida
+      const betterVillain = VILLAIN_OPEN_POSITIONS.find(vp => {
+        const vh = getValidHeroPositions(scenario, vp, tableFormat, POSITIONS_BY_SCENARIO[scenario])
+        return vh.length > 0
+      })
+      if (betterVillain) setVillainPosition(betterVillain)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position, scenario, tableFormat])
@@ -633,17 +646,18 @@ export default function PreflopTrainer() {
   function endDrillSession() {
     // Calcular duração ANTES de endSession() que zera currentSession
     const sessionDuration = currentSession
-      ? Math.round((Date.now() - currentSession.startedAt) / 60000)
+      ? Math.max(1, Math.round((Date.now() - currentSession.startedAt) / 60000))
       : 0
     endSession()
-    const newTotal = profile.stats.totalQuestions + sessionStats.total
-    const newCorrect = profile.stats.totalCorrect + sessionStats.correct
+    const s = useUserStore.getState().profile.stats
+    const newTotal = s.totalQuestions + sessionStats.total
+    const newCorrect = s.totalCorrect + sessionStats.correct
     updateStats({
       totalQuestions: newTotal,
       totalCorrect: newCorrect,
       accuracy: newTotal > 0 ? newCorrect / newTotal : 0,
-      studyTimeMinutes: profile.stats.studyTimeMinutes + sessionDuration,
-      totalSessions: profile.stats.totalSessions + 1,
+      studyTimeMinutes: s.studyTimeMinutes + sessionDuration,
+      totalSessions: s.totalSessions + 1,
     })
     updateStreak()
     syncAchievements(useTrainingStore.getState().sessionHistory)
@@ -671,19 +685,20 @@ export default function PreflopTrainer() {
     setCompetitionResult(entry)
     // Finaliza sessão normalmente para registrar no histórico
     const sessionDuration = currentSession
-      ? Math.round((Date.now() - currentSession.startedAt) / 60000)
+      ? Math.max(1, Math.round((Date.now() - currentSession.startedAt) / 60000))
       : 0
     endSession()
-    const newTotal = profile.stats.totalQuestions + sessionStats.total
-    const newCorrect = profile.stats.totalCorrect + sessionStats.correct
+    const s = useUserStore.getState().profile.stats
+    const newTotal = s.totalQuestions + sessionStats.total
+    const newCorrect = s.totalCorrect + sessionStats.correct
     updateStats({
       totalQuestions: newTotal,
       totalCorrect: newCorrect,
       accuracy: newTotal > 0 ? newCorrect / newTotal : 0,
-      studyTimeMinutes: profile.stats.studyTimeMinutes + sessionDuration,
-      totalSessions: profile.stats.totalSessions + 1,
-      competitionGamesPlayed: (profile.stats.competitionGamesPlayed || 0) + 1,
-      competitionBestScore: Math.max(score, profile.stats.competitionBestScore || 0),
+      studyTimeMinutes: s.studyTimeMinutes + sessionDuration,
+      totalSessions: s.totalSessions + 1,
+      competitionGamesPlayed: (s.competitionGamesPlayed || 0) + 1,
+      competitionBestScore: Math.max(score, s.competitionBestScore || 0),
     })
     updateStreak()
     const { sessionHistory: sh, competitionHighScores: chs } = useTrainingStore.getState()
@@ -992,7 +1007,7 @@ export default function PreflopTrainer() {
                     const scenarioPos = POSITIONS_BY_SCENARIO[scenario]
                     return formatPos.filter(p => scenarioPos.includes(p))
                   })().map(pos => {
-                    const isHeroDisabled = SHOWS_VILLAIN_SELECTOR && !VALID_HERO_SET.has(pos)
+                    const isHeroDisabled = !isRandomPosition && SHOWS_VILLAIN_SELECTOR && !VALID_HERO_SET.has(pos)
                     const isSelected = !isRandomPosition && position === pos
                     return (
                       <button
@@ -1181,6 +1196,12 @@ export default function PreflopTrainer() {
                       {currentQuestion.position}{isRandomPosition ? ' 🎲' : ''}
                     </Badge>
                     <Badge variant="neutral">{currentQuestion.heroStack} BBs</Badge>
+                    <Badge variant="neutral">
+                      {({'open_raise':'Open Raise','push_fold':'Push/Fold','3bet':'3-Bet','4bet':'4-Bet','squeeze':'Squeeze','bb_defense':'BB Defense','call_rfi':'Call RFI','sb_vs_bb':'SB vs BB'} as Record<string,string>)[currentQuestion.scenario] ?? currentQuestion.scenario}
+                    </Badge>
+                    {currentQuestion.villainPosition && (
+                      <Badge variant="neutral">vs {currentQuestion.villainPosition}</Badge>
+                    )}
                     {questionSM2Type === 'review' && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
                         🔁 Revisão

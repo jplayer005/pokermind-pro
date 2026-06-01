@@ -20,6 +20,8 @@ import {
   getOpenRaiseRange,
   getIPDefenseRange,
   getValidVillainPositions,
+  getValidHeroPositions,
+  POSITIONS_BY_FORMAT,
   preflopIdx,
 } from '../src/data/ranges'
 
@@ -167,7 +169,7 @@ function add(f: Finding) {
 // ============================================================
 // AUDITORIA 1: BANK QUESTIONS vs FÓRMULA DINÂMICA
 // ============================================================
-console.log('🔍 Auditoria 1/6: Bank questions vs fórmula dinâmica (pré-flop)...')
+console.log('🔍 Auditoria 1/8: Bank questions vs fórmula dinâmica (pré-flop)...')
 
 for (const q of DRILL_QUESTIONS) {
   const sc = q.scenario as Scenario
@@ -216,7 +218,7 @@ for (const q of DRILL_QUESTIONS) {
 // ============================================================
 // AUDITORIA 2: GRID COLORING vs CORRECT ACTION (call_rfi/bb_defense)
 // ============================================================
-console.log('🔍 Auditoria 2/6: Grid coloring vs correctAction (pré-flop)...')
+console.log('🔍 Auditoria 2/8: Grid coloring vs correctAction (pré-flop)...')
 
 const RFI_SCENARIOS: Scenario[] = ['call_rfi', 'bb_defense']
 const HERO_POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
@@ -252,7 +254,7 @@ for (const scenario of RFI_SCENARIOS) {
 // Hero != villain. Para call_rfi/3bet/squeeze, hero age depois do villain.
 // Para 4bet, hero age antes do villain.
 // ============================================================
-console.log('🔍 Auditoria 3/6: Validade hero/villain (mesma posição? ordem preflop?)...')
+console.log('🔍 Auditoria 3/8: Validade hero/villain (mesma posição? ordem preflop?)...')
 
 const SCENARIOS_WITH_VILLAIN = ['call_rfi', 'bb_defense', '3bet', '4bet', 'squeeze']
 
@@ -340,7 +342,7 @@ for (let i = 0; i < 50; i++) {
 // AUDITORIA 2.5: STACK ADJUSTMENT — confere que TODOS os cenários
 // (exceto push_fold) usam applyStackAdjustment para ajustar com heroStack
 // ============================================================
-console.log('🔍 Auditoria 4/6: Stack adjustment em todos os cenários (pré-flop)...')
+console.log('🔍 Auditoria 4/8: Stack adjustment em todos os cenários (pré-flop)...')
 
 // Replica EXATAMENTE o path do PreflopTrainer.
 // Se o effective range em 50bb for IGUAL ao em 100bb (e tiver mãos especulativas),
@@ -381,7 +383,7 @@ for (const scenario of STACK_CHECK_SCENARIOS) {
 // ============================================================
 // AUDITORIA 3: 100 SPOTS ALEATÓRIOS (cobre paths não testados acima)
 // ============================================================
-console.log('🔍 Auditoria 5/6: 100 spots aleatórios (pré-flop)...')
+console.log('🔍 Auditoria 5/8: 100 spots aleatórios (pré-flop)...')
 
 const SAMPLE_COUNT = 100
 const SAMPLE_SCENARIOS: Scenario[] = ['open_raise', 'push_fold', '3bet', '4bet', 'bb_defense', 'call_rfi', 'squeeze', 'sb_vs_bb']
@@ -425,7 +427,7 @@ for (let i = 0; i < SAMPLE_COUNT; i++) {
 //  - primaryAction sempre tem freq >= alternativeAction (após normalizeGtoDecision)
 //  - alsoAcceptable não duplica primary/alternative
 // ============================================================
-console.log('🔍 Auditoria 6/6: Pós-flop (vulnerabilidades + sizing GTO)...')
+console.log('🔍 Auditoria 6/8: Pós-flop (vulnerabilidades + sizing GTO)...')
 
 const POSTFLOP_VULNERABLE_CATEGORIES = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk']
 const DANGEROUS_NUT_SIZINGS: string[] = ['bet_75', 'bet_pot']  // não devem aparecer como primary em spots vulneráveis
@@ -509,6 +511,147 @@ for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
 }
 
 console.log(`   ${postflopChecks} spots pós-flop checados.`)
+
+// ============================================================
+// AUDITORIA 7: CONSISTÊNCIA DO SELETOR HERO/VILLAIN
+// Para cada cenário com seletor de villain, verifica que:
+//  a) getValidVillainPositions nunca retorna lista vazia quando hero tem posição válida
+//  b) Para todo villain retornado, getValidHeroPositions não retorna lista vazia
+//     (garante que o villain não bloqueia TODOS os heroes — bug exibido na UI)
+// ============================================================
+console.log('🔍 Auditoria 7/8: Consistência do seletor hero/villain (UI positions)...')
+
+const VILLAIN_SELECTOR_SCENARIOS = ['call_rfi', '3bet', '4bet', 'squeeze', 'bb_defense'] as const
+type VillainScenario = typeof VILLAIN_SELECTOR_SCENARIOS[number]
+const POSITIONS_BY_SCENARIO_LOCAL: Record<VillainScenario, Position[]> = {
+  call_rfi:   ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  '3bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  '4bet':     ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  squeeze:    ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+  bb_defense: ['BB'],
+}
+const FORMATS = ['HU', '6max', '9max'] as const
+
+for (const scenario of VILLAIN_SELECTOR_SCENARIOS) {
+  for (const fmt of FORMATS) {
+    const formatPositions = POSITIONS_BY_FORMAT[fmt]
+    const heroPositions = POSITIONS_BY_SCENARIO_LOCAL[scenario].filter(p => formatPositions.includes(p))
+
+    for (const hero of heroPositions) {
+      // a) Verifica se hero tem pelo menos um villain válido
+      const validVillains = getValidVillainPositions(scenario, hero, fmt)
+      if (validVillains.length === 0) {
+        add({
+          severity: 'info',
+          type: 'selector_no_valid_villain',
+          hand: 'N/A', position: hero, scenario: scenario as Scenario,
+          details: `[${fmt}] ${scenario} hero=${hero}: getValidVillainPositions retorna vazio → hero fica sem opção de villain (restrição esperada do poker).`,
+        })
+      }
+
+      // b) Para cada villain válido, verifica se ainda sobra algum hero válido
+      for (const villain of validVillains) {
+        const validHeroes = getValidHeroPositions(scenario, villain, fmt, heroPositions)
+        if (validHeroes.length === 0) {
+          add({
+            severity: 'critical',
+            type: 'selector_villain_blocks_all_heroes',
+            hand: 'N/A', position: hero, villainPos: villain, scenario: scenario as Scenario,
+            details: `[${fmt}] ${scenario} villain=${villain}: getValidHeroPositions retorna vazio → UI desabilitaria TODOS os botões de hero.`,
+          })
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// AUDITORIA 8: FILTROS DO CARD DE TREINO
+// Verifica que todos os filtros ativos do pré-flop estarão
+// presentes no card de contexto durante a sessão:
+// - position, heroStack, scenario, hand, villainPosition (quando aplicável)
+// ============================================================
+console.log('🔍 Auditoria 8/8: Campos obrigatórios no card de treino (pré-flop)...')
+
+const PREFLOP_CARD_REQUIRED_FIELDS: Array<keyof typeof DRILL_QUESTIONS[0]> = [
+  'position', 'heroStack', 'scenario', 'hand',
+]
+const PREFLOP_VILLAIN_SCENARIOS = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze', 'sb_vs_bb']
+
+for (const q of DRILL_QUESTIONS) {
+  for (const field of PREFLOP_CARD_REQUIRED_FIELDS) {
+    if (q[field] === undefined || q[field] === null || q[field] === '') {
+      add({
+        severity: 'critical',
+        type: 'card_missing_required_field',
+        hand: q.hand || 'N/A', position: q.position || ('?' as Position),
+        scenario: q.scenario as Scenario,
+        details: `Bank ${q.id}: campo "${field}" ausente/vazio — badge não será exibido no card de treino.`,
+      })
+    }
+  }
+  if (PREFLOP_VILLAIN_SCENARIOS.includes(q.scenario as string) && !q.villainPosition) {
+    add({
+      severity: 'warning',
+      type: 'card_missing_villain_badge',
+      hand: q.hand, position: q.position,
+      scenario: q.scenario as Scenario,
+      details: `Bank ${q.id}: cenário ${q.scenario} tem seletor de villain mas villainPosition não definido — badge "vs X" não aparecerá no card.`,
+    })
+  }
+}
+
+console.log(`   ${DRILL_QUESTIONS.length} bank questions auditadas para campos do card.`)
+
+// ============================================================
+// AUDITORIA 9 (ESTÁTICA): TRACKING DE STATS NAS PÁGINAS
+// Verifica se as páginas de treino chamam updateStats ao encerrar
+// sessão (studyTimeMinutes, totalQuestions, totalCorrect).
+// Como não executa código React, apenas valida presença de padrões
+// nos arquivos fonte via texto — sinaliza regressões.
+// ============================================================
+console.log('🔍 Verificação 9 (estática): Tracking de stats nas páginas de treino...')
+
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+const PAGES_TO_AUDIT = [
+  { file: 'src/pages/PreflopTrainer.tsx',  label: 'PreflopTrainer'  },
+  { file: 'src/pages/PostflopTrainer.tsx', label: 'PostflopTrainer' },
+  { file: 'src/pages/Study.tsx',           label: 'Study (flashcards)' },
+]
+const REQUIRED_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
+  { pattern: /updateStats\s*\(\s*\{/, description: 'updateStats chamado' },
+  { pattern: /studyTimeMinutes/, description: 'studyTimeMinutes atualizado' },
+  { pattern: /totalQuestions/, description: 'totalQuestions atualizado' },
+  { pattern: /totalCorrect/, description: 'totalCorrect atualizado' },
+  { pattern: /updateStreak\s*\(\s*\)/, description: 'updateStreak chamado' },
+]
+
+for (const page of PAGES_TO_AUDIT) {
+  let src = ''
+  try {
+    src = readFileSync(resolve(page.file), 'utf-8')
+  } catch {
+    add({
+      severity: 'critical',
+      type: 'stats_tracking_file_not_found',
+      hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
+      details: `${page.label}: arquivo ${page.file} não encontrado.`,
+    })
+    continue
+  }
+  for (const req of REQUIRED_PATTERNS) {
+    if (!req.pattern.test(src)) {
+      add({
+        severity: 'critical',
+        type: 'stats_tracking_missing',
+        hand: 'N/A', position: 'BTN', scenario: 'open_raise' as Scenario,
+        details: `${page.label}: padrão ausente — "${req.description}". Stats de sessão podem não ser registrados.`,
+      })
+    }
+  }
+}
 
 // ============================================================
 // RELATÓRIO FINAL
