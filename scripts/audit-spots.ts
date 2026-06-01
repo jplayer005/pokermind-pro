@@ -23,7 +23,13 @@ import {
   preflopIdx,
 } from '../src/data/ranges'
 
-import { generateHandGrid } from '../src/lib/poker'
+import {
+  generateHandGrid,
+  generateRandomCards,
+  evaluatePostflopHand,
+  analyzeBoardTexture,
+  getGTODecision,
+} from '../src/lib/poker'
 import type { Position, Action } from '../src/types'
 
 type Scenario = 'open_raise' | 'push_fold' | '3bet' | 'bb_defense' | 'call_rfi' | '4bet' | 'squeeze' | 'sb_vs_bb'
@@ -161,7 +167,7 @@ function add(f: Finding) {
 // ============================================================
 // AUDITORIA 1: BANK QUESTIONS vs FÓRMULA DINÂMICA
 // ============================================================
-console.log('🔍 Auditoria 1/3: Bank questions vs fórmula dinâmica...')
+console.log('🔍 Auditoria 1/6: Bank questions vs fórmula dinâmica (pré-flop)...')
 
 for (const q of DRILL_QUESTIONS) {
   const sc = q.scenario as Scenario
@@ -210,7 +216,7 @@ for (const q of DRILL_QUESTIONS) {
 // ============================================================
 // AUDITORIA 2: GRID COLORING vs CORRECT ACTION (call_rfi/bb_defense)
 // ============================================================
-console.log('🔍 Auditoria 2/3: Grid coloring vs correctAction...')
+console.log('🔍 Auditoria 2/6: Grid coloring vs correctAction (pré-flop)...')
 
 const RFI_SCENARIOS: Scenario[] = ['call_rfi', 'bb_defense']
 const HERO_POSITIONS: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
@@ -246,7 +252,7 @@ for (const scenario of RFI_SCENARIOS) {
 // Hero != villain. Para call_rfi/3bet/squeeze, hero age depois do villain.
 // Para 4bet, hero age antes do villain.
 // ============================================================
-console.log('🔍 Auditoria 2.3/5: Validade hero/villain (mesma posição? ordem preflop?)...')
+console.log('🔍 Auditoria 3/6: Validade hero/villain (mesma posição? ordem preflop?)...')
 
 const SCENARIOS_WITH_VILLAIN = ['call_rfi', 'bb_defense', '3bet', '4bet', 'squeeze']
 
@@ -334,7 +340,7 @@ for (let i = 0; i < 50; i++) {
 // AUDITORIA 2.5: STACK ADJUSTMENT — confere que TODOS os cenários
 // (exceto push_fold) usam applyStackAdjustment para ajustar com heroStack
 // ============================================================
-console.log('🔍 Auditoria 2.5/4: Stack adjustment em todos os cenários...')
+console.log('🔍 Auditoria 4/6: Stack adjustment em todos os cenários (pré-flop)...')
 
 // Replica EXATAMENTE o path do PreflopTrainer.
 // Se o effective range em 50bb for IGUAL ao em 100bb (e tiver mãos especulativas),
@@ -375,7 +381,7 @@ for (const scenario of STACK_CHECK_SCENARIOS) {
 // ============================================================
 // AUDITORIA 3: 100 SPOTS ALEATÓRIOS (cobre paths não testados acima)
 // ============================================================
-console.log('🔍 Auditoria 3/3: 100 spots aleatórios...')
+console.log('🔍 Auditoria 5/6: 100 spots aleatórios (pré-flop)...')
 
 const SAMPLE_COUNT = 100
 const SAMPLE_SCENARIOS: Scenario[] = ['open_raise', 'push_fold', '3bet', '4bet', 'bb_defense', 'call_rfi', 'squeeze', 'sb_vs_bb']
@@ -410,6 +416,99 @@ for (let i = 0; i < SAMPLE_COUNT; i++) {
     })
   }
 }
+
+// ============================================================
+// AUDITORIA 4: PÓS-FLOP — vulnerabilidades de board + sizing GTO
+// Gera 300 spots aleatórios e verifica:
+//  - Vulnerability flags disparam quando deveriam (straight/flush/FH on board)
+//  - Mão "nutada" em board vulnerável NÃO recomenda bet_pot/bet_75
+//  - primaryAction sempre tem freq >= alternativeAction (após normalizeGtoDecision)
+//  - alsoAcceptable não duplica primary/alternative
+// ============================================================
+console.log('🔍 Auditoria 6/6: Pós-flop (vulnerabilidades + sizing GTO)...')
+
+const POSTFLOP_VULNERABLE_CATEGORIES = ['set', 'trips', 'two_pair', 'overpair', 'tptk', 'tpgk', 'tpwk']
+const DANGEROUS_NUT_SIZINGS: string[] = ['bet_75', 'bet_pot']  // não devem aparecer como primary em spots vulneráveis
+
+let postflopChecks = 0
+const POSTFLOP_SAMPLE = 300
+
+for (let i = 0; i < POSTFLOP_SAMPLE; i++) {
+  const board = generateRandomCards(5)
+  if (board.length < 5) continue
+  const heroCards = generateRandomCards(2, board) as any
+  if (heroCards.length < 2) continue
+
+  const texture = analyzeBoardTexture(board)
+  const handEval = evaluatePostflopHand([heroCards[0], heroCards[1]], board)
+  const heroPosition: 'IP' | 'OOP' = Math.random() < 0.5 ? 'IP' : 'OOP'
+  const potType: 'SRP' | '3bet' = Math.random() < 0.5 ? 'SRP' : '3bet'
+  const facingBet = Math.random() < 0.5
+  const decision = getGTODecision(handEval, texture, heroPosition, potType, facingBet, 'river', 10)
+  postflopChecks++
+
+  // ---- 1. Normalização primary/alternative ----
+  // Após normalizeGtoDecision, primaryFrequency deve ser >= alternativeFrequency
+  if (decision.alternativeAction && (decision.alternativeFrequency ?? 0) > decision.primaryFrequency) {
+    add({
+      severity: 'critical',
+      type: 'postflop_freq_inverted',
+      hand: `${heroCards[0].rank}${heroCards[0].suit}-${heroCards[1].rank}${heroCards[1].suit}`,
+      position: heroPosition as any,
+      scenario: 'open_raise' as Scenario,
+      details: `[postflop] primary=${decision.primaryAction} ${decision.primaryFrequency}, alt=${decision.alternativeAction} ${decision.alternativeFrequency}. Normalize falhou.`,
+    })
+  }
+
+  // ---- 2. alsoAcceptable não pode incluir primary nem alternative ----
+  if (decision.alsoAcceptable) {
+    for (const acc of decision.alsoAcceptable) {
+      if (acc === decision.primaryAction || acc === decision.alternativeAction) {
+        add({
+          severity: 'warning',
+          type: 'postflop_also_duplicates',
+          hand: `${heroCards[0].rank}-${heroCards[1].rank}`,
+          position: heroPosition as any,
+          scenario: 'open_raise' as Scenario,
+          details: `[postflop] alsoAcceptable inclui ${acc} que já é primary/alt.`,
+        })
+        break
+      }
+    }
+  }
+
+  // ---- 3. Spots vulneráveis NÃO devem recomendar bet grande pra hero abaixo de FH ----
+  const isVulnBoard = texture.straightOnBoard || texture.monotone || texture.boardTrips || texture.boardDoublePaired
+  const heroBelowFH = POSTFLOP_VULNERABLE_CATEGORIES.includes(handEval.category)
+  if (isVulnBoard && heroBelowFH && DANGEROUS_NUT_SIZINGS.includes(decision.primaryAction)) {
+    const why = texture.straightOnBoard ? 'straight no board'
+      : texture.monotone ? 'monotone'
+      : texture.boardTrips ? 'trinca no board'
+      : 'duplo pareado'
+    add({
+      severity: 'critical',
+      type: 'postflop_pot_bet_on_vuln_board',
+      hand: `${heroCards[0].rank}${heroCards[1].rank} (${handEval.category})`,
+      position: heroPosition as any,
+      scenario: 'open_raise' as Scenario,
+      details: `[postflop] ${heroPosition} ${potType} — board ${why}, hero ${handEval.category}, mas primary=${decision.primaryAction}. Pot control esperado (bet_33/50/check).`,
+    })
+  }
+
+  // ---- 4. handEval.vulnerableFH só pode ser true se categoria é full_house ----
+  if (handEval.vulnerableFH && handEval.category !== 'full_house') {
+    add({
+      severity: 'warning',
+      type: 'postflop_vulnerable_fh_wrong_category',
+      hand: `${heroCards[0].rank}-${heroCards[1].rank}`,
+      position: heroPosition as any,
+      scenario: 'open_raise' as Scenario,
+      details: `[postflop] vulnerableFH=true mas category=${handEval.category}, esperado full_house.`,
+    })
+  }
+}
+
+console.log(`   ${postflopChecks} spots pós-flop checados.`)
 
 // ============================================================
 // RELATÓRIO FINAL
