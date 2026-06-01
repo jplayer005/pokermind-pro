@@ -341,7 +341,10 @@ export default function PreflopTrainer() {
 
     // ---- 2. Range (com ajuste de stack) ----
     const baseRange = getRangeForScenario(scenario, effectivePos, stackDepth, tableFormat, villainPosition)
-    const range = scenario === 'open_raise' ? applyStackAdjustment(baseRange, heroStack) : baseRange
+    // Stack adjustment se aplica a TODOS os cenários exceto push_fold (que usa
+    // stackDepth próprio via PUSH_FOLD_RANGES[10|15]). Mãos especulativas
+    // (SC's marginais, low pairs sem implied odds) caem do range conforme stack diminui.
+    const range = scenario !== 'push_fold' ? applyStackAdjustment(baseRange, heroStack) : baseRange
 
     // ---- 3. Identifica mãos com bank questions e questões due (SM-2) ----
     const bankByHand = new Map<string, PreflopDrillQuestion[]>()
@@ -414,7 +417,7 @@ export default function PreflopTrainer() {
         raise: 'RAISE (abrir o pot)', fold: 'FOLD (descartar)', jam: 'JAM (all-in)',
         '3bet': '3-BET (reraise)', '4bet': '4-BET (re-reraise)', call: 'CALL (chamar)', limp: 'LIMP (completar BB)',
       }
-      const stackNote = scenario === 'open_raise' && heroStack < 100
+      const stackNote = scenario !== 'push_fold' && heroStack < 100
         ? ` [Range ajustada para ${heroStack}bb — mãos especulativas removidas]`
         : ''
 
@@ -640,12 +643,13 @@ export default function PreflopTrainer() {
     if (accuracy > 0) addXP(Math.round(score * getDifficultyXPMultiplier(defaultDifficulty)))
   }
 
-  // Monta range para o heatmap (com ajuste de stack para open_raise)
-  // Em modo aleatório, usa a posição da questão atual (não o estado `position` que pode ser BTN)
+  // Monta range para o heatmap. Stack adjustment se aplica a todos os cenários
+  // exceto push_fold (que usa stackDepth próprio). Em modo aleatório, usa a
+  // posição da questão atual (não o estado `position` que pode ser BTN).
   const rangePosition = currentQuestion?.position ?? position
   const currentRange = (() => {
     const base = getRangeForScenario(scenario, rangePosition, stackDepth, tableFormat, villainPosition)
-    return scenario === 'open_raise' ? applyStackAdjustment(base, heroStack) : base
+    return scenario !== 'push_fold' ? applyStackAdjustment(base, heroStack) : base
   })()
   const heatmapAction: Action =
     scenario === 'push_fold'  ? 'jam'   :

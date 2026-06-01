@@ -16,6 +16,7 @@ import {
   SB_VS_BB_RAISE_RANGES,
   SB_VS_BB_LIMP_RANGES,
   BB_VS_SB_3BET_RANGES,
+  MARGINAL_HANDS,
   getOpenRaiseRange,
   getIPDefenseRange,
 } from '../src/data/ranges'
@@ -35,6 +36,28 @@ function resolveBBDefenseRange(villainPos: Position): string[] {
   const direct = BB_DEFENSE_RANGES[villainPos] || []
   if (direct.length > 0) return direct
   return BB_DEFENSE_RANGES['UTG'] || []
+}
+
+// Espelho do applyStackAdjustment do PreflopTrainer
+function applyStackAdjustment(range: string[], heroStack: number): string[] {
+  if (heroStack >= 100) return range
+  const removalsMid = [
+    'K2s','K3s','K4s','Q6s','Q7s','J6s','J7s','T5s','T6s',
+    '95s','96s','85s','86s','74s','75s','63s','64s','52s','53s','54s','A2s','A3s',
+  ]
+  const removalsShort = [
+    ...removalsMid,
+    '22','33','44','K5s','K6s','Q8s','J8s','T7s','97s','87s','76s','65s',
+    'A4s','A5s','A8o','A9o','KTo','QTo','JTo','Q9o','J9o',
+  ]
+  const removalsVeryShort = [
+    ...removalsShort,
+    '55','K7s','K8s','Q9s','J9s','T8s','T9s','98s','88',
+  ]
+  const removals = heroStack <= 40 ? removalsVeryShort
+    : heroStack <= 60 ? removalsShort
+    : heroStack <= 80 ? removalsMid : []
+  return range.filter(h => !removals.includes(h))
 }
 
 function getRangeForScenario(
@@ -195,6 +218,48 @@ for (const scenario of RFI_SCENARIOS) {
             details: `Grid colore como ${gridColor}, mas getCorrectActionForScenario retorna ${dynamicAction}.`,
           })
         }
+      }
+    }
+  }
+}
+
+// ============================================================
+// AUDITORIA 2.5: STACK ADJUSTMENT — confere que TODOS os cenários
+// (exceto push_fold) usam applyStackAdjustment para ajustar com heroStack
+// ============================================================
+console.log('🔍 Auditoria 2.5/4: Stack adjustment em todos os cenários...')
+
+// Replica EXATAMENTE o path do PreflopTrainer.
+// Se o effective range em 50bb for IGUAL ao em 100bb (e tiver mãos especulativas),
+// significa que esse cenário NÃO está aplicando stack adjustment.
+function preflopTrainerEffectiveRange(scenario: Scenario, position: Position, villainPos: Position, heroStack: number): string[] {
+  const base = getRangeForScenario(scenario, position, 100, villainPos)
+  return scenario !== 'push_fold' ? applyStackAdjustment(base, heroStack) : base
+}
+
+// Mãos especulativas que SOMEM em stack 50bb (per applyStackAdjustment)
+const SHALLOW_STACK_VICTIMS = ['A4s','A5s','22','33','44','76s','87s','65s','K5s','K6s']
+
+const STACK_CHECK_SCENARIOS: Scenario[] = ['open_raise', '3bet', '4bet', 'bb_defense', 'call_rfi', 'squeeze', 'sb_vs_bb']
+for (const scenario of STACK_CHECK_SCENARIOS) {
+  const positions: Position[] = scenario === 'bb_defense' ? ['BB']
+    : scenario === 'sb_vs_bb' ? ['SB']
+    : ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+  for (const hero of positions) {
+    for (const villainPos of ['UTG', 'CO', 'BTN'] as Position[]) {
+      const r100 = preflopTrainerEffectiveRange(scenario, hero, villainPos, 100)
+      const r50 = preflopTrainerEffectiveRange(scenario, hero, villainPos, 50)
+      // Se range em 50bb é IDÊNTICO ao de 100bb E o range tinha mãos especulativas,
+      // o stack adjustment NÃO foi aplicado.
+      const hadSpec = r100.some(h => SHALLOW_STACK_VICTIMS.includes(h))
+      const unchanged = r100.length === r50.length && r100.every(h => r50.includes(h))
+      if (hadSpec && unchanged) {
+        add({
+          severity: 'critical',
+          type: 'stack_adjustment_missing',
+          hand: 'N/A', position: hero, villainPos, scenario,
+          details: `${scenario} ${hero} vs ${villainPos}: range em 50bb é idêntico ao 100bb — stack adjustment não aplicado.`,
+        })
       }
     }
   }
