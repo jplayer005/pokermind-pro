@@ -222,20 +222,28 @@ function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) =>
         <div>
           <div className="text-xs text-text-muted uppercase tracking-wider mb-2">Sua Posição (Preflop)</div>
           <div className="grid grid-cols-6 gap-1">
-            {PREFLOP_POSITIONS.map(pos => (
-              <button
-                key={`hero-${pos}`}
-                onClick={() => setHeroPreflopPosition(pos)}
-                className={cn(
-                  'py-2 rounded-lg text-[11px] font-mono font-bold border transition-all',
-                  heroPreflopPosition === pos
-                    ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
-                    : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
-                )}
-              >
-                {pos}
-              </button>
-            ))}
+            {PREFLOP_POSITIONS.map(pos => {
+              const isDisabled = pos === villainPreflopPosition
+              const isSelected = heroPreflopPosition === pos
+              return (
+                <button
+                  key={`hero-${pos}`}
+                  onClick={() => !isDisabled && setHeroPreflopPosition(pos)}
+                  disabled={isDisabled}
+                  title={isDisabled ? 'Mesma posição que o villain' : undefined}
+                  className={cn(
+                    'py-2 rounded-lg text-[11px] font-mono font-bold border transition-all',
+                    isSelected
+                      ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                      : isDisabled
+                      ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed line-through'
+                      : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+                  )}
+                >
+                  {pos}
+                </button>
+              )
+            })}
           </div>
         </div>
         <div>
@@ -248,12 +256,13 @@ function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) =>
                   key={`villain-${pos}`}
                   onClick={() => !isDisabled && setVillainPreflopPosition(pos)}
                   disabled={isDisabled}
+                  title={isDisabled ? 'Mesma posição que o hero' : undefined}
                   className={cn(
                     'py-2 rounded-lg text-[11px] font-mono font-bold border transition-all',
                     villainPreflopPosition === pos
                       ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
                       : isDisabled
-                      ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed'
+                      ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed line-through'
                       : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
                   )}
                 >

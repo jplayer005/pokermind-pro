@@ -272,11 +272,27 @@ export default function PreflopTrainer() {
   const [isRandomPosition, setIsRandomPosition] = useState(true)
   const [poolPosition, setPoolPosition] = useState<Position>('BTN')
 
-  // Posições válidas para o villain (quem abriu) baseado no cenário + hero.
+  // Posições do villain: SEMPRE mostra todas, desabilita visualmente as inválidas.
   // - bb_defense: hero=BB, villain qualquer opener exceto BB.
   // - call_rfi/3bet/squeeze: villain age ANTES do hero (preflop order).
   // - 4bet: villain (3-bettor) age DEPOIS do hero (que abriu).
-  const VILLAIN_OPEN_POSITIONS: Position[] = getValidVillainPositions(scenario, position, tableFormat)
+  const ALL_VILLAIN_POSITIONS_BY_FORMAT: Position[] = (
+    tableFormat === '9max'
+      ? ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+      : tableFormat === 'HU'
+      ? ['BTN', 'BB']
+      : ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+  )
+  const VALID_VILLAIN_SET = new Set(getValidVillainPositions(scenario, position, tableFormat))
+  const VILLAIN_OPEN_POSITIONS: Position[] = [...VALID_VILLAIN_SET] // mantém compat para outros usos
+  // Cenários onde o seletor de villain faz sentido
+  const SHOWS_VILLAIN_SELECTOR = ['bb_defense', 'call_rfi', '3bet', '4bet', 'squeeze'].includes(scenario)
+  // Set de posições válidas para hero (filtro dual: scenario + villain)
+  const VALID_HERO_SET = new Set(
+    SHOWS_VILLAIN_SELECTOR
+      ? getValidHeroPositions(scenario, villainPosition, tableFormat, POSITIONS_BY_SCENARIO[scenario])
+      : POSITIONS_BY_SCENARIO[scenario]
+  )
 
   const STACK_OPTIONS = [25, 40, 50, 75, 100, 150, 200]
 
@@ -970,54 +986,75 @@ export default function PreflopTrainer() {
                   >
                     🎲 Aleatória
                   </button>
-                  {/* Posições manuais */}
+                  {/* Posições manuais — desabilita as incompatíveis com villainPosition */}
                   {(() => {
                     const formatPos = POSITIONS_BY_FORMAT[tableFormat]
                     const scenarioPos = POSITIONS_BY_SCENARIO[scenario]
                     return formatPos.filter(p => scenarioPos.includes(p))
-                  })().map(pos => (
-                    <button
-                      key={pos}
-                      onClick={() => { setIsRandomPosition(false); setPosition(pos); setHandPool([]) }}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
-                        !isRandomPosition && position === pos
-                          ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
-                          : isRandomPosition
-                          ? 'bg-bg-overlay border-border-subtle text-text-muted/40'
-                          : 'bg-bg-overlay border-border-subtle text-text-muted'
-                      )}
-                    >
-                      {pos}
-                    </button>
-                  ))}
+                  })().map(pos => {
+                    const isHeroDisabled = SHOWS_VILLAIN_SELECTOR && !VALID_HERO_SET.has(pos)
+                    const isSelected = !isRandomPosition && position === pos
+                    return (
+                      <button
+                        key={pos}
+                        disabled={isHeroDisabled}
+                        title={isHeroDisabled
+                          ? (pos === villainPosition ? 'Mesma posição que o villain' : 'Ordem de ação preflop incompatível com villain atual')
+                          : undefined}
+                        onClick={() => { if (!isHeroDisabled) { setIsRandomPosition(false); setPosition(pos); setHandPool([]) } }}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
+                          isSelected
+                            ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                            : isHeroDisabled
+                            ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed line-through'
+                            : isRandomPosition
+                            ? 'bg-bg-overlay border-border-subtle text-text-muted/40'
+                            : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+                        )}
+                      >
+                        {pos}
+                      </button>
+                    )
+                  })}
                 </div>
                 {isRandomPosition && (
                   <p className="text-[10px] text-accent-crimson/70 mt-1.5 font-body">
                     Posição, mão e contexto variam a cada rodada — simula tomada de decisão real.
                   </p>
                 )}
-                {/* Seletor de posição do villain para bb_defense e call_rfi */}
-                {(scenario === 'bb_defense' || scenario === 'call_rfi') && (
+                {/* Seletor de posição do villain para bb_defense, call_rfi, 3bet, 4bet, squeeze */}
+                {SHOWS_VILLAIN_SELECTOR && (
                   <div className="mt-3">
                     <div className="text-xs text-text-muted font-body mb-2 uppercase tracking-wider">
-                      Villain abriu de:
+                      {scenario === '4bet' ? 'Villain 3-betou de:' : 'Villain abriu de:'}
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
-                      {VILLAIN_OPEN_POSITIONS.map(pos => (
-                        <button
-                          key={pos}
-                          onClick={() => { setVillainPosition(pos); setHandPool([]) }}
-                          className={cn(
-                            'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
-                            villainPosition === pos
-                              ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
-                              : 'bg-bg-overlay border-border-subtle text-text-muted'
-                          )}
-                        >
-                          {pos}
-                        </button>
-                      ))}
+                      {ALL_VILLAIN_POSITIONS_BY_FORMAT.map(pos => {
+                        const isValid = VALID_VILLAIN_SET.has(pos)
+                        const isDisabled = !isValid
+                        const isSelected = villainPosition === pos
+                        return (
+                          <button
+                            key={pos}
+                            onClick={() => { if (!isDisabled) { setVillainPosition(pos); setHandPool([]) } }}
+                            disabled={isDisabled}
+                            title={isDisabled
+                              ? (pos === position ? 'Mesma posição que o herói' : 'Ordem de ação preflop incompatível')
+                              : undefined}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
+                              isSelected
+                                ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
+                                : isDisabled
+                                ? 'bg-bg-overlay/40 border-border-subtle/30 text-text-muted/30 cursor-not-allowed line-through'
+                                : 'bg-bg-overlay border-border-subtle text-text-muted hover:border-border-default'
+                            )}
+                          >
+                            {pos}
+                          </button>
+                        )
+                      })}
                     </div>
                     <p className="text-[10px] text-text-muted mt-2 font-body">
                       {scenario === 'bb_defense'
