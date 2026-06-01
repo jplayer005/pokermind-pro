@@ -82,6 +82,135 @@ export const POSTFLOP_PREFLOP_RANGES = {
   ],
 } as const
 
+// ------- RANGES DEFENSIVAS DE IP (BTN/CO/HJ) POR POSIÇÃO DO OPENER -------
+// Importante: ranges incluem call + 3-bet. O grid colore por categoria
+// (call=verde, 3bet=laranja) checando THREE_BET_RANGES por hand.
+// Vs early position (UTG/HJ), o range é MUITO mais tight que vs late (CO/SB).
+
+// BTN defesa vs cada opener
+export const BTN_DEFENSE_RANGES_VS_OPENER: Partial<Record<Position, string[]>> = {
+  // vs UTG (range ~12-15%, super tight) — call só com hands que beat UTG range
+  UTG: [
+    // call: pairs + premium suited broadways + JTs
+    '55','66','77','88','99','TT',
+    'AJs','ATs',
+    'KQs','KJs','KTs',
+    'QJs',
+    'JTs',
+    'AQo','KQo',
+    // 3-bet (vai pegar laranja no grid via THREE_BET_RANGES)
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+  'UTG+1': [
+    '55','66','77','88','99','TT',
+    'AJs','ATs',
+    'KQs','KJs','KTs',
+    'QJs','QTs',
+    'JTs',
+    'AQo','KQo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+  'UTG+2': [
+    '44','55','66','77','88','99','TT',
+    'AJs','ATs','A9s','A5s','A4s',
+    'KQs','KJs','KTs','K9s',
+    'QJs','QTs',
+    'JTs','T9s',
+    'AQo','AJo','KQo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo',
+  ],
+  LJ: [
+    '33','44','55','66','77','88','99','TT',
+    'AJs','ATs','A9s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s',
+    'QJs','QTs','Q9s',
+    'JTs','J9s',
+    'T9s','T8s',
+    '98s','87s','76s',
+    'AQo','AJo','KQo','KJo','QJo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+  // vs HJ (~20-25%): wider call range
+  HJ: [
+    '22','33','44','55','66','77','88','99','TT',
+    'AJs','ATs','A9s','A8s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s',
+    'QJs','QTs','Q9s',
+    'JTs','J9s',
+    'T9s','T8s',
+    '98s','87s','76s',
+    'AQo','AJo','KQo','KJo','QJo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+  // vs CO (~28-30%): quase a call range completa do BTN
+  CO: [
+    '22','33','44','55','66','77','88','99','TT',
+    'AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s',
+    'QJs','QTs','Q9s','Q8s',
+    'JTs','J9s','J8s',
+    'T9s','T8s','T7s',
+    '98s','97s','87s','86s','76s','65s','54s',
+    'AQo','AJo','ATo','KQo','KJo','KTo','QJo','QTo','JTo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+  // vs SB (SB abre wide ~45%): BTN call quase tudo do open range
+  SB: [
+    '22','33','44','55','66','77','88','99','TT',
+    'AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
+    'KQs','KJs','KTs','K9s','K8s','K7s','K6s','K5s','K4s','K3s','K2s',
+    'QJs','QTs','Q9s','Q8s','Q7s','Q6s',
+    'JTs','J9s','J8s','J7s',
+    'T9s','T8s','T7s',
+    '98s','97s','87s','76s','65s','54s',
+    'AQo','AJo','ATo','KQo','KJo','KTo','QJo','QTo','JTo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s','A4s','K5s',
+  ],
+}
+
+// CO defesa vs cada opener (similar lógica, mais tight no geral)
+export const CO_DEFENSE_RANGES_VS_OPENER: Partial<Record<Position, string[]>> = {
+  UTG: [
+    '66','77','88','99','TT',
+    'AJs','ATs',
+    'KQs','KJs',
+    'QJs',
+    'JTs',
+    'AQo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s',
+  ],
+  HJ: [
+    '22','33','44','55','66','77','88','99','TT',
+    'AJs','ATs','A5s','A4s',
+    'KQs','KJs','KTs',
+    'QJs','QTs',
+    'JTs','T9s',
+    'AQo','AJo','KQo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s',
+  ],
+}
+
+// HJ defesa vs UTG (única defesa real comum)
+export const HJ_DEFENSE_RANGES_VS_OPENER: Partial<Record<Position, string[]>> = {
+  UTG: [
+    '77','88','99','TT',
+    'AJs','ATs',
+    'KQs',
+    'QJs',
+    'JTs',
+    'AQo',
+    'AA','KK','QQ','JJ','AKs','AQs','AKo','A5s',
+  ],
+}
+
+// Helper: retorna defesa range para hero IP vs opener específico
+export function getIPDefenseRange(heroPos: Position, villainPos: Position): string[] | null {
+  if (heroPos === 'BTN') return BTN_DEFENSE_RANGES_VS_OPENER[villainPos] || null
+  if (heroPos === 'CO')  return CO_DEFENSE_RANGES_VS_OPENER[villainPos] || null
+  if (heroPos === 'HJ')  return HJ_DEFENSE_RANGES_VS_OPENER[villainPos] || null
+  return null
+}
+
 // ------- ORDEM DE AÇÃO POSTFLOP (mais OOP → mais IP) -------
 // Postflop: SB age primeiro (mais OOP), BTN por último (mais IP).
 // Quanto MAIOR o índice, MAIS IP.

@@ -12,7 +12,7 @@ import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
-import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS } from '@/data/ranges'
+import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange } from '@/data/ranges'
 import { randomHand, classifyHandStrength, generateHandGrid } from '@/lib/poker'
 import { formatPercent, shuffle, getDifficultyXPMultiplier } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -62,6 +62,10 @@ function getRangeForScenario(
     case 'bb_defense': return resolveBBDefenseRange(villainPosition)
     case 'call_rfi':
       if (position === 'BB') return resolveBBDefenseRange(villainPosition)
+      // IP defense ranges (BTN/CO/HJ) variam por opener — vs UTG é muito tight, vs CO é wide
+      const ipDefense = getIPDefenseRange(position, villainPosition)
+      if (ipDefense) return ipDefense
+      // Fallback: open range (comportamento antigo) se não há range específica
       return getOpenRaiseRange(tableFormat, position)
     case '4bet':       return FOUR_BET_RANGES[position] || []
     case 'squeeze':    return SQUEEZE_RANGES[position] || []
