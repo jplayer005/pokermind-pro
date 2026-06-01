@@ -362,7 +362,20 @@ export default function PreflopTrainer() {
   // troca para a primeira posição válida. Também garante que o villain escolhido
   // não deixe zero posições de hero válidas (evita bloqueio total do seletor de hero).
   useEffect(() => {
-    if (VILLAIN_OPEN_POSITIONS.length === 0) return
+    if (VILLAIN_OPEN_POSITIONS.length === 0) {
+      // Hero atual não tem villain válido nenhum (ex: UTG em call_rfi 6max).
+      // Resetar hero para a primeira posição do cenário que tenha ao menos 1 villain disponível.
+      if (!isRandomPosition) {
+        const formatPos = POSITIONS_BY_FORMAT[tableFormat] ?? []
+        const scenarioPos = POSITIONS_BY_SCENARIO[scenario] ?? []
+        const firstValid = formatPos.find(p =>
+          scenarioPos.includes(p) &&
+          getValidVillainPositions(scenario, p, tableFormat).length > 0
+        )
+        if (firstValid) setPosition(firstValid)
+      }
+      return
+    }
     const pickFirstValid = () => setVillainPosition(VILLAIN_OPEN_POSITIONS[0])
     if (!VILLAIN_OPEN_POSITIONS.includes(villainPosition)) {
       pickFirstValid()
@@ -1017,7 +1030,10 @@ export default function PreflopTrainer() {
                     const scenarioPos = POSITIONS_BY_SCENARIO[scenario]
                     return formatPos.filter(p => scenarioPos.includes(p))
                   })().map(pos => {
-                    const isHeroDisabled = !isRandomPosition && SHOWS_VILLAIN_SELECTOR && !VALID_HERO_SET.has(pos)
+                    const isHeroDisabled = !isRandomPosition && SHOWS_VILLAIN_SELECTOR && (
+                      !VALID_HERO_SET.has(pos) ||
+                      getValidVillainPositions(scenario, pos, tableFormat).length === 0
+                    )
                     const isSelected = !isRandomPosition && position === pos
                     return (
                       <button
