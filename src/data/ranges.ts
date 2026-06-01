@@ -211,6 +211,83 @@ export function getIPDefenseRange(heroPos: Position, villainPos: Position): stri
   return null
 }
 
+// ------- ORDEM DE AÇÃO PREFLOP (UTG age primeiro, BB por último) -------
+// Menor idx = age mais cedo no preflop. Usado para validar combos
+// hero/villain — em call_rfi/3bet/squeeze hero age DEPOIS do opener.
+export const PREFLOP_POSITION_ORDER: Position[] = [
+  'UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB'
+]
+
+export function preflopIdx(pos: Position): number {
+  return PREFLOP_POSITION_ORDER.indexOf(pos)
+}
+
+// Retorna posições válidas do villain para um cenário + hero.
+// Útil tanto para UI (filtra botões) quanto para geração aleatória.
+export function getValidVillainPositions(
+  scenario: string,
+  heroPos: Position,
+  tableFormat: 'HU' | '6max' | '9max' = '6max'
+): Position[] {
+  const formatPos = POSITIONS_BY_FORMAT[tableFormat]
+  switch (scenario) {
+    case 'bb_defense':
+      // Hero é BB, villain é qualquer opener exceto BB.
+      return formatPos.filter(p => p !== 'BB' && p !== heroPos)
+    case 'call_rfi':
+    case '3bet':
+    case 'squeeze':
+      // Villain abriu, hero age depois. Hero não pode ser BB se opener é BB
+      // (BB não open-raise por padrão). Villain deve agir ANTES do hero.
+      return formatPos.filter(p =>
+        p !== heroPos &&
+        preflopIdx(p) < preflopIdx(heroPos) &&
+        p !== 'BB'
+      )
+    case '4bet':
+      // Hero abriu, villain 3-betou. Villain age DEPOIS do hero.
+      return formatPos.filter(p =>
+        p !== heroPos &&
+        preflopIdx(p) > preflopIdx(heroPos)
+      )
+    case 'sb_vs_bb':
+      // Hero=SB, villain=BB.
+      return heroPos === 'SB' ? ['BB'] : ['SB']
+    default:
+      // open_raise, push_fold: sem villain selecionável
+      return []
+  }
+}
+
+// Retorna posições válidas do hero para um cenário + villain (inverso do acima).
+export function getValidHeroPositions(
+  scenario: string,
+  villainPos: Position,
+  tableFormat: 'HU' | '6max' | '9max' = '6max',
+  scenarioPositions: Position[] = []
+): Position[] {
+  const formatPos = POSITIONS_BY_FORMAT[tableFormat]
+  const allowed = scenarioPositions.length > 0
+    ? formatPos.filter(p => scenarioPositions.includes(p))
+    : formatPos
+  switch (scenario) {
+    case 'call_rfi':
+    case '3bet':
+    case 'squeeze':
+      // Hero age depois do villain
+      return allowed.filter(p => p !== villainPos && preflopIdx(p) > preflopIdx(villainPos))
+    case '4bet':
+      // Hero age antes do villain
+      return allowed.filter(p => p !== villainPos && preflopIdx(p) < preflopIdx(villainPos))
+    case 'bb_defense':
+      return ['BB']
+    case 'sb_vs_bb':
+      return ['SB']
+    default:
+      return allowed.filter(p => p !== villainPos)
+  }
+}
+
 // ------- ORDEM DE AÇÃO POSTFLOP (mais OOP → mais IP) -------
 // Postflop: SB age primeiro (mais OOP), BTN por último (mais IP).
 // Quanto MAIOR o índice, MAIS IP.
@@ -394,7 +471,7 @@ export const BB_DEFENSE_RANGES: Record<Position, string[]> = {
     'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s',
     'QJs', 'QTs', 'Q9s', 'Q8s',
     'JTs', 'J9s', 'J8s',
-    'T9s', 'T8s', '98s', '87s', '76s', '65s',
+    'T9s', 'T8s', '98s', '97s', '87s', '76s', '65s',
     'KQo', 'KJo', 'KTo',
     'QJo', 'QTo',
     'JTo', 'T9o', '98o',
@@ -405,7 +482,7 @@ export const BB_DEFENSE_RANGES: Record<Position, string[]> = {
     'AKo', 'AQo', 'AJo', 'ATo', 'A9o',
     'KQs', 'KJs', 'KTs', 'K9s', 'K8s',
     'QJs', 'QTs', 'Q9s',
-    'JTs', 'J9s', 'T9s', '98s', '87s', '76s',
+    'JTs', 'J9s', 'J8s', 'T9s', 'T8s', '98s', '87s', '76s',
     'KQo', 'KJo', 'QJo', 'JTo',
   ],
   'UTG': [ // BB vs UTG open (~25% das mãos — range UTG é tight)
@@ -1563,11 +1640,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q067',
     hand: 'KQo',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: 'call_rfi',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: 'call',
     correctFrequency: 0.7,
     explanation: 'KQo vs BTN open no CO: mix entre call e 3bet. KQo tem boa equity mas não tem bloqueadores ideais para 3bet (sem Aces). Chamar em posição (CO vs BTN não é posição, CO age antes) — na verdade CO está fora de posição vs BTN. Então call é mais conservador.',
@@ -1628,11 +1705,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q072',
     hand: 'A9s',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: 'call_rfi',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: 'call',
     correctFrequency: 0.65,
     explanation: 'A9s no CO vs BTN open: call. CO está OOP vs BTN, mas A9s tem equity suficiente e implied odds para jogar o flop. Não está no range de 3bet do CO (muito speculative como bluff OOP). Call é melhor — veja o flop, decida com mais informação. Fold também é defensável dado a posição desfavorável.',
@@ -1693,11 +1770,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q077',
     hand: '99',
-    position: 'HJ',
+    position: 'CO',
     heroStack: 100,
     scenario: 'call_rfi',
     villainAction: 'raise',
-    villainPosition: 'CO',
+    villainPosition: 'HJ',
     correctAction: 'call',
     correctFrequency: 0.75,
     explanation: '99 no HJ vs CO open: principalmente call. HJ está fora de posição vs CO, e 99 não tem equity suficiente para 3bet com frequência. Call e realiza equity como set-mining. Se 3bet, villain defende com mãos que dominam (TT-AA). Call é mais lucrativo aqui.',
@@ -1719,11 +1796,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q079',
     hand: 'Q9s',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: 'call_rfi',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: 'call',
     correctFrequency: 0.5,
     explanation: 'Q9s no CO vs BTN open: mix equilibrado entre call e fold. CO está OOP vs BTN — isso penaliza mãos que precisam de posição como Q9s. Solver mistura ~50/50. Call pode ser justificado pela playability do Q9s suited, mas fold não é erro.',
@@ -1736,10 +1813,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     heroStack: 100,
     scenario: 'call_rfi',
     villainAction: 'raise',
-    villainPosition: 'SB',
+    villainPosition: 'CO',
     correctAction: 'call',
     correctFrequency: 0.85,
-    explanation: '88 no BTN vs SB open é um call claro em posição. SB vs BTN: você fica em posição no BTN. 88 tem excelente set-mining value, não precisa de 3bet. Call, jogue flop em posição. Quando pega set (1 em 8 vezes), ganhe pote enorme.',
+    explanation: '88 no BTN vs CO open é um call claro em posição. CO vs BTN: você fica em posição no BTN. 88 tem excelente set-mining value, não precisa de 3bet. Call, jogue flop em posição. Quando pega set (1 em 8 vezes), ganhe pote enorme.',
     evComparison: { fold: 0, call: 2.3, raise: 1.9 }
   },
 
@@ -1799,11 +1876,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q085',
     hand: '99',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: '3bet',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: 'fold',
     correctFrequency: 0.7,
     explanation: '99 no CO vs BTN open: mix entre fold e call. CO está OOP vs BTN, e 99 não tem valor de 3bet — seria chamado apenas por mãos que dominam. O problema é que call OOP com 99 sem set é muito difícil de jogar. Fold/call mistura, com fold sendo seguro.',
@@ -1851,11 +1928,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q089',
     hand: 'TT',
-    position: 'HJ',
+    position: 'CO',
     heroStack: 100,
     scenario: '3bet',
     villainAction: 'raise',
-    villainPosition: 'CO',
+    villainPosition: 'HJ',
     correctAction: 'call',
     correctFrequency: 0.8,
     explanation: 'TT no HJ vs CO open: principalmente call. HJ está OOP vs CO, e TT não tem stack suficiente de equity para 3bet com frequência. Call e realize equity. Se 3bet, villain com QQ-AA domina você. Call e procure sets/overcards favoráveis no flop.',
@@ -1890,11 +1967,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q092',
     hand: 'AKs',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: '3bet',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: '3bet',
     correctFrequency: 1.0,
     explanation: 'AKs no CO vs BTN open é sempre 3bet. AKs é a melhor mão não-par do poker. 3bet para construir pote, denegar equity de SCDs do villain e criar spots onde você fica bem vs grande parte do range. OOP (CO vs BTN), 3bet é obrigatório com AKs.',
@@ -1916,11 +1993,11 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q094',
     hand: 'KQo',
-    position: 'CO',
+    position: 'BTN',
     heroStack: 100,
     scenario: '3bet',
     villainAction: 'raise',
-    villainPosition: 'BTN',
+    villainPosition: 'CO',
     correctAction: 'call',
     correctFrequency: 0.75,
     explanation: 'KQo no CO vs BTN open: principalmente call. Embora KQo seja forte, CO está OOP vs BTN. 3bet com KQo pode ser chamado por AK/QQ+ que dominam. Call em OOP com KQo allowed, mas cuidado com K/Q flopped sendo dominado. Solver prefere call aqui.',
@@ -2078,10 +2155,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     heroStack: 100,
     scenario: '4bet',
     villainAction: '3bet',
-    villainPosition: 'CO',
+    villainPosition: 'BB',
     correctAction: 'fold',
     correctFrequency: 0.7,
-    explanation: 'A3s vs CO 3bet no BTN: solver prefere fold/call aqui, não 4bet. CO 3bet range é tight (QQ+/AKs principalmente) — 4bet bluff com A3s seria chamado/jammed por range strong. Em posição, call pode ser exploitable. Fold é conservador mas sólido vs tight 3bet.',
+    explanation: 'A3s vs BB 3bet no BTN: solver prefere fold/call aqui, não 4bet. BB 3bet range inclui muitos bluffs com bloqueadores (A5s/A4s/etc) e premiums (TT+/AK) — 4bet bluff com A3s seria chamado/jammed por range strong. Em posição, call pode ser exploitable em 3bet pot OOP. Fold é conservador mas sólido.',
     evComparison: { fold: 0, call: 0.5, raise: 0.2 }
   },
   {
@@ -2091,10 +2168,10 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     heroStack: 100,
     scenario: '4bet',
     villainAction: '3bet',
-    villainPosition: 'BTN',
+    villainPosition: 'BB',
     correctAction: 'fold',
     correctFrequency: 0.85,
-    explanation: '99 vs BTN 3bet no SB: fold. SB OOP vs BTN, e 99 não tem equity suficiente para 4bet ou call confortável em 3bet pot OOP. BTN 3bet range inclui TT+/AQ+ que dominam 99. 4bet seria jammed por KK-AA. Call OOP em 3bet pot com 99 cria spots muito difíceis.',
+    explanation: '99 vs BB 3bet no SB: fold. SB OOP em 3bet pot e 99 não tem equity suficiente para 4bet ou call confortável. BB 3bet vs SB inclui TT+/AQ+ e bluffs que dominam ou empatam vs 99. 4bet seria jammed por KK-AA. Call OOP em 3bet pot com 99 cria spots muito difíceis.',
     evComparison: { fold: 0, call: -0.5, raise: -1.0 }
   },
   {

@@ -19,6 +19,8 @@ import {
   MARGINAL_HANDS,
   getOpenRaiseRange,
   getIPDefenseRange,
+  getValidVillainPositions,
+  preflopIdx,
 } from '../src/data/ranges'
 
 import { generateHandGrid } from '../src/lib/poker'
@@ -103,6 +105,22 @@ function getCorrectActionForScenario(
   if (scenario === 'squeeze') {
     const squeezeRange = SQUEEZE_RANGES[position] || []
     if (squeezeRange.includes(hand)) return '3bet'
+    const openRange = OPEN_RAISE_RANGES[position] || []
+    if (openRange.includes(hand)) return 'call'
+    return 'fold'
+  }
+  if (scenario === '3bet') {
+    const threeBet = THREE_BET_RANGES[position] || []
+    if (threeBet.includes(hand)) return '3bet'
+    const defenseRange = position === 'BB'
+      ? (BB_DEFENSE_RANGES[villainPos ?? 'BTN'] || [])
+      : (getIPDefenseRange(position, villainPos ?? 'BTN') || [])
+    if (defenseRange.includes(hand)) return 'call'
+    return 'fold'
+  }
+  if (scenario === '4bet') {
+    const fourBet = FOUR_BET_RANGES[position] || []
+    if (fourBet.includes(hand)) return '4bet'
     const openRange = OPEN_RAISE_RANGES[position] || []
     if (openRange.includes(hand)) return 'call'
     return 'fold'
@@ -224,6 +242,95 @@ for (const scenario of RFI_SCENARIOS) {
 }
 
 // ============================================================
+// AUDITORIA 2.3: VALIDADE DE COMBOS hero/villain
+// Hero != villain. Para call_rfi/3bet/squeeze, hero age depois do villain.
+// Para 4bet, hero age antes do villain.
+// ============================================================
+console.log('🔍 Auditoria 2.3/5: Validade hero/villain (mesma posição? ordem preflop?)...')
+
+const SCENARIOS_WITH_VILLAIN = ['call_rfi', 'bb_defense', '3bet', '4bet', 'squeeze']
+
+// 1. Auditoria dos bank questions
+for (const q of DRILL_QUESTIONS) {
+  if (!SCENARIOS_WITH_VILLAIN.includes(q.scenario as string)) continue
+  if (!q.villainPosition) continue
+
+  // Mesma posição?
+  if (q.position === q.villainPosition) {
+    add({
+      severity: 'critical',
+      type: 'hero_villain_same_position',
+      hand: q.hand, position: q.position, villainPos: q.villainPosition,
+      scenario: q.scenario as Scenario,
+      details: `Bank ${q.id}: hero e villain ambos em ${q.position}.`,
+    })
+    continue
+  }
+
+  // Ordem preflop correta?
+  const heroIdx = preflopIdx(q.position)
+  const vilIdx = preflopIdx(q.villainPosition)
+  if (q.scenario === 'call_rfi' || q.scenario === '3bet' || q.scenario === 'squeeze') {
+    // Hero deve agir DEPOIS do villain
+    if (heroIdx <= vilIdx) {
+      add({
+        severity: 'critical',
+        type: 'hero_villain_invalid_order',
+        hand: q.hand, position: q.position, villainPos: q.villainPosition,
+        scenario: q.scenario as Scenario,
+        details: `Bank ${q.id}: hero ${q.position} (preflop idx ${heroIdx}) deveria agir DEPOIS do villain ${q.villainPosition} (idx ${vilIdx}).`,
+      })
+    }
+  } else if (q.scenario === '4bet') {
+    // Hero abriu, villain 3-betou — villain age depois
+    if (vilIdx <= heroIdx) {
+      add({
+        severity: 'critical',
+        type: 'hero_villain_invalid_order',
+        hand: q.hand, position: q.position, villainPos: q.villainPosition,
+        scenario: q.scenario as Scenario,
+        details: `Bank ${q.id}: 4bet — villain ${q.villainPosition} (idx ${vilIdx}) deveria agir DEPOIS do hero ${q.position} (idx ${heroIdx}).`,
+      })
+    }
+  } else if (q.scenario === 'bb_defense') {
+    if (q.position !== 'BB') {
+      add({
+        severity: 'critical', type: 'bb_defense_wrong_hero',
+        hand: q.hand, position: q.position, villainPos: q.villainPosition,
+        scenario: q.scenario as Scenario,
+        details: `Bank ${q.id}: bb_defense exige hero=BB, mas hero=${q.position}.`,
+      })
+    }
+    if (q.villainPosition === 'BB') {
+      add({
+        severity: 'critical', type: 'bb_defense_wrong_villain',
+        hand: q.hand, position: q.position, villainPos: q.villainPosition,
+        scenario: q.scenario as Scenario,
+        details: `Bank ${q.id}: bb_defense exige villain ≠ BB.`,
+      })
+    }
+  }
+}
+
+// 2. Sampling: gera 50 combos aleatórios e verifica se getValidVillainPositions cobre todos
+let invalidCombosFound = 0
+for (let i = 0; i < 50; i++) {
+  const scenario = SCENARIOS_WITH_VILLAIN[Math.floor(Math.random() * SCENARIOS_WITH_VILLAIN.length)]
+  const heroPositions: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+  const hero = heroPositions[Math.floor(Math.random() * heroPositions.length)]
+  const validVillains = getValidVillainPositions(scenario, hero, '6max')
+  if (validVillains.includes(hero)) {
+    invalidCombosFound++
+    add({
+      severity: 'critical', type: 'helper_returns_same_position',
+      hand: 'N/A', position: hero, villainPos: hero,
+      scenario: scenario as Scenario,
+      details: `getValidVillainPositions retornou ${hero} (mesmo que hero) para ${scenario} hero=${hero}.`,
+    })
+  }
+}
+
+// ============================================================
 // AUDITORIA 2.5: STACK ADJUSTMENT — confere que TODOS os cenários
 // (exceto push_fold) usam applyStackAdjustment para ajustar com heroStack
 // ============================================================
@@ -328,13 +435,20 @@ console.log(`  Warning:  ${bySeverity.warning || 0}`)
 console.log(`  Info:     ${bySeverity.info || 0}`)
 
 for (const [type, items] of Object.entries(byType)) {
+  // Ordena por severidade: critical → warning → info, depois alfabético
+  const ordered = items.slice().sort((a, b) => {
+    const sev = { critical: 0, warning: 1, info: 2 } as const
+    const sa = sev[a.severity], sb = sev[b.severity]
+    return sa - sb || a.scenario.localeCompare(b.scenario)
+  })
   console.log(`\n--- ${type} (${items.length}) ---`)
-  for (const f of items.slice(0, 15)) {
+  const showLimit = items.some(i => i.severity !== 'info') ? items.length : 15
+  for (const f of ordered.slice(0, showLimit)) {
     const sev = f.severity === 'critical' ? '🔴' : f.severity === 'warning' ? '🟡' : '🔵'
     console.log(`${sev} [${f.scenario}] ${f.hand} ${f.position}${f.villainPos ? ` vs ${f.villainPos}` : ''}`)
     console.log(`   ${f.details}`)
   }
-  if (items.length > 15) console.log(`   ... e mais ${items.length - 15} casos`)
+  if (ordered.length > showLimit) console.log(`   ... e mais ${ordered.length - showLimit} casos (info)`)
 }
 
 console.log('\n' + '='.repeat(70))

@@ -12,7 +12,7 @@ import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
-import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange, BB_VS_SB_3BET_RANGES } from '@/data/ranges'
+import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange, BB_VS_SB_3BET_RANGES, getValidVillainPositions, getValidHeroPositions } from '@/data/ranges'
 import { randomHand, classifyHandStrength, generateHandGrid } from '@/lib/poker'
 import { formatPercent, shuffle, getDifficultyXPMultiplier } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -113,6 +113,28 @@ function getCorrectActionForScenario(
     // Verifica se está no open range (flat call)
     const openRange = position ? (OPEN_RAISE_RANGES[position] || []) : []
     if (hand && openRange.includes(hand)) return 'call'
+    return 'fold'
+  }
+  // Para 3bet/4bet: se hand não está no aggression range, mas está na "defense range"
+  // (BB_DEFENSE para 3bet, open range para 4bet do hero), call ainda é GTO-válido.
+  if (scenario === '3bet' && hand && position) {
+    const threeBet = THREE_BET_RANGES[position] || []
+    if (threeBet.includes(hand)) return '3bet'
+    // Hero está OOP defendendo de uma open. Se hand está em BB_DEFENSE (ou similar IP defense),
+    // call é a opção GTO.
+    const defenseRange = position === 'BB'
+      ? (BB_DEFENSE_RANGES[villainPosition ?? 'BTN'] || [])
+      : (getIPDefenseRange(position, villainPosition ?? 'BTN') || [])
+    if (defenseRange.includes(hand)) return 'call'
+    return 'fold'
+  }
+  if (scenario === '4bet' && hand && position) {
+    const fourBet = FOUR_BET_RANGES[position] || []
+    if (fourBet.includes(hand)) return '4bet'
+    // Hero abriu, villain 3-betou. Se hand está no open range do hero, call ao 3-bet
+    // é a alternativa GTO (continua na mão sem 4-betar).
+    const openRange = OPEN_RAISE_RANGES[position] || []
+    if (openRange.includes(hand)) return 'call'
     return 'fold'
   }
   if (!isInRaiseRange) return 'fold'
@@ -250,15 +272,11 @@ export default function PreflopTrainer() {
   const [isRandomPosition, setIsRandomPosition] = useState(true)
   const [poolPosition, setPoolPosition] = useState<Position>('BTN')
 
-  // Posições válidas para o villain (quem abriu) no cenário bb_defense.
-  // Filtra dinamicamente pelo formato — em 9max inclui UTG+1/UTG+2/LJ; em 6max só UTG-SB.
-  const VILLAIN_OPEN_POSITIONS: Position[] = (
-    tableFormat === '9max'
-      ? ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB']
-      : tableFormat === 'HU'
-      ? ['BTN']
-      : ['UTG', 'HJ', 'CO', 'BTN', 'SB']
-  )
+  // Posições válidas para o villain (quem abriu) baseado no cenário + hero.
+  // - bb_defense: hero=BB, villain qualquer opener exceto BB.
+  // - call_rfi/3bet/squeeze: villain age ANTES do hero (preflop order).
+  // - 4bet: villain (3-bettor) age DEPOIS do hero (que abriu).
+  const VILLAIN_OPEN_POSITIONS: Position[] = getValidVillainPositions(scenario, position, tableFormat)
 
   const STACK_OPTIONS = [25, 40, 50, 75, 100, 150, 200]
 
@@ -314,6 +332,16 @@ export default function PreflopTrainer() {
   const [competitionResult, setCompetitionResult] = useState<CompetitionScore | null>(null)
   const competitionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Auto-correção: se villainPosition virou inválida (após mudança de hero/scenario/format),
+  // troca para a primeira posição válida.
+  useEffect(() => {
+    if (VILLAIN_OPEN_POSITIONS.length === 0) return
+    if (!VILLAIN_OPEN_POSITIONS.includes(villainPosition)) {
+      setVillainPosition(VILLAIN_OPEN_POSITIONS[0])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position, scenario, tableFormat])
+
   // ---- GERAÇÃO DE QUESTÃO (lógica reestruturada) ----
   //
   // PRINCÍPIO: A FILA DE MÃOS é a fonte da verdade.
@@ -333,7 +361,13 @@ export default function PreflopTrainer() {
     if (isRandomPosition) {
       const formatPos = POSITIONS_BY_FORMAT[tableFormat]
       const scenarioPos = POSITIONS_BY_SCENARIO[scenario]
-      const validPos = formatPos.filter(p => scenarioPos.includes(p))
+      let validPos = formatPos.filter(p => scenarioPos.includes(p))
+      // Para cenários com villain, filtra hero por compatibilidade com villainPosition
+      // (hero != villain, e ordem de ação preflop respeitada).
+      if (['call_rfi', 'bb_defense', '3bet', '4bet', 'squeeze'].includes(scenario)) {
+        const valid = getValidHeroPositions(scenario, villainPosition, tableFormat, scenarioPos)
+        if (valid.length > 0) validPos = valid
+      }
       if (validPos.length > 0) {
         effectivePos = validPos[Math.floor(Math.random() * validPos.length)]
       }
