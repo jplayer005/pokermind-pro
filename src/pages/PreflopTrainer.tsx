@@ -426,12 +426,48 @@ export default function PreflopTrainer() {
     setQuestionSequence(s => s + 1)
   }, [scenario, position, isRandomPosition, stackDepth, heroStack, handPool, poolPosition, allHandsList, villainPosition, tableFormat, getDueQuestions, defaultDifficulty])
 
+  // Verifica se a ação é GTO-válida além do correctAction exato:
+  // 1. Match exato com correctAction → correto
+  // 2. Em gtoMix com freq >= 15% → também válido (mistura GTO conhecida)
+  // 3. Spots de mistura (correctFrequency < 0.9) onde a ação alternativa
+  //    natural também é GTO-correta (ex: A5s BTN call_rfi — pode ser call OU 3bet)
+  function isAlsoValidAction(action: Action, q: PreflopDrillQuestion): boolean {
+    if (action === q.correctAction) return false // já é exato, não "também"
+    // Mistura GTO explícita no banco
+    if (q.gtoMix && (q.gtoMix[action] ?? 0) >= 0.15) return true
+    // Spots com correctFrequency < 0.9 = mistura — aceita ação complementar plausível
+    if ((q.correctFrequency ?? 1) < 0.9) {
+      const sc = q.scenario as ScenarioType
+      // bb_defense / call_rfi: alternativa entre call e 3bet
+      if (sc === 'bb_defense' || sc === 'call_rfi') {
+        const threeBetRange = THREE_BET_RANGES[q.position] || []
+        const inDefenseRange = sc === 'bb_defense'
+          ? (BB_DEFENSE_RANGES[q.villainPosition ?? 'BTN'] || []).includes(q.hand)
+          : true
+        if (action === '3bet' && threeBetRange.includes(q.hand)) return true
+        if (action === 'call' && inDefenseRange && !threeBetRange.includes(q.hand)) return true
+        // Quando correctAction='call' mas a mão também está em 3bet range = mix
+        if (action === 'call' && q.correctAction === '3bet') return true
+        if (action === '3bet' && q.correctAction === 'call' && threeBetRange.includes(q.hand)) return true
+      }
+      // 4bet: aceita call quando correctAction='4bet' (e vice-versa) em spots de mistura
+      if (sc === '4bet') {
+        if ((action === 'call' && q.correctAction === '4bet') ||
+            (action === '4bet' && q.correctAction === 'call')) return true
+      }
+      // sb_vs_bb: aceita raise/limp/fold conforme gtoMix (já coberto acima)
+    }
+    return false
+  }
+
   // ---- RESPOSTA DO USUÁRIO ----
   const handleAnswer = useCallback((action: Action) => {
     if (!currentQuestion || showResult) return
 
     const timeMs = Date.now() - questionStart
-    const isCorrect = action === currentQuestion.correctAction
+    const exactMatch = action === currentQuestion.correctAction
+    const alsoValid = !exactMatch && isAlsoValidAction(action, currentQuestion)
+    const isCorrect = exactMatch || alsoValid
     setUserAnswer(action)
     setShowResult(true)
 
@@ -1122,26 +1158,34 @@ export default function PreflopTrainer() {
                     className="space-y-3"
                   >
                     {/* Veredito */}
+                    {(() => {
+                      const exactMatch = userAnswer === currentQuestion.correctAction
+                      const alsoValid = !exactMatch && !!userAnswer && isAlsoValidAction(userAnswer, currentQuestion)
+                      const isCorrect = exactMatch || alsoValid
+                      return (
                     <Card className={cn(
                       'p-4 border-2',
-                      userAnswer === currentQuestion.correctAction
-                        ? 'border-accent-emerald/40 bg-accent-emerald/5'
+                      isCorrect
+                        ? alsoValid
+                          ? 'border-yellow-500/40 bg-yellow-500/5'
+                          : 'border-accent-emerald/40 bg-accent-emerald/5'
                         : 'border-accent-crimson/40 bg-accent-crimson/5'
                     )}>
                       <div className="flex items-center gap-3 mb-3">
-                        {userAnswer === currentQuestion.correctAction ? (
-                          <CheckCircle size={20} className="text-accent-emerald flex-shrink-0" />
+                        {isCorrect ? (
+                          <CheckCircle size={20} className={cn('flex-shrink-0', alsoValid ? 'text-yellow-400' : 'text-accent-emerald')} />
                         ) : (
                           <XCircle size={20} className="text-accent-crimson flex-shrink-0" />
                         )}
                         <div>
                           <div className={cn('text-sm font-display font-bold',
-                            userAnswer === currentQuestion.correctAction ? 'text-accent-emerald' : 'text-accent-crimson'
+                            isCorrect ? (alsoValid ? 'text-yellow-400' : 'text-accent-emerald') : 'text-accent-crimson'
                           )}>
-                            {userAnswer === currentQuestion.correctAction ? 'Correto! 🎯' : 'Incorreto'}
+                            {exactMatch ? 'Correto! 🎯' : alsoValid ? 'Também válido (mistura GTO)' : 'Incorreto'}
                           </div>
                           <div className="text-[11px] text-text-muted">
-                            Jogada correta: <span className="text-text-primary font-mono font-bold">
+                            {alsoValid ? 'Ação mais frequente: ' : 'Jogada correta: '}
+                            <span className="text-text-primary font-mono font-bold">
                               {currentQuestion.correctAction.toUpperCase()}
                             </span>
                             {currentQuestion.correctFrequency < 1 && (
@@ -1246,6 +1290,8 @@ export default function PreflopTrainer() {
                         </div>
                       )}
                     </Card>
+                      )
+                    })()}
 
                     {/* Range heatmap pós-resposta (mobile) — no desktop fica no painel esquerdo */}
                     {mode !== 'competition' && (showRange || mode === 'study') && (
