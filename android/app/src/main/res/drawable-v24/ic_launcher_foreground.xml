@@ -6,31 +6,30 @@
     android:viewportHeight="108"
     android:viewportWidth="108">
 
-    <!-- Gold rounded square (safe zone: 18dp to 90dp on each axis) -->
+    <!-- Gold rounded square filling the adaptive icon safe zone (18–90dp) with 12dp corner radius -->
     <path
-        android:pathData="M54,18 m-28,0 a28,28 0 0,1 56,0 v52 a28,28 0 0,1 -56,0 Z"
+        android:pathData="M32,20 L76,20 Q88,20 88,32 L88,76 Q88,88 76,88 L32,88 Q20,88 20,76 L20,32 Q20,20 32,20 Z"
         android:strokeColor="#00000000"
         android:strokeWidth="0">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="26"
-                android:startY="18"
-                android:endX="82"
-                android:endY="90"
+                android:startX="20"
+                android:startY="20"
+                android:endX="88"
+                android:endY="88"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#f5c842" />
-                <item android:offset="1.0" android:color="#ca8a04" />
+                <item android:offset="0.0" android:color="#FFE066" />
+                <item android:offset="0.6" android:color="#F5C842" />
+                <item android:offset="1.0" android:color="#C68000" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Lightning bolt (Zap) centered in safe zone -->
-    <!-- Lucide Zap path: M13 2L3 14h9l-1 8 10-12h-9l1-8z (24x24 viewBox) -->
-    <!-- Scale to ~28dp wide, centered at 54,54 -->
-    <!-- scale=1.167, offset: translate(40,40) since 54-(12*1.167)=40 -->
+    <!-- Lightning bolt (Lucide Zap) — scale 2×, centered at (54,54) -->
+    <!-- Original polyline 24×24: (13,2)→(3,14)→(12,14)→(11,22)→(21,10)→(12,10)→close -->
     <path
-        android:pathData="M54.58,40.66L46.5,54.33l5.25,0l-0.58,9.33l8.08,-13.66l-5.25,0l0.58,-9.33Z"
-        android:fillColor="#07070d"
+        android:pathData="M56,34 L36,58 L54,58 L52,74 L72,50 L54,50 Z"
+        android:fillColor="#1A0800"
         android:strokeColor="#00000000"
         android:strokeWidth="0" />
 
