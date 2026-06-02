@@ -15,7 +15,6 @@ import { levelFromXP } from '@/lib/utils'
 // ------- STORE DE USUÁRIO -------
 interface UserStore {
   profile: UserProfile
-  isAuthenticated: boolean
   updateStats: (updates: Partial<UserStats>) => void
   addXP: (amount: number) => void
   updateStreak: () => void
@@ -26,6 +25,7 @@ interface UserStore {
   syncAchievements: (sessionHistory: DrillSession[], competitionHighScores?: CompetitionScore[]) => void
   addGoal: (goal: StudyGoal) => void
   removeGoal: (goalId: string) => void
+  setProfileFromFirebaseUser: (uid: string, email?: string) => void
 }
 
 const defaultStats: UserStats = {
@@ -54,7 +54,6 @@ const defaultGoals = [
 export const useUserStore = create<UserStore>()(
   persist(
     (set) => ({
-      isAuthenticated: true, // Mock: sempre logado por agora
       profile: {
         id: 'user_001',
         name: 'Jogador Pro',
@@ -335,6 +334,15 @@ export const useUserStore = create<UserStore>()(
             stats: { ...defaultStats },
             achievements: ACHIEVEMENTS_DATA.map(a => ({ ...a, progress: 0, unlockedAt: undefined })),
             goals: defaultGoals.map(g => ({ ...g, current: 0 })),
+          },
+        })),
+
+      setProfileFromFirebaseUser: (uid: string, email?: string) =>
+        set((state) => ({
+          profile: {
+            ...state.profile,
+            id: uid,
+            ...(email ? { email } : {}),
           },
         })),
     }),

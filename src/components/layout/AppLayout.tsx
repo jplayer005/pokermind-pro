@@ -8,6 +8,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
 import { App as CapApp } from '@capacitor/app'
+import { useSyncTrigger } from '@/hooks/useSyncTrigger'
 
 const NAV_ITEMS = [
   { path: '/dashboard',   icon: LayoutDashboard, label: 'Início',       desc: 'Dashboard e métricas' },
@@ -22,6 +23,7 @@ export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme } = useUIStore()
+  useSyncTrigger()
 
   useEffect(() => {
     const root = document.documentElement

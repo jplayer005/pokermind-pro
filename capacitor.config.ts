@@ -11,6 +11,11 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
     },
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: process.env['VITE_GOOGLE_WEB_CLIENT_ID'] ?? '',
+      forceCodeForRefreshToken: true,
+    },
   },
 };
 

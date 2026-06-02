@@ -4,6 +4,7 @@ dist/
 android/build/
 android/.gradle/
 android/local.properties
+android/app/google-services.json
 .DS_Store
 *.log
 .env

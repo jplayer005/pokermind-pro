@@ -11,6 +11,8 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore, useTrainingStore, useUIStore } from '@/store'
+import { useAuthStore } from '@/store/authStore'
+import { signInWithGoogle, signOut } from '@/firebase/auth'
 import { Button, Card, Badge, ProgressBar } from '@/components/ui'
 import { getLevelData, xpToNextLevel, formatNumber, formatTime, XP_REWARDS } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -18,7 +20,7 @@ import {
   Trophy, Target, Flame, Star, TrendingUp,
   Crown, Zap, BookOpen, ChevronRight,
   Edit3, Settings, Lock, X, Plus, Trash2,
-  BarChart2, Award, Clock, Layers
+  BarChart2, Award, Clock, Layers, LogIn, LogOut
 } from 'lucide-react'
 import { StudyGoal } from '@/types'
 
@@ -427,11 +429,13 @@ export default function Profile() {
   const { profile, upgradePlan, updateName, addGoal, removeGoal } = useUserStore()
   const { sessionHistory, totalQuestionsToday } = useTrainingStore()
   const { defaultDifficulty } = useUIStore()
+  const { user, guestMode, setGuestMode } = useAuthStore()
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
   const [showEditName, setShowEditName] = useState(false)
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [achFilter, setAchFilter] = useState('all')
+  const [authLoading, setAuthLoading] = useState(false)
 
   const { stats, achievements, goals } = profile
   const levelData = getLevelData(stats.level)
@@ -522,7 +526,7 @@ export default function Profile() {
                     <Edit3 size={13} />
                   </button>
                 </div>
-                <p className="text-xs text-text-muted mb-2">{profile.email}</p>
+                <p className="text-xs text-text-muted mb-2">{user?.email ?? profile.email}</p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={isPremium ? 'gold' : 'neutral'}>
                     {isPremium ? '⭐ Premium' : '🆓 Free'}
@@ -732,6 +736,42 @@ export default function Profile() {
                 className="w-full glass rounded-xl p-3 flex items-center gap-3 text-text-secondary hover:text-text-primary transition-colors">
                 <Settings size={16} /><span className="text-sm">Configurações</span><ChevronRight size={14} className="ml-auto" />
               </button>
+
+              {/* Auth */}
+              {user ? (
+                <div className="space-y-2">
+                  <div className="w-full glass rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full bg-accent-emerald animate-pulse shrink-0" />
+                    <span className="text-xs text-text-muted truncate">{user.email}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setAuthLoading(true)
+                      try { await signOut() } finally { setAuthLoading(false) }
+                    }}
+                    disabled={authLoading}
+                    className="w-full glass rounded-xl p-3 flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
+                  >
+                    <LogOut size={16} />
+                    <span className="text-sm">{authLoading ? 'Saindo...' : 'Sair da conta'}</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setAuthLoading(true)
+                    try { await signInWithGoogle(); setGuestMode(false) }
+                    catch { /* silent */ }
+                    finally { setAuthLoading(false) }
+                  }}
+                  disabled={authLoading}
+                  className="w-full glass rounded-xl p-3 flex items-center gap-3 text-accent-gold hover:text-yellow-400 transition-colors disabled:opacity-60"
+                >
+                  <LogIn size={16} />
+                  <span className="text-sm">{authLoading ? 'Entrando...' : 'Entrar com Google'}</span>
+                  <span className="ml-auto text-[10px] text-text-muted">Sincroniza na nuvem</span>
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -5,10 +5,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserStore, useTrainingStore, useUIStore } from '@/store'
+import { useAuthStore } from '@/store/authStore'
+import { signInWithGoogle, signOut } from '@/firebase/auth'
 import { cn } from '@/lib/utils'
 import {
   ChevronLeft, User, Target, Palette, Database,
-  Info, ChevronRight, Check, AlertTriangle, Zap, Crown
+  Info, ChevronRight, Check, AlertTriangle, Zap, Crown,
+  LogIn, LogOut, Cloud
 } from 'lucide-react'
 
 // ============================================================
@@ -184,11 +187,13 @@ export default function Settings() {
   const { profile, updateName, setGoalTarget, upgradePlan, resetUserStats } = useUserStore()
   const { resetProgress } = useTrainingStore()
   const { animationsEnabled, soundEnabled, defaultDifficulty, theme, setAnimations, setSound, setDifficulty, setTheme } = useUIStore()
+  const { user, guestMode, setGuestMode } = useAuthStore()
 
   const [showEditName, setShowEditName] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
 
   const isPremium = profile.plan !== 'free'
   const dailyGoal = profile.goals.find((g: any) => g.id === 'g001')
@@ -233,6 +238,54 @@ export default function Settings() {
             </div>
           )}
         </div>
+
+        {/* CONTA */}
+        <SectionCard title="Conta">
+          {user ? (
+            <>
+              <SettingRow
+                icon={<Cloud size={15} />}
+                label="Conta Google"
+                sublabel={user.email ?? 'Conta conectada — dados sincronizados'}
+              >
+                <span className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse shrink-0" />
+              </SettingRow>
+              <SettingRow
+                icon={<LogOut size={15} />}
+                label="Sair da conta"
+                sublabel="Dados locais são mantidos"
+                onClick={async () => {
+                  setAuthLoading(true)
+                  try { await signOut() } finally { setAuthLoading(false) }
+                }}
+              >
+                {authLoading
+                  ? <span className="text-xs text-text-muted">Saindo...</span>
+                  : <span className="text-xs text-red-400 shrink-0">Sair</span>
+                }
+              </SettingRow>
+            </>
+          ) : (
+            <SettingRow
+              icon={<LogIn size={15} />}
+              label="Entrar com Google"
+              sublabel={guestMode ? 'Modo sem login — dados locais apenas' : 'Faça login para sincronizar na nuvem'}
+              onClick={async () => {
+                setAuthLoading(true)
+                try {
+                  await signInWithGoogle()
+                  setGuestMode(false)
+                } catch { /* silent */ }
+                finally { setAuthLoading(false) }
+              }}
+            >
+              {authLoading
+                ? <span className="text-xs text-text-muted">Entrando...</span>
+                : <span className="text-xs text-accent-gold shrink-0 font-semibold">Entrar</span>
+              }
+            </SettingRow>
+          )}
+        </SectionCard>
 
         {/* PERFIL */}
         <SectionCard title="Perfil">
