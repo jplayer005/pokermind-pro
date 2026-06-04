@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
-import { Play, RotateCcw, ChevronDown, Info, CheckCircle, XCircle, Eye, Trophy, Timer } from 'lucide-react'
+import { Play, RotateCcw, ChevronDown, Info, CheckCircle, XCircle, Eye, Trophy, Timer, X } from 'lucide-react'
 import { Button, Card, Badge, ProgressBar, SectionHeader } from '@/components/ui'
 import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
@@ -271,6 +271,7 @@ export default function PreflopTrainer() {
   const [heroStack, setHeroStack] = useState(100)    // stack geral da sessão (25-200bb)
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isRandomPosition, setIsRandomPosition] = useState(true)
+  const [showRangeRef, setShowRangeRef] = useState(false)
   const [poolPosition, setPoolPosition] = useState<Position>('BTN')
 
   // Posições do villain: SEMPRE mostra todas, desabilita visualmente as inválidas.
@@ -935,6 +936,13 @@ export default function PreflopTrainer() {
                       {m === 'study' ? '📖 Estudo' : m === 'drill' ? '🎯 Drill' : '📝 Exame'}
                     </button>
                   ))}
+                  {/* Botão de consulta rápida — ocupa o slot vazio ao lado do Exame */}
+                  <button
+                    onClick={() => setShowRangeRef(true)}
+                    className="py-2.5 rounded-lg text-xs font-display font-semibold transition-all duration-200 border bg-bg-overlay border-border-subtle text-text-muted hover:border-accent-blue/40 hover:text-accent-blue flex items-center justify-center gap-1.5"
+                  >
+                    🗂 Ver Ranges
+                  </button>
                 </div>
                 <button
                   onClick={() => setMode('competition')}
@@ -1504,14 +1512,40 @@ export default function PreflopTrainer() {
       </div>
         </div>
 
-        {/* ===== PAINEL DIREITO: consulta de range (xl+, só durante sessão ativa) ===== */}
-        {isSessionActive && (
-          <div className="hidden xl:flex xl:flex-col xl:w-[300px] xl:shrink-0 xl:border-l xl:border-border-subtle xl:p-4 xl:overflow-y-auto">
-            <PreflopRangeReference tableFormat={tableFormat} />
-          </div>
-        )}
-
       </div>
+
+      {/* ===== MODAL DE CONSULTA DE RANGE ===== */}
+      <AnimatePresence>
+      {showRangeRef && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={() => setShowRangeRef(false)}
+          />
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed inset-x-0 bottom-0 z-50 bg-bg-base border-t border-border-subtle rounded-t-2xl p-5 max-h-[88vh] overflow-y-auto lg:inset-auto lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-[380px] lg:rounded-2xl lg:border lg:border-border-subtle"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
+              <button
+                onClick={() => setShowRangeRef(false)}
+                className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-overlay transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <PreflopRangeReference tableFormat={tableFormat} />
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
     </div>
   )
 }
