@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { Play, RotateCcw, ChevronDown, Info, CheckCircle, XCircle, Eye, Trophy, Timer, X } from 'lucide-react'
@@ -842,6 +843,7 @@ export default function PreflopTrainer() {
   }
 
   return (
+    <>
     <div className="page-scroll">
       <div className="lg:flex lg:min-h-full">
 
@@ -1514,52 +1516,57 @@ export default function PreflopTrainer() {
 
       </div>
 
-      {/* ===== MODAL DE CONSULTA DE RANGE ===== */}
-      <AnimatePresence>
-      {showRangeRef && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-40"
-            onClick={() => setShowRangeRef(false)}
-          />
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
-            className={cn(
-              // Mobile: bottom-sheet
-              'fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto',
-              'shadow-2xl border-t border-border-subtle rounded-t-2xl p-5',
-              // Tablet + Desktop: ancora no topo (top-8) e limita altura para nunca tocar a taskbar
-              'md:inset-auto md:bottom-auto md:top-8 md:left-1/2 md:-translate-x-1/2 md:translate-y-0',
-              'md:w-[85vw] md:max-w-[880px] md:max-h-[calc(100vh-64px)]',
-              'md:rounded-2xl md:border md:border-border-subtle md:p-6',
-            )}
-          >
-            {/* Handle drag (mobile) */}
-            <div className="w-10 h-1 bg-border-subtle rounded-full mx-auto mb-4 md:hidden" />
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
-                <p className="text-[10px] text-text-muted font-body mt-0.5">Referência GTO — não conta para o treino</p>
-              </div>
-              <button
-                onClick={() => setShowRangeRef(false)}
-                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-overlay transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <PreflopRangeReference tableFormat={tableFormat} />
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
     </div>
+
+    {/* ===== MODAL DE CONSULTA DE RANGE — portal no document.body para escapar transforms ===== */}
+    {createPortal(
+      <AnimatePresence>
+        {showRangeRef && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40"
+              onClick={() => setShowRangeRef(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+              className={cn(
+                // Mobile: bottom-sheet
+                'fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto',
+                'shadow-2xl border-t border-border-subtle rounded-t-2xl p-5',
+                // Tablet + Desktop: centralizado no viewport real (portal garante isso)
+                'md:inset-x-0 md:bottom-auto md:top-8 md:mx-auto md:translate-x-0 md:translate-y-0',
+                'md:w-[85vw] md:max-w-[880px] md:max-h-[calc(100vh-64px)]',
+                'md:rounded-2xl md:border md:border-border-subtle md:p-6',
+              )}
+            >
+              {/* Handle drag (mobile) */}
+              <div className="w-10 h-1 bg-border-subtle rounded-full mx-auto mb-4 md:hidden" />
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
+                  <p className="text-[10px] text-text-muted font-body mt-0.5">Referência GTO — não conta para o treino</p>
+                </div>
+                <button
+                  onClick={() => setShowRangeRef(false)}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-overlay transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <PreflopRangeReference tableFormat={tableFormat} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>,
+      document.body
+    )}
+    </>
   )
 }
