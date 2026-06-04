@@ -1536,7 +1536,7 @@ export default function PreflopTrainer() {
               'fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto',
               'shadow-2xl border-t border-border-subtle rounded-t-2xl p-5',
               // Tablet + Desktop: modal centralizado lado a lado
-              'md:inset-auto md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2',
+              'md:inset-auto md:bottom-auto md:top-[44%] md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2',
               'md:w-[580px] md:max-h-[88vh] md:rounded-2xl md:border md:border-border-subtle',
               'lg:w-[660px]',
             )}
