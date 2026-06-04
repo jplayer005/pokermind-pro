@@ -163,7 +163,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
               key={s}
               onClick={() => handleScenarioChange(s)}
               className={cn(
-                'px-2 py-1.5 rounded text-[10px] font-body font-medium transition-colors text-left truncate',
+                'px-2 py-1.5 rounded text-[10px] lg:text-[11px] font-body font-medium transition-colors text-left truncate',
                 scenario === s
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary hover:bg-bg-overlay border border-border-subtle',
@@ -185,7 +185,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={pos}
                 onClick={() => setHeroPos(pos)}
                 className={cn(
-                  'px-2.5 py-1 rounded text-[10px] font-mono font-bold transition-colors',
+                  'px-2.5 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
                   effectiveHeroPos === pos
                     ? 'bg-accent-gold text-bg-base'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -204,7 +204,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
           <span className="text-[9px] text-text-muted uppercase tracking-wider font-body">
             Stack Hero
             {scenario === 'open_raise' && heroStack < 100 && (
-              <span className="ml-1 text-accent-gold normal-case">— range ajustado</span>
+              <span className="ml-1 text-accent-gold normal-case">— ajustado</span>
             )}
           </span>
           <div className="flex flex-wrap gap-1">
@@ -213,7 +213,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={s}
                 onClick={() => setHeroStack(s)}
                 className={cn(
-                  'px-2 py-1 rounded text-[10px] font-mono font-bold transition-colors',
+                  'px-2 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
                   heroStack === s
                     ? 'bg-accent-emerald/80 text-bg-base'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -237,7 +237,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={pos}
                 onClick={() => setVillainPos(pos)}
                 className={cn(
-                  'px-2.5 py-1 rounded text-[10px] font-mono font-bold transition-colors',
+                  'px-2.5 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
                   villainPos === pos
                     ? 'bg-accent-crimson/80 text-white'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -258,7 +258,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
             <button
               onClick={() => setStackIsShort(true)}
               className={cn(
-                'flex-1 py-1 rounded text-[10px] font-mono font-bold transition-colors',
+                'flex-1 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
                 stackIsShort
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -269,7 +269,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
             <button
               onClick={() => setStackIsShort(false)}
               className={cn(
-                'flex-1 py-1 rounded text-[10px] font-mono font-bold transition-colors',
+                'flex-1 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
                 !stackIsShort
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -293,12 +293,22 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
         </div>
       </div>
 
-      {/* Tablet + Desktop (md+): grid à esquerda, filtros à direita */}
-      <div className="hidden md:flex md:gap-6 md:items-start">
+      {/* Tablet (md–lg): grid sm, filtros à direita */}
+      <div className="hidden md:flex lg:hidden md:gap-6 md:items-start">
         <div className="flex-1 min-w-0">
           <RangeGrid range={rangeMap} cellSize="sm" showLegend={true} />
         </div>
-        <div className="w-[210px] shrink-0 border-l border-border-subtle pl-5">
+        <div className="w-[220px] shrink-0 border-l border-border-subtle pl-5">
+          {filters}
+        </div>
+      </div>
+
+      {/* Desktop (lg+): grid md (células maiores), filtros à direita */}
+      <div className="hidden lg:flex lg:gap-8 lg:items-start">
+        <div className="flex-1 min-w-0">
+          <RangeGrid range={rangeMap} cellSize="md" showLegend={true} />
+        </div>
+        <div className="w-[240px] shrink-0 border-l border-border-subtle pl-6">
           {filters}
         </div>
       </div>
