@@ -11,6 +11,7 @@ import { Button, Card, Badge, ProgressBar, SectionHeader } from '@/components/ui
 import { HandDisplay } from '@/components/poker/PlayingCard'
 import RangeGrid from '@/components/poker/RangeGrid'
 import TrainingTable from '@/components/poker/TrainingTable'
+import PreflopRangeReference from '@/components/poker/PreflopRangeReference'
 import { useUserStore, useTrainingStore, useSpacedRepetitionStore, useUIStore, CompetitionScore } from '@/store'
 import { DRILL_QUESTIONS, OPEN_RAISE_RANGES, PUSH_FOLD_RANGES, THREE_BET_RANGES, BB_DEFENSE_RANGES, FOUR_BET_RANGES, SQUEEZE_RANGES, POSITIONS_BY_FORMAT, getOpenRaiseRange, SB_VS_BB_RAISE_RANGES, SB_VS_BB_LIMP_RANGES, MARGINAL_HANDS, getIPDefenseRange, BB_VS_SB_3BET_RANGES, getValidVillainPositions, getValidHeroPositions } from '@/data/ranges'
 import { randomHand, classifyHandStrength, generateHandGrid } from '@/lib/poker'
@@ -1502,6 +1503,14 @@ export default function PreflopTrainer() {
 
       </div>
         </div>
+
+        {/* ===== PAINEL DIREITO: consulta de range (xl+, só durante sessão ativa) ===== */}
+        {isSessionActive && (
+          <div className="hidden xl:flex xl:flex-col xl:w-[300px] xl:shrink-0 xl:border-l xl:border-border-subtle xl:p-4 xl:overflow-y-auto">
+            <PreflopRangeReference tableFormat={tableFormat} />
+          </div>
+        )}
+
       </div>
     </div>
   )
