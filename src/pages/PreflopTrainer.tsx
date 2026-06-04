@@ -1530,13 +1530,27 @@ export default function PreflopTrainer() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-bg-base border-t border-border-subtle rounded-t-2xl p-5 max-h-[88vh] overflow-y-auto lg:inset-auto lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-[380px] lg:rounded-2xl lg:border lg:border-border-subtle"
+            className={cn(
+              // Mobile: bottom-sheet com fundo sólido
+              'fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto',
+              'bg-bg-elevated shadow-2xl',
+              'border-t border-border-subtle rounded-t-2xl p-5',
+              // Tablet + Desktop: modal centralizado lado a lado
+              'md:inset-auto md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2',
+              'md:w-[580px] md:max-h-[88vh] md:rounded-2xl md:border md:border-border-subtle',
+              'lg:w-[660px]',
+            )}
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
+            {/* Handle drag (mobile) */}
+            <div className="w-10 h-1 bg-border-subtle rounded-full mx-auto mb-4 md:hidden" />
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
+                <p className="text-[10px] text-text-muted font-body mt-0.5">Referência GTO — não conta para o treino</p>
+              </div>
               <button
                 onClick={() => setShowRangeRef(false)}
-                className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-overlay transition-colors"
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-overlay transition-colors"
               >
                 <X size={15} />
               </button>
