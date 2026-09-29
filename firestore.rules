@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Regras do Firestore do PokerMind.
+// O app so usa users/{uid}/data/{documento} (profile, training, spacedRepetition,
+// postflopReview, hands, leaks). Cada pessoa le e escreve APENAS os proprios dados.
+// Acoplamento com o Console: estas regras precisam estar publicadas la
+// (firebase deploy --only firestore:rules). Regras de "modo de teste" expiram em
+// 30 dias e derrubam a sincronizacao inteira com permission-denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // todo o resto: negado
+  }
+}
