@@ -10,6 +10,8 @@ import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
+import { pickProfiles } from '@/engine/bots/profiles'
+import { advanceAfterHand, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
 import { useHandsStore } from '@/store'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
@@ -34,6 +36,8 @@ export interface TableOptions {
   coach: CoachMode
   modeId: string
   modeLabel: string
+  /** Torneio (SNG/MTT): sem recompra, blinds sobem por nivel e ha eliminacoes. */
+  tournament?: { config: TournamentConfig; initial: TournamentState }
 }
 
 export interface Session {
@@ -62,6 +66,9 @@ export function useTableEngine(opts: TableOptions) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [lastGrade, setLastGrade] = useState<LastGrade | null>(null)
   const [hud, setHud] = useState<Record<number, HudStats>>({})
+  const [tour, setTour] = useState<TournamentState | null>(() => opts.tournament?.initial ?? null)
+  const tourRef = useRef(tour)
+  tourRef.current = tour
   const gameRef = useRef(game)
   gameRef.current = game
   const optsRef = useRef(opts)
@@ -82,6 +89,13 @@ export function useTableEngine(opts: TableOptions) {
     const cur = gameRef.current
     if (!cur.over) return
     const o = optsRef.current
+    // torneio: sem recompra; ao terminar, nao ha proxima mao
+    if (tourRef.current) {
+      if (tourRef.current.done) return
+      decisionsRef.current = []
+      setGame(startHand(cur))
+      return
+    }
     let rebuys = 0
     const seats = cur.seats.map((s) => {
       if (s.stack >= o.cfg.bb) return s
@@ -139,20 +153,29 @@ export function useTableEngine(opts: TableOptions) {
     if (decisions.length > 0) {
       setReviews((r) => [{ game, decisions, savedId, flagged: false }, ...r].slice(0, 8))
     }
+
+    // torneio: registra eliminacoes, simula o campo, sobe o nivel e reabastece a mesa
+    const t = tourRef.current
+    if (t && !t.done) {
+      const out = advanceAfterHand(t, game, Math.random, () => pickProfiles(1)[0])
+      setTour(out.tour)
+      setGame(out.game)
+    }
   }, [game, heroId])
 
   useEffect(() => {
     if (!game.over || game.gameOver || !opts.autoNext || game.handNumber === 0) return
+    if (tour?.done) return
     const t = setTimeout(nextHand, NEXT_HAND_DELAY[opts.speed])
     return () => clearTimeout(t)
-  }, [game, opts.autoNext, opts.speed, nextHand])
+  }, [game, tour, opts.autoNext, opts.speed, nextHand])
 
   const act = useCallback((action: Action) => {
     const g = gameRef.current
     if (g.over || g.toAct < 0 || !g.seats[g.toAct].isHero) return
     if (optsRef.current.coach !== 'off') {
       // a nota e calculada com o estado ANTES da jogada
-      const d = gradeDecision(g, action)
+      const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng' })
       decisionsRef.current.push(d)
       setLastGrade({ d, key: Date.now() })
     }
@@ -174,7 +197,7 @@ export function useTableEngine(opts: TableOptions) {
 
   const heroTurn = !game.over && game.toAct >= 0 && game.seats[game.toAct]?.isHero
 
-  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview }
+  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour }
 }
 
 /** Formata fichas como bb (ou fichas) para exibir. */

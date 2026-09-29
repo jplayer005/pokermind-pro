@@ -81,6 +81,17 @@ describe('coach: stack curto usa os spots push/fold', () => {
     expect(good.tag).toBe('')
   })
 
+  it('no Sit&Go a mesa cheia usa os spots ICM e a explicacao cita ICM', () => {
+    const cash = gradeDecision(heroFirstToAct(6, 'Ks Qd', 10), raise(20))
+    const sng = gradeDecision(heroFirstToAct(6, 'Ks Qd', 10), raise(20), Math.random, { sng: true })
+    expect(cash.explain.join(' ')).not.toContain('ICM')
+    expect(sng.explain.join(' ')).toContain('ICM')
+    // mesa de 9 tambem tem spots SNG
+    const sng9 = gradeDecision(heroFirstToAct(9, 'As Ah', 10), raise(20), Math.random, { sng: true })
+    expect(sng9.grade).toBe('best')
+    expect(sng9.explain.join(' ')).toContain('ICM')
+  })
+
   it('fold com AA e 10bb e erro grave e a explicacao vem do solver', () => {
     const d = gradeDecision(heroFirstToAct(6, 'As Ah', 10), { type: 'fold' })
     expect(d.grade).toBe('blunder')

@@ -33,7 +33,14 @@ function gradeByLoss(lossBB: number): Grade {
   return 'blunder'
 }
 
-export function gradeDecision(state: GameState, action: Action, rng: Rng = Math.random): GradedDecision {
+export interface GradeContext {
+  /** Sit&Go: usa os spots ICM do solver (sng6_top2 / sng9_top2) quando a mesa esta cheia. */
+  sng?: boolean
+}
+
+export function gradeDecision(
+  state: GameState, action: Action, rng: Rng = Math.random, ctx: GradeContext = {},
+): GradedDecision {
   const seat = state.seats[state.toAct]
   const la = legalActions(state)
   const hole = seat.cards as [number, number]
@@ -47,7 +54,7 @@ export function gradeDecision(state: GameState, action: Action, rng: Rng = Math.
     board: [...state.board],
   }
   return state.street === 'preflop'
-    ? gradePreflop(state, action, la, base)
+    ? gradePreflop(state, action, la, base, ctx)
     : gradePostflop(state, action, la, base, rng)
 }
 
@@ -57,7 +64,9 @@ type Base = Pick<GradedDecision, 'handNumber' | 'street' | 'took' | 'potBefore' 
 
 const POS_KEY: Record<string, string> = { 'UTG+1': 'UTG1', 'UTG+2': 'MP' }
 
-function gradePreflop(state: GameState, action: Action, la: LegalActions, base: Base): GradedDecision {
+function gradePreflop(
+  state: GameState, action: Action, la: LegalActions, base: Base, ctx: GradeContext,
+): GradedDecision {
   const seat = state.seats[state.toAct]
   const bb = state.cfg.bb
   const posLabel = positionsBySeat(state)[seat.id] ?? 'BTN'
@@ -72,7 +81,8 @@ function gradePreflop(state: GameState, action: Action, la: LegalActions, base: 
   const limps = state.history.filter((e) => e.street === 'preflop' && e.type === 'call').length
 
   if (bank && eff <= 25 && eff >= 2) {
-    const prefix = n === 2 ? 'HU' : n <= 6 ? '6max' : '9max'
+    const sngIcm = !!ctx.sng && (n === 6 || n === 9)
+    const prefix = sngIcm ? (n === 6 ? 'sng6_top2' : 'sng9_top2') : n === 2 ? 'HU' : n <= 6 ? '6max' : '9max'
     const bucket = nearestStack(eff)
     const heroKey = n === 2 ? (posLabel === 'BTN' ? 'SB' : 'BB') : (POS_KEY[posLabel] ?? posLabel)
     let ref: SpotRef | null = null
@@ -95,7 +105,7 @@ function gradePreflop(state: GameState, action: Action, la: LegalActions, base: 
         ev.grade === 'correct' ? (ev.pChosen >= 0.95 ? 'best' : 'good')
         : ev.grade === 'acceptable' ? 'good'
         : ev.pChosen === 0 ? 'blunder' : 'mistake'
-      const fmtId = prefix === 'HU' ? 'hu' : prefix
+      const fmtId = sngIcm ? (n === 6 ? 'sng6' : 'sng9') : prefix === 'HU' ? 'hu' : prefix
       const best: Kind = ev.best === 'aggressive' ? (ref.acao === 'push' ? 'raise' : 'call') : 'fold'
       const leak = isLeak(grade)
       return {

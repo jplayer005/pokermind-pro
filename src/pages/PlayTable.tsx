@@ -1,9 +1,9 @@
 // ============================================================
 // POKERMIND PRO - MESA JOGAVEL (treino contra bots)
-// Cash 6-max, 9-max e Heads-up. Sit&Go e MTT entram na proxima fase.
+// Cash 6-max, 9-max e Heads-up; Sit&Go (6 e 9) e MTT (campo simulado).
 // ============================================================
 import { useMemo, useState } from 'react'
-import { History, LogOut, Play } from 'lucide-react'
+import { History, LogOut, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button, Card, Badge, SectionHeader } from '@/components/ui'
 import PokerTableView from '@/components/table/PokerTableView'
@@ -11,11 +11,15 @@ import ActionBar from '@/components/table/ActionBar'
 import HandLog from '@/components/table/HandLog'
 import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
+import TournamentHeader from '@/components/table/TournamentHeader'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
+import {
+  mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
+} from '@/engine/game/tournament'
 
-const BB_CHIPS = 2 // 1 bb = 2 fichas, para permitir SB de 0,5 bb
+const BB_CHIPS = 2 // cash: 1 bb = 2 fichas, para permitir SB de 0,5 bb
 const NAMES = ['Lucas', 'Marina', 'Rafa', 'Bia', 'Téo', 'Duda', 'Gui', 'Nina', 'Caio', 'Lia']
 
 interface ModeDef {
@@ -23,13 +27,23 @@ interface ModeDef {
   label: string
   sub: string
   seats: number
+  tournament?: TournamentConfig
 }
 
-const MODES: ModeDef[] = [
+const CASH_MODES: ModeDef[] = [
   { id: 'cash6', label: 'Cash 6-max', sub: 'Mesa clássica de 6, blinds 0,5/1', seats: 6 },
   { id: 'cash9', label: 'Cash 9-max', sub: 'Mesa cheia, ranges mais apertados', seats: 9 },
   { id: 'hu', label: 'Heads-up', sub: '1 contra 1, muitas decisões por minuto', seats: 2 },
 ]
+
+const TOURNEY_MODES: ModeDef[] = [
+  { id: 'sng6', label: 'Sit&Go 6-max', sub: '6 jogadores, paga 2 (65/35), blinds sobem a cada 10 mãos', seats: 6, tournament: sngConfig(6) },
+  { id: 'sng9', label: 'Sit&Go 9-max', sub: '9 jogadores, paga 2 (65/35), blinds sobem a cada 10 mãos', seats: 9, tournament: sngConfig(9) },
+  { id: 'mtt27', label: 'MTT 27 jogadores', sub: '3 mesas simuladas, paga 4, mesa final e bolha', seats: 9, tournament: mttConfig(27) },
+  { id: 'mtt54', label: 'MTT 54 jogadores', sub: '6 mesas simuladas, paga 8, mesa final e bolha', seats: 9, tournament: mttConfig(54) },
+]
+
+const MODES = [...CASH_MODES, ...TOURNEY_MODES]
 
 const SPEEDS: { id: Speed; label: string }[] = [
   { id: 'slow', label: 'Lenta' },
@@ -56,7 +70,9 @@ interface Config {
 interface Summary {
   label: string
   hands: number
-  netBB: number
+  /** Cash: saldo em bb. Torneio: texto do resultado. */
+  netBB?: number
+  result?: string
 }
 
 function Chip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
@@ -75,9 +91,25 @@ function Chip({ active, children, onClick }: { active: boolean; children: React.
   )
 }
 
+function ModeButton({ m, active, onClick }: { m: ModeDef; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'text-left p-3 rounded-xl border transition-colors',
+        active ? 'bg-accent-gold/10 border-accent-gold/40' : 'bg-bg-elevated border-border-default hover:border-border-strong',
+      )}
+    >
+      <p className="text-sm font-display font-bold text-text-primary">{m.label}</p>
+      <p className="text-[11px] text-text-muted">{m.sub}</p>
+    </button>
+  )
+}
+
 export default function PlayTable() {
   const [config, setConfig] = useState<Config | null>(null)
   const [last, setLast] = useState<Summary | null>(null)
+  const [run, setRun] = useState(0)
 
   // form do setup
   const [modeId, setModeId] = useState('cash6')
@@ -88,11 +120,14 @@ export default function PlayTable() {
   const [coach, setCoach] = useState<CoachMode>('live')
   const [showHud, setShowHud] = useState(true)
 
+  const selected = MODES.find((m) => m.id === modeId) as ModeDef
+
   if (config) {
     return (
       <TableGame
-        key={`${config.mode.id}-${config.buyInBB}`}
+        key={`${config.mode.id}-${config.buyInBB}-${run}`}
         config={config}
+        onRestart={() => setRun((r) => r + 1)}
         onExit={(s) => {
           setLast(s)
           setConfig(null)
@@ -106,53 +141,51 @@ export default function PlayTable() {
       <SectionHeader title="Jogar" subtitle="Mesa completa contra bots com estilos diferentes. Treine leitura e decisões em jogo." />
 
       {last && (
-        <Card className="p-3 flex items-center justify-between">
+        <Card className="p-3 flex items-center justify-between gap-3">
           <div>
             <p className="text-[11px] text-text-muted">Última sessão, {last.label}</p>
-            <p className="text-xs text-text-secondary">{last.hands} mãos</p>
+            <p className="text-xs text-text-secondary">{last.hands} mãos{last.result ? `, ${last.result}` : ''}</p>
           </div>
-          <Badge variant={last.netBB >= 0 ? 'emerald' : 'crimson'} size="md">
-            {last.netBB >= 0 ? '+' : ''}{last.netBB.toFixed(1)} bb
-          </Badge>
+          {last.netBB !== undefined && (
+            <Badge variant={last.netBB >= 0 ? 'emerald' : 'crimson'} size="md">
+              {last.netBB >= 0 ? '+' : ''}{last.netBB.toFixed(1)} bb
+            </Badge>
+          )}
         </Card>
       )}
 
       <Card className="p-4 space-y-4">
         <div className="space-y-2">
-          <p className="text-xs text-text-muted font-body">Modo</p>
+          <p className="text-xs text-text-muted font-body">Cash</p>
           <div className="grid gap-2">
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setModeId(m.id)}
-                className={cn(
-                  'text-left p-3 rounded-xl border transition-colors',
-                  m.id === modeId
-                    ? 'bg-accent-gold/10 border-accent-gold/40'
-                    : 'bg-bg-elevated border-border-default hover:border-border-strong',
-                )}
-              >
-                <p className="text-sm font-display font-bold text-text-primary">{m.label}</p>
-                <p className="text-[11px] text-text-muted">{m.sub}</p>
-              </button>
+            {CASH_MODES.map((m) => (
+              <ModeButton key={m.id} m={m} active={m.id === modeId} onClick={() => setModeId(m.id)} />
             ))}
-            {['Sit&Go', 'MTT'].map((t) => (
-              <div key={t} className="p-3 rounded-xl border border-border-subtle bg-bg-base/50 opacity-60 flex items-center justify-between">
-                <p className="text-sm font-display font-bold text-text-secondary">{t}</p>
-                <Badge>em breve</Badge>
-              </div>
+          </div>
+          <p className="text-xs text-text-muted font-body pt-1">Torneios (turbo: os blinds sobem por número de mãos)</p>
+          <div className="grid gap-2">
+            {TOURNEY_MODES.map((m) => (
+              <ModeButton key={m.id} m={m} active={m.id === modeId} onClick={() => setModeId(m.id)} />
             ))}
           </div>
         </div>
 
-        <div>
-          <p className="text-xs text-text-muted mb-2 font-body">Stack inicial</p>
-          <div className="flex gap-2">
-            {[50, 100, 200].map((b) => (
-              <Chip key={b} active={b === buyInBB} onClick={() => setBuyInBB(b)}>{b} bb</Chip>
-            ))}
+        {!selected.tournament && (
+          <div>
+            <p className="text-xs text-text-muted mb-2 font-body">Stack inicial</p>
+            <div className="flex gap-2">
+              {[50, 100, 200].map((b) => (
+                <Chip key={b} active={b === buyInBB} onClick={() => setBuyInBB(b)}>{b} bb</Chip>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        {selected.tournament && (
+          <p className="text-[11px] text-text-muted">
+            Todos começam com 1.500 fichas (75 bb). Buy-in = 1; prêmios em buy-ins. No MTT só a sua mesa é jogada: o resto do campo
+            é simulado e a mesa se reabastece.
+          </p>
+        )}
 
         <div>
           <p className="text-xs text-text-muted mb-2 font-body">Velocidade dos bots</p>
@@ -189,12 +222,7 @@ export default function PlayTable() {
           variant="primary"
           size="lg"
           className="w-full"
-          onClick={() =>
-            setConfig({
-              mode: MODES.find((m) => m.id === modeId) as ModeDef,
-              buyInBB, speed, autoNext, showProfiles, coach, showHud,
-            })
-          }
+          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
         >
           <Play size={16} /> Sentar na mesa
         </Button>
@@ -203,13 +231,31 @@ export default function PlayTable() {
   )
 }
 
-function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) => void }) {
+function TableGame({
+  config, onExit, onRestart,
+}: { config: Config; onExit: (s: Summary) => void; onRestart: () => void }) {
   const [unit, setUnit] = useState<'bb' | 'chips'>('bb')
   const [logOpen, setLogOpen] = useState(false)
-  const bb = BB_CHIPS
 
   const options: TableOptions = useMemo(() => {
-    const buyIn = config.buyInBB * bb
+    const base = {
+      speed: config.speed,
+      autoNext: config.autoNext,
+      coach: config.coach,
+      modeId: config.mode.id,
+      modeLabel: config.mode.label,
+    }
+    if (config.mode.tournament) {
+      const start = startTournament(config.mode.tournament, 'Você', () => pickProfiles(1)[0])
+      return {
+        ...base,
+        players: start.players,
+        cfg: start.cfg,
+        buyIn: 0,
+        tournament: { config: config.mode.tournament, initial: start.tour },
+      }
+    }
+    const buyIn = config.buyInBB * BB_CHIPS
     const bots = config.mode.seats - 1
     const profiles = pickProfiles(bots)
     const names = [...NAMES].sort(() => Math.random() - 0.5)
@@ -221,21 +267,12 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
         ? { name: 'Você', isHero: true, profile: 'tag', stack: buyIn }
         : { name: names[b], profile: profiles[b++], stack: buyIn },
     )
-    return {
-      players,
-      cfg: { sb: 1, bb, ante: 0 },
-      buyIn,
-      speed: config.speed,
-      autoNext: config.autoNext,
-      coach: config.coach,
-      modeId: config.mode.id,
-      modeLabel: config.mode.label,
-    }
+    return { ...base, players, cfg: { sb: 1, bb: BB_CHIPS, ante: 0 }, buyIn }
     // configuracao fixa durante a sessao
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview } =
+  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour } =
     useTableEngine(options)
   // numero da mao aberta na revisao (null = fechada)
   const [reviewHand, setReviewHand] = useState<number | null>(null)
@@ -243,6 +280,8 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
   const openReview = reviews.find((r) => r.game.handNumber === reviewHand) ?? null
   const latest = reviews[0]
   const latestLeaks = latest ? latest.decisions.filter((d) => isLeak(d.grade)).length : 0
+
+  const bb = game.cfg.bb
   const hero = game.seats[heroId]
   const waitingFor = game.toAct >= 0 ? game.seats[game.toAct] : null
   const result = game.over ? game.result : null
@@ -250,15 +289,24 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
   const netBB = session.net / bb
   const logGames = game.handNumber > 0 && !archive.some((a) => a.handNumber === game.handNumber) ? [game, ...archive] : archive
 
+  // resumo do torneio ao terminar (colocacao, premio, ROI)
+  const place = tour?.heroPlace ?? null
+  const prize = tour && place ? prizeInBuyIns(tour.config, place) : 0
+  const tourText = tour && place ? `${place}º de ${tour.config.fieldSize}, prêmio ${prize.toFixed(2)} buy-ins` : undefined
+
   return (
     <div className="max-w-2xl mx-auto space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Badge variant="gold">{config.mode.label}</Badge>
-          <Badge>0,5/1</Badge>
-          <Badge variant={netBB >= 0 ? 'emerald' : 'crimson'}>
-            {netBB >= 0 ? '+' : ''}{netBB.toFixed(1)} bb
-          </Badge>
+          {!tour && (
+            <>
+              <Badge>0,5/1</Badge>
+              <Badge variant={netBB >= 0 ? 'emerald' : 'crimson'}>
+                {netBB >= 0 ? '+' : ''}{netBB.toFixed(1)} bb
+              </Badge>
+            </>
+          )}
           <span className="text-[11px] text-text-muted font-mono hidden sm:inline">{session.hands} mãos</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -290,13 +338,17 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
           </button>
           <button
             aria-label="Sair da mesa"
-            onClick={() => onExit({ label: config.mode.label, hands: session.hands, netBB })}
+            onClick={() =>
+              onExit({ label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText })
+            }
             className="p-1.5 rounded-lg border border-border-default text-text-secondary"
           >
             <LogOut size={14} />
           </button>
         </div>
       </div>
+
+      {tour && <TournamentHeader tour={tour} game={game} heroId={heroId} />}
 
       <PokerTableView
         game={game}
@@ -340,7 +392,35 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
                 </p>
               )}
             </div>
-            {game.gameOver ? (
+
+            {tour?.done && place ? (
+              <div
+                className={cn(
+                  'rounded-xl border p-4 text-center space-y-1',
+                  prize > 0 ? 'bg-accent-gold/10 border-accent-gold/40' : 'bg-bg-elevated border-border-default',
+                )}
+              >
+                <Trophy size={20} className={cn('mx-auto', prize > 0 ? 'text-accent-gold' : 'text-text-muted')} />
+                <p className="text-base font-display font-bold text-text-primary">
+                  {place === 1 ? 'Campeão!' : `Você terminou em ${place}º`} de {tour.config.fieldSize}
+                </p>
+                <p className="text-xs text-text-secondary">
+                  {prize > 0
+                    ? `Prêmio: ${prize.toFixed(2)} buy-ins (resultado ${prize - 1 >= 0 ? '+' : ''}${(prize - 1).toFixed(2)})`
+                    : `Fora do dinheiro (pagam ${tour.config.payouts.length})`}
+                </p>
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button variant="primary" onClick={onRestart}>
+                    <RotateCcw size={14} /> Jogar de novo
+                  </Button>
+                  <Button
+                    onClick={() => onExit({ label: config.mode.label, hands: session.hands, result: tourText })}
+                  >
+                    Sair
+                  </Button>
+                </div>
+              </div>
+            ) : game.gameOver ? (
               <p className="text-xs text-center text-text-muted">Mesa encerrada.</p>
             ) : (
               <Button variant="primary" size="lg" className="w-full" onClick={nextHand}>
