@@ -137,7 +137,7 @@ export default function PlayTable() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
       <SectionHeader title="Jogar" subtitle="Mesa completa contra bots com estilos diferentes. Treine leitura e decisões em jogo." />
 
       {last && (
@@ -227,7 +227,7 @@ export default function PlayTable() {
           <Play size={16} /> Sentar na mesa
         </Button>
       </Card>
-    </div>
+    </div></div>
   )
 }
 
@@ -295,7 +295,7 @@ function TableGame({
   const tourText = tour && place ? `${place}º de ${tour.config.fieldSize}, prêmio ${prize.toFixed(2)} buy-ins` : undefined
 
   return (
-    <div className="max-w-2xl mx-auto space-y-3">
+    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Badge variant="gold">{config.mode.label}</Badge>
@@ -447,6 +447,6 @@ function TableGame({
           onSave={(flag) => saveReview(openReview.game.handNumber, flag)}
         />
       )}
-    </div>
+    </div></div>
   )
 }

@@ -161,7 +161,7 @@ export default function PushFoldTrainer() {
   // ---------- SETUP ----------
   if (phase === 'setup') {
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
         <SectionHeader
           title="Push/Fold"
           subtitle="Ranges de all-in e call resolvidos (Nash e ICM), de 2 a 25bb. Funciona offline."
@@ -215,7 +215,7 @@ export default function PushFoldTrainer() {
             {loadError ? 'Falha ao carregar os spots' : bank ? 'Começar treino' : 'Carregando spots...'}
           </Button>
         </Card>
-      </div>
+      </div></div>
     )
   }
 
@@ -223,7 +223,7 @@ export default function PushFoldTrainer() {
   if (phase === 'summary') {
     const misses = history.filter((h) => h.ev.grade === 'mistake')
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
         <SectionHeader title="Resumo da sessão" subtitle={`${formato.label}${stackChoice ? `, ${stackChoice}bb` : ', stacks variados'}`} />
         <Card className="p-4 text-center">
           <p className="text-4xl font-display font-bold text-text-primary">{accuracy}%</p>
@@ -248,7 +248,7 @@ export default function PushFoldTrainer() {
         <Button variant="primary" className="w-full" onClick={() => setPhase('setup')}>
           <RotateCcw size={14} /> Novo treino
         </Button>
-      </div>
+      </div></div>
     )
   }
 
@@ -264,7 +264,7 @@ export default function PushFoldTrainer() {
   const ui = answered ? GRADE_UI[answered.ev.grade] : null
 
   return (
-    <div className="max-w-2xl mx-auto space-y-3">
+    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant="gold">{formato.label}</Badge>
@@ -329,6 +329,6 @@ export default function PushFoldTrainer() {
           Encerrar e ver resumo
         </button>
       </div>
-    </div>
+    </div></div>
   )
 }
