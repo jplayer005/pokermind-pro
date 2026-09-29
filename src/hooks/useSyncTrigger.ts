@@ -29,6 +29,19 @@ export function useSyncTrigger() {
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
       if (!user) return
+      // Estado local virgem (nada jogado ainda): nao ha o que salvar, e enviar isto poderia
+      // gravar um perfil vazio "mais novo" por cima do progresso guardado em outro aparelho/app.
+      const pristine =
+        profile.stats.xp === 0 &&
+        training.sessionHistory.length === 0 &&
+        Object.keys(sm2Data).length === 0 &&
+        Object.keys(postflopProfiles).length === 0 &&
+        savedHands.length === 0 &&
+        leakDecisions === 0
+      if (pristine) {
+        setSyncStatus('idle')
+        return
+      }
       setSyncStatus('syncing')
       try {
         const sm2Keys = Object.keys(sm2Data)
