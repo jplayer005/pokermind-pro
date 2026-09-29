@@ -3,7 +3,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 import { auth } from '@/firebase/config'
-import { downloadUserData, toTimestampMillis } from '@/firebase/sync'
+import { downloadUserData, toTimestampMillis, SYNC_DOCS } from '@/firebase/sync'
 import { useAuthStore } from '@/store/authStore'
 import {
   useUserStore,
@@ -18,10 +18,23 @@ import type { UserProfile, UserStats, Achievement, StudyGoal } from '@/types'
 
 async function hydrateFromFirestore(uid: string, email?: string | null) {
   try {
-    const data = await downloadUserData(uid)
+    const { data, failed } = await downloadUserData(uid)
+    // O que nao deu para LER nao pode ser ENVIADO depois: subir o estado local por cima poderia
+    // apagar o que esta na nuvem. (Antes, uma falha aqui derrubava tudo e o upload seguia mesmo assim.)
+    useAuthStore.getState().setUnsafeDocs(Object.keys(failed))
 
     const setProfile = useUserStore.getState().setProfileFromFirebaseUser
     const userState = useUserStore.getState()
+    const localXPBefore = userState.profile.stats.xp
+    const cloudXPBefore = (data.profile?.stats as UserStats | undefined)?.xp ?? null
+    useAuthStore.getState().setSyncReport({
+      downloadedAt: Date.now(),
+      downloaded: SYNC_DOCS.filter((n) => data[n] !== null),
+      empty: SYNC_DOCS.filter((n) => data[n] === null && !failed[n]),
+      downloadFailed: failed,
+      cloudXP: cloudXPBefore,
+      localXP: localXPBefore,
+    })
 
     // Profile: compara XP para resolver conflito
     if (data.profile) {
@@ -30,7 +43,9 @@ async function hydrateFromFirestore(uid: string, email?: string | null) {
       const cloudUpdatedAt = toTimestampMillis(data.profile.updatedAt)
       const localUpdatedAt = toTimestampMillis((userState.profile as any).updatedAt)
 
-      if (cloudXP > localXP || cloudUpdatedAt > localUpdatedAt) {
+      // "Mais nova" nao basta: uma nuvem recem-criada e vazia (XP 0) nao pode sobrescrever
+      // um perfil local com progresso. So vence se tem mais XP, ou e mais nova e nao tem menos.
+      if (cloudXP > localXP || (cloudUpdatedAt > localUpdatedAt && cloudXP >= localXP)) {
         const { updatedAt, ...rest } = data.profile as any
         useUserStore.setState((state) => ({
           profile: {
@@ -95,6 +110,14 @@ async function hydrateFromFirestore(uid: string, email?: string | null) {
     setProfile(uid, email ?? undefined)
   } catch (e) {
     console.error('[auth] hydrateFromFirestore error', e)
+    // Falha geral: nao sabemos o que ha na nuvem, entao NADA pode ser enviado por cima dela.
+    const reason = e instanceof Error ? e.message : String(e)
+    const auth = useAuthStore.getState()
+    auth.setUnsafeDocs([...SYNC_DOCS])
+    auth.setSyncReport({
+      downloadedAt: Date.now(),
+      downloadFailed: Object.fromEntries(SYNC_DOCS.map((n) => [n, reason])),
+    })
   }
 }
 
@@ -126,9 +149,33 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     try {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         clearTimeout(timeout)
+        if (firebaseUser) {
+          // Segura o app na tela de carregamento ate baixar da nuvem. Sem isto, no login
+          // interativo o app abria e o sync subia o estado local (vazio) antes do download acabar.
+          setAuthLoading(true)
+          // seguro por padrao: nada sobe para a nuvem ate o download terminar e provar que e seguro
+          useAuthStore.getState().setUnsafeDocs([...SYNC_DOCS])
+          useAuthStore.getState().setSyncReport({
+            downloadedAt: null, downloaded: [], empty: [], downloadFailed: {}, cloudXP: null, localXP: null,
+          })
+        }
         setUser(firebaseUser)
         if (firebaseUser) {
-          await hydrateFromFirestore(firebaseUser.uid, firebaseUser.email)
+          // Sem rede o download pode demorar muito: nao deixa o app preso na tela de carregamento.
+          // Enquanto nao terminar, nada e enviado (todos os documentos ficam "nao seguros").
+          const hydrating = hydrateFromFirestore(firebaseUser.uid, firebaseUser.email)
+          const timedOut = new Promise<void>((resolve) =>
+            setTimeout(() => {
+              if (useAuthStore.getState().syncReport?.downloadedAt == null) {
+                useAuthStore.getState().setUnsafeDocs([...SYNC_DOCS])
+                useAuthStore.getState().setSyncReport({
+                  downloadFailed: Object.fromEntries(SYNC_DOCS.map((n) => [n, 'tempo esgotado'])),
+                })
+              }
+              resolve()
+            }, 15000),
+          )
+          await Promise.race([hydrating, timedOut])
         }
         setAuthLoading(false)
       })

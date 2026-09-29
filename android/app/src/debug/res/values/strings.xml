@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- Só o build de debug: nome diferente na gaveta de apps para não confundir com o app da loja. -->
+    <string name="app_name">PokerMind DEBUG</string>
+    <string name="title_activity_main">PokerMind DEBUG</string>
+</resources>

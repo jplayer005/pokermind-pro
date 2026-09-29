@@ -187,7 +187,7 @@ export default function Settings() {
   const { profile, updateName, setGoalTarget, upgradePlan, resetUserStats } = useUserStore()
   const { resetProgress } = useTrainingStore()
   const { animationsEnabled, soundEnabled, defaultDifficulty, theme, setAnimations, setSound, setDifficulty, setTheme } = useUIStore()
-  const { user, guestMode, setGuestMode, syncStatus, syncWarnings } = useAuthStore()
+  const { user, guestMode, setGuestMode, syncStatus, syncWarnings, syncReport } = useAuthStore()
 
   const [showEditName, setShowEditName] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -250,6 +250,40 @@ export default function Settings() {
               >
                 <span className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse shrink-0" />
               </SettingRow>
+              {syncReport && (
+                <div className="mx-1 mb-2 rounded-xl border border-border-default bg-bg-elevated/60 p-3 space-y-1">
+                  <p className="text-xs font-bold text-text-primary">Sincronização</p>
+                  <p className="text-[11px] text-text-secondary">
+                    Conta: {user.email ?? 'sem e-mail'} (id ...{user.uid.slice(-6)})
+                  </p>
+                  <p className="text-[11px] text-text-secondary">
+                    Baixou da nuvem: {syncReport.downloaded.length ? syncReport.downloaded.join(', ') : 'nada'}
+                  </p>
+                  {syncReport.empty.length > 0 && (
+                    <p className="text-[11px] text-text-muted">Sem dados na nuvem: {syncReport.empty.join(', ')}</p>
+                  )}
+                  {Object.keys(syncReport.downloadFailed).length > 0 && (
+                    <p className="text-[11px] text-accent-crimson">
+                      Falhou ao baixar: {Object.entries(syncReport.downloadFailed).map(([d, why]) => `${d} (${why})`).join(', ')}
+                    </p>
+                  )}
+                  {syncReport.cloudXP !== null && (
+                    <p className="text-[11px] text-text-secondary">
+                      XP na nuvem: {syncReport.cloudXP}, neste aparelho ao entrar: {syncReport.localXP ?? 0}
+                    </p>
+                  )}
+                  {syncReport.uploadedAt && (
+                    <p className="text-[11px] text-text-muted">
+                      Último envio: {new Date(syncReport.uploadedAt).toLocaleTimeString('pt-BR')}
+                    </p>
+                  )}
+                  {Object.keys(syncReport.uploadFailed).length > 0 && (
+                    <p className="text-[11px] text-accent-crimson">
+                      Falhou ao enviar: {Object.entries(syncReport.uploadFailed).map(([d, why]) => `${d} (${why})`).join(', ')}
+                    </p>
+                  )}
+                </div>
+              )}
               {(syncStatus === 'error' || syncWarnings.length > 0) && (
                 <div className="mx-1 mb-2 rounded-xl border border-accent-gold/40 bg-accent-gold/10 p-3 space-y-1">
                   <p className="text-xs font-bold text-accent-gold">

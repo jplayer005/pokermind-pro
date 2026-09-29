@@ -14,24 +14,62 @@ export interface SyncPayload {
   leaks?: Record<string, unknown>
 }
 
-export async function uploadUserData(uid: string, data: SyncPayload) {
-  const writes = (Object.entries(data) as [keyof SyncPayload, Record<string, unknown>][])
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([key, value]) =>
-      setDoc(userDoc(uid, key), { ...value, updatedAt: serverTimestamp() }, { merge: false })
-    )
-  await Promise.all(writes)
+export const SYNC_DOCS = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks'] as const
+
+const errText = (e: unknown) => (e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : String(e))
+
+export interface UploadResult {
+  /** Documento -> motivo da falha. Vazio = tudo enviou. */
+  failed: Record<string, string>
 }
 
-export async function downloadUserData(uid: string): Promise<Record<string, Record<string, unknown> | null>> {
-  const storeNames = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks']
-  const entries = await Promise.all(
-    storeNames.map(async (name) => {
-      const snap = await getDoc(userDoc(uid, name))
-      return [name, snap.exists() ? snap.data() : null] as const
-    })
+/**
+ * Envia cada documento em separado: uma falha (ex.: regra de seguranca) nao derruba os outros.
+ * `skip` = documentos que NAO podem ser sobrescritos (nao deu para ler o que ha na nuvem, entao
+ * enviar o estado local poderia apagar dados do jogador).
+ */
+export async function uploadUserData(
+  uid: string,
+  data: SyncPayload,
+  skip: readonly string[] = [],
+): Promise<UploadResult> {
+  const failed: Record<string, string> = {}
+  const entries = (Object.entries(data) as [keyof SyncPayload, Record<string, unknown>][]).filter(
+    ([key, v]) => v !== undefined && v !== null && !skip.includes(key),
   )
-  return Object.fromEntries(entries)
+  const results = await Promise.allSettled(
+    entries.map(([key, value]) =>
+      setDoc(userDoc(uid, key), { ...value, updatedAt: serverTimestamp() }, { merge: false }),
+    ),
+  )
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') failed[entries[i][0]] = errText(r.reason)
+  })
+  return { failed }
+}
+
+export interface DownloadResult {
+  /** Conteudo de cada documento; null = nao existe na nuvem (ou falhou, ver `failed`). */
+  data: Record<string, Record<string, unknown> | null>
+  /** Documento -> motivo da falha de leitura. */
+  failed: Record<string, string>
+}
+
+export async function downloadUserData(uid: string): Promise<DownloadResult> {
+  const data: DownloadResult['data'] = {}
+  const failed: Record<string, string> = {}
+  await Promise.all(
+    SYNC_DOCS.map(async (name) => {
+      try {
+        const snap = await getDoc(userDoc(uid, name))
+        data[name] = snap.exists() ? snap.data() : null
+      } catch (e) {
+        data[name] = null
+        failed[name] = errText(e)
+      }
+    }),
+  )
+  return { data, failed }
 }
 
 export function toTimestampMillis(val: unknown): number {

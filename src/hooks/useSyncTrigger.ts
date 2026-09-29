@@ -39,8 +39,14 @@ export function useSyncTrigger() {
         if (!sm2Ok) warnings.push('Revisão espaçada grande demais para sincronizar (mais de 800 itens). Ela continua salva neste aparelho.')
         const handsOk = JSON.stringify(savedHands).length <= HANDS_DOC_LIMIT
         if (!handsOk) warnings.push('Mãos salvas grandes demais para sincronizar. Apague algumas no Replayer; elas continuam neste aparelho.')
+        // Documentos que nao deu para ler da nuvem ficam de fora: enviar o estado local por cima
+        // poderia apagar o que ja esta la.
+        const unsafe = useAuthStore.getState().unsafeDocs
+        if (unsafe.length > 0) {
+          warnings.push(`Não foi possível ler da nuvem: ${unsafe.join(', ')}. Esses dados não foram enviados, para não apagar o que já está salvo lá.`)
+        }
         setSyncWarnings(warnings)
-        await uploadUserData(user.uid, {
+        const result = await uploadUserData(user.uid, {
           profile: profile as unknown as Record<string, unknown>,
           training: training as unknown as Record<string, unknown>,
           ...(sm2Ok
@@ -49,8 +55,16 @@ export function useSyncTrigger() {
           postflopReview: { profiles: postflopProfiles } as unknown as Record<string, unknown>,
           ...(handsOk ? { hands: { savedHands } as unknown as Record<string, unknown> } : {}),
           leaks: { stats: leakStats, decisions: leakDecisions } as unknown as Record<string, unknown>,
-        })
-        setSyncStatus('idle')
+        }, unsafe)
+        const failedDocs = Object.keys(result.failed)
+        useAuthStore.getState().setSyncReport({ uploadedAt: Date.now(), uploadFailed: result.failed })
+        if (failedDocs.length > 0) {
+          console.error('[sync] documentos que falharam ao enviar', result.failed)
+          setSyncWarnings([...warnings, `Falha ao enviar: ${failedDocs.join(', ')}.`])
+          setSyncStatus('error')
+        } else {
+          setSyncStatus('idle')
+        }
       } catch (e) {
         console.error('[sync] upload error', e)
         setSyncStatus('error')
