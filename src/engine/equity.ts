@@ -1,7 +1,7 @@
 // ============================================================
 // ENGINE: equity mao vs range (avaliador real)
 // ============================================================
-import { drawCards, type Rng } from './cards'
+import { type Rng } from './cards'
 import { evaluate } from './evaluator'
 
 export interface EquityResult {
@@ -77,9 +77,16 @@ export function equityVsCombos(
     }
   }
 
+  // Monte Carlo: sorteio por rejeicao sobre as cartas livres (sem montar baralho a cada rodada)
+  const free: number[] = []
+  for (let c = 0; c < 52; c++) if (!dead.has(c)) free.push(c)
   for (let i = 0; i < iterations; i++) {
     const v = valid[Math.floor(rng() * valid.length)]
-    const extra = drawCards(need, [...dead, v[0], v[1]], rng)
+    const extra: number[] = []
+    while (extra.length < need) {
+      const c = free[Math.floor(rng() * free.length)]
+      if (c !== v[0] && c !== v[1] && !extra.includes(c)) extra.push(c)
+    }
     tally([...heroBase, ...extra], [v[0], v[1], ...board, ...extra], acc)
   }
   return finish(acc, false)
