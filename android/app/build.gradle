@@ -17,6 +17,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Canal de teste: convive com o app da loja (com.pokermind.pro) no mesmo aparelho.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -51,4 +56,15 @@ try {
     }
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
+
+// O google-services.json de producao so tem o pacote com.pokermind.pro; o debug usa
+// com.pokermind.pro.debug e o plugin falharia. Acoplamento com o Firebase Console: para o
+// login Google funcionar no debug, registre o pacote .debug + SHA-1 debug e coloque o
+// google-services.json correspondente em android/app/src/debug/. Enquanto ele nao existir,
+// o processamento e pulado (modo convidado funciona; o Firebase JS nao depende disso).
+if (!file('src/debug/google-services.json').exists()) {
+    tasks.configureEach { t ->
+        if (t.name == 'processDebugGoogleServices') t.enabled = false
+    }
 }
