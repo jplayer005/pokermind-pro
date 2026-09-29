@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "audit:spots": "tsx scripts/audit-spots.ts"
+    "audit:spots": "tsx scripts/audit-spots.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -37,6 +38,7 @@
     "terser": "^5.48.0",
     "tsx": "^4.22.4",
     "typescript": "^5.5.3",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vitest": "^2.1.9"
   }
 }

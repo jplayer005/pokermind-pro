@@ -4,6 +4,8 @@
 // ============================================================
 
 import { Rank, Suit, Card, Action, RangeMatrix } from '@/types'
+import { toInt, randomCanonical } from '@/engine/cards'
+import { equityVsCombos } from '@/engine/equity'
 
 // ------- CONSTANTES -------
 export const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
@@ -141,6 +143,7 @@ export function generateHandGrid(): string[][] {
 /**
  * Equity simplificada baseada em tabelas pré-calculadas
  * Para uso educacional — não é um solver real
+ * @deprecated valores inventados, sem chamadores. Use runMonteCarloEquity.
  */
 export function estimateEquity(heroHand: string, villainRange: string[]): number {
   // Tabela simplificada de equities de mãos específicas vs ranges comuns
@@ -261,9 +264,8 @@ export function randomAction(actions: { action: Action; frequency: number }[]): 
 
 // ------- GERAÇÃO DE MÃO ALEATÓRIA -------
 export function randomHand(): string {
-  const grid = generateHandGrid()
-  const allHands: string[] = grid.flat()
-  return allHands[Math.floor(Math.random() * allHands.length)]
+  // Ponderado por combos (AA 6, AKs 4, AKo 12), como as mãos chegam de verdade.
+  return randomCanonical()
 }
 
 export function randomHandFromRange(range: string[]): string {
@@ -1445,19 +1447,9 @@ export function generateRandomCards(count: number, exclude: Card[] = []): Card[]
 // MONTE CARLO EQUITY CALCULATOR
 // ============================================================
 
-// Hierarchy de categorias para comparação precisa de mãos
-const CATEGORY_RANK: Record<PostflopHandCategory, number> = {
-  air: 0, overcards: 1, draw_weak: 2, draw_medium: 3, draw_strong: 4,
-  underpair: 5, bottom_pair: 6, middle_pair: 7, tpwk: 8, tpgk: 9, tptk: 10,
-  overpair: 11, two_pair: 12, trips: 13, set: 14, straight: 15, flush: 16,
-  full_house: 17, quads: 18,
-}
-
-function compareHands(a: PostflopHandEval, b: PostflopHandEval): number {
-  const catDiff = CATEGORY_RANK[a.category] - CATEGORY_RANK[b.category]
-  if (catDiff !== 0) return catDiff
-  return a.strength - b.strength
-}
+// A comparação de mãos (showdown) agora usa o avaliador real de 5-7 cartas em
+// src/engine. As categorias heurísticas de evaluatePostflopHand continuam
+// servindo só para rotular a mão nos trainers, nunca para decidir quem ganha.
 
 /**
  * Gera todos os combos específicos de uma notação de mão (ex: 'AA', 'AKs', 'AKo')
@@ -1515,40 +1507,40 @@ export function runMonteCarloEquity(
   villainRange: string[],
   iterations = 2000
 ): MonteCarloResult {
-  // Gerar todos os combos válidos do villain
-  const villainCombos: [Card, Card][] = []
+  return monteCarloFromEngine(heroCards, [], villainRange, iterations)
+}
+
+/** Ponte entre a API antiga (Card + strings de range) e o motor em src/engine. */
+function monteCarloFromEngine(
+  heroCards: [Card, Card],
+  board: Card[],
+  villainRange: string[],
+  iterations: number
+): MonteCarloResult {
+  const used = [...heroCards, ...board]
+  const villainCombos: [number, number][] = []
   for (const hand of villainRange) {
-    villainCombos.push(...generateHandCombos(hand, [...heroCards]))
+    for (const [a, b] of generateHandCombos(hand, used)) {
+      villainCombos.push([toInt(a), toInt(b)])
+    }
   }
 
-  if (villainCombos.length === 0) {
+  const r = equityVsCombos(
+    [toInt(heroCards[0]), toInt(heroCards[1])],
+    villainCombos,
+    board.map(toInt),
+    iterations,
+  )
+
+  if (r.runs === 0) {
     return { equity: 0.5, wins: 0, ties: 0, losses: 0, totalRuns: 0, heroWinPct: 50, tiePct: 0, lossPct: 50 }
   }
-
-  let wins = 0, ties = 0, losses = 0, runs = 0
-
-  for (let i = 0; i < iterations; i++) {
-    const vCards = villainCombos[Math.floor(Math.random() * villainCombos.length)]
-    const board = generateRandomCards(5, [...heroCards, ...vCards])
-    if (board.length < 5) continue
-
-    const heroEval = evaluatePostflopHand(heroCards, board)
-    const villEval = evaluatePostflopHand(vCards, board)
-    const cmp = compareHands(heroEval, villEval)
-
-    if (cmp > 0) wins++
-    else if (cmp < 0) losses++
-    else ties++
-    runs++
-  }
-
-  const equity = runs > 0 ? (wins + ties * 0.5) / runs : 0.5
   return {
-    equity,
-    wins, ties, losses, totalRuns: runs,
-    heroWinPct: Math.round((wins / runs) * 100),
-    tiePct: Math.round((ties / runs) * 100),
-    lossPct: Math.round((losses / runs) * 100),
+    equity: r.equity,
+    wins: r.wins, ties: r.ties, losses: r.losses, totalRuns: r.runs,
+    heroWinPct: Math.round((r.wins / r.runs) * 100),
+    tiePct: Math.round((r.ties / r.runs) * 100),
+    lossPct: Math.round((r.losses / r.runs) * 100),
   }
 }
 
@@ -1575,43 +1567,5 @@ export function runMonteCarloEquityPostflop(
   villainRange: string[],
   iterations = 500
 ): MonteCarloResult {
-  const used = [...heroCards, ...board]
-  const villainCombos: [Card, Card][] = []
-  for (const hand of villainRange) {
-    villainCombos.push(...generateHandCombos(hand, used))
-  }
-
-  if (villainCombos.length === 0) {
-    return { equity: 0.5, wins: 0, ties: 0, losses: 0, totalRuns: 0, heroWinPct: 50, tiePct: 0, lossPct: 50 }
-  }
-
-  const cardsToComplete = Math.max(0, 5 - board.length)
-  let wins = 0, ties = 0, losses = 0, runs = 0
-
-  for (let i = 0; i < iterations; i++) {
-    const vCards = villainCombos[Math.floor(Math.random() * villainCombos.length)]
-    const completion = cardsToComplete > 0
-      ? generateRandomCards(cardsToComplete, [...used, ...vCards])
-      : []
-    if (completion.length < cardsToComplete) continue
-
-    const fullBoard = [...board, ...completion]
-    const heroEval = evaluatePostflopHand(heroCards, fullBoard)
-    const villEval = evaluatePostflopHand(vCards, fullBoard)
-    const cmp = compareHands(heroEval, villEval)
-
-    if (cmp > 0) wins++
-    else if (cmp < 0) losses++
-    else ties++
-    runs++
-  }
-
-  const equity = runs > 0 ? (wins + ties * 0.5) / runs : 0.5
-  return {
-    equity,
-    wins, ties, losses, totalRuns: runs,
-    heroWinPct: runs > 0 ? Math.round((wins / runs) * 100) : 50,
-    tiePct:    runs > 0 ? Math.round((ties / runs) * 100) : 0,
-    lossPct:   runs > 0 ? Math.round((losses / runs) * 100) : 50,
-  }
+  return monteCarloFromEngine(heroCards, board, villainRange, iterations)
 }
