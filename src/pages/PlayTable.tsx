@@ -9,8 +9,11 @@ import { Button, Card, Badge, SectionHeader } from '@/components/ui'
 import PokerTableView from '@/components/table/PokerTableView'
 import ActionBar from '@/components/table/ActionBar'
 import HandLog from '@/components/table/HandLog'
-import { useTableEngine, fmtChips, type Speed, type TableOptions } from '@/hooks/useTableEngine'
+import CoachToast from '@/components/table/CoachToast'
+import HandReviewSheet from '@/components/table/HandReviewSheet'
+import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
+import { isLeak } from '@/engine/coach/types'
 
 const BB_CHIPS = 2 // 1 bb = 2 fichas, para permitir SB de 0,5 bb
 const NAMES = ['Lucas', 'Marina', 'Rafa', 'Bia', 'Téo', 'Duda', 'Gui', 'Nina', 'Caio', 'Lia']
@@ -34,12 +37,20 @@ const SPEEDS: { id: Speed; label: string }[] = [
   { id: 'fast', label: 'Rápida' },
 ]
 
+const COACH_MODES: { id: CoachMode; label: string; hint: string }[] = [
+  { id: 'live', label: 'Ao vivo', hint: 'Aviso rápido após cada jogada, sem interromper' },
+  { id: 'after', label: 'Só revisão', hint: 'Sem avisos; você revisa a mão quando quiser' },
+  { id: 'off', label: 'Desligado', hint: 'Jogo livre, sem notas' },
+]
+
 interface Config {
   mode: ModeDef
   buyInBB: number
   speed: Speed
   autoNext: boolean
   showProfiles: boolean
+  coach: CoachMode
+  showHud: boolean
 }
 
 interface Summary {
@@ -74,6 +85,8 @@ export default function PlayTable() {
   const [speed, setSpeed] = useState<Speed>('normal')
   const [autoNext, setAutoNext] = useState(true)
   const [showProfiles, setShowProfiles] = useState(true)
+  const [coach, setCoach] = useState<CoachMode>('live')
+  const [showHud, setShowHud] = useState(true)
 
   if (config) {
     return (
@@ -150,12 +163,25 @@ export default function PlayTable() {
           </div>
         </div>
 
+        <div>
+          <p className="text-xs text-text-muted mb-2 font-body">Coach</p>
+          <div className="flex gap-2">
+            {COACH_MODES.map((c) => (
+              <Chip key={c.id} active={c.id === coach} onClick={() => setCoach(c.id)}>{c.label}</Chip>
+            ))}
+          </div>
+          <p className="text-[11px] text-text-muted mt-1.5">{COACH_MODES.find((c) => c.id === coach)?.hint}</p>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <Chip active={autoNext} onClick={() => setAutoNext((v) => !v)}>
             Próxima mão automática: {autoNext ? 'sim' : 'não'}
           </Chip>
           <Chip active={showProfiles} onClick={() => setShowProfiles((v) => !v)}>
             Mostrar estilo dos bots: {showProfiles ? 'sim' : 'não'}
+          </Chip>
+          <Chip active={showHud} onClick={() => setShowHud((v) => !v)}>
+            HUD dos bots: {showHud ? 'sim' : 'não'}
           </Chip>
         </div>
 
@@ -164,7 +190,10 @@ export default function PlayTable() {
           size="lg"
           className="w-full"
           onClick={() =>
-            setConfig({ mode: MODES.find((m) => m.id === modeId) as ModeDef, buyInBB, speed, autoNext, showProfiles })
+            setConfig({
+              mode: MODES.find((m) => m.id === modeId) as ModeDef,
+              buyInBB, speed, autoNext, showProfiles, coach, showHud,
+            })
           }
         >
           <Play size={16} /> Sentar na mesa
@@ -198,12 +227,22 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
       buyIn,
       speed: config.speed,
       autoNext: config.autoNext,
+      coach: config.coach,
+      modeId: config.mode.id,
+      modeLabel: config.mode.label,
     }
     // configuracao fixa durante a sessao
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { game, archive, session, heroId, heroTurn, act, nextHand } = useTableEngine(options)
+  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview } =
+    useTableEngine(options)
+  // numero da mao aberta na revisao (null = fechada)
+  const [reviewHand, setReviewHand] = useState<number | null>(null)
+  const coachOn = config.coach !== 'off'
+  const openReview = reviews.find((r) => r.game.handNumber === reviewHand) ?? null
+  const latest = reviews[0]
+  const latestLeaks = latest ? latest.decisions.filter((d) => isLeak(d.grade)).length : 0
   const hero = game.seats[heroId]
   const waitingFor = game.toAct >= 0 ? game.seats[game.toAct] : null
   const result = game.over ? game.result : null
@@ -223,6 +262,19 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
           <span className="text-[11px] text-text-muted font-mono hidden sm:inline">{session.hands} mãos</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {coachOn && latest && (
+            <button
+              onClick={() => setReviewHand(latest.game.handNumber)}
+              className={cn(
+                'px-2 py-1 rounded-lg text-[11px] font-mono border',
+                latestLeaks > 0
+                  ? 'border-accent-gold/50 bg-accent-gold/10 text-accent-gold'
+                  : 'border-border-default text-text-secondary',
+              )}
+            >
+              Revisar #{latest.game.handNumber}{latestLeaks > 0 ? ` (${latestLeaks})` : ''}
+            </button>
+          )}
           <button
             onClick={() => setUnit((u) => (u === 'bb' ? 'chips' : 'bb'))}
             className="px-2 py-1 rounded-lg text-[11px] font-mono border border-border-default text-text-secondary"
@@ -246,7 +298,21 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
         </div>
       </div>
 
-      <PokerTableView game={game} heroId={heroId} unit={unit} showProfiles={config.showProfiles} />
+      <PokerTableView
+        game={game}
+        heroId={heroId}
+        unit={unit}
+        showProfiles={config.showProfiles}
+        hud={hud}
+        showHud={config.showHud}
+      />
+
+      {config.coach === 'live' && (
+        <CoachToast
+          last={lastGrade}
+          onOpen={() => lastGrade && setReviewHand(lastGrade.d.handNumber)}
+        />
+      )}
 
       <div className="min-h-[120px]">
         {heroTurn ? (
@@ -294,6 +360,13 @@ function TableGame({ config, onExit }: { config: Config; onExit: (s: Summary) =>
       </div>
 
       {logOpen && <HandLog games={logGames} unit={unit} onClose={() => setLogOpen(false)} />}
+      {openReview && (
+        <HandReviewSheet
+          review={openReview}
+          onClose={() => setReviewHand(null)}
+          onSave={(flag) => saveReview(openReview.game.handNumber, flag)}
+        />
+      )}
     </div>
   )
 }

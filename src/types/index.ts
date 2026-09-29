@@ -135,6 +135,21 @@ export interface SavedHand {
   result: number
   notes: string
   tags: string[]
+  /** Mãos jogadas na mesa: decisões avaliadas pelo coach. Opcional, mãos antigas não têm. */
+  decisions?: SavedDecision[]
+  mode?: string
+}
+
+export interface SavedDecision {
+  street: Street
+  took: string
+  best: string
+  grade: 'best' | 'good' | 'inaccuracy' | 'mistake' | 'blunder'
+  evLossBB: number | null
+  approx: boolean
+  tag: string
+  explain: string[]
+  equity?: number
 }
 
 export interface ReplayerPlayer {

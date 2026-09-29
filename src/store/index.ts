@@ -719,9 +719,16 @@ export const usePostflopReviewStore = create<PostflopReviewStore>()(
 )
 
 // ------- STORE DE MÃOS SALVAS -------
+/** Máximo de mãos jogadas guardadas automaticamente. O store `hands` sobe inteiro num
+ *  documento do Firestore (limite de ~1 MiB): sem teto, a mesa jogável estouraria o sync. */
+export const MAX_PLAYED_HANDS = 40
+
 interface HandsStore {
   savedHands: SavedHand[]
   saveHand: (hand: SavedHand) => void
+  /** Salva uma mão jogada na mesa, descartando as mais antigas acima do teto
+   *  (exceto as marcadas com a tag 'revisar'). Não mexe nas mãos salvas à mão. */
+  savePlayedHand: (hand: SavedHand) => void
   deleteHand: (id: string) => void
   updateHand: (id: string, updates: Partial<SavedHand>) => void
 }
@@ -733,6 +740,16 @@ export const useHandsStore = create<HandsStore>()(
 
       saveHand: (hand) =>
         set((state) => ({ savedHands: [hand, ...state.savedHands] })),
+
+      savePlayedHand: (hand) =>
+        set((state) => {
+          let played = 0
+          const savedHands = [hand, ...state.savedHands.filter((h) => h.id !== hand.id)].filter((h) => {
+            if (!h.tags.includes('jogada') || h.tags.includes('revisar')) return true
+            return ++played <= MAX_PLAYED_HANDS
+          })
+          return { savedHands }
+        }),
 
       deleteHand: (id) =>
         set((state) => ({ savedHands: state.savedHands.filter((h) => h.id !== id) })),

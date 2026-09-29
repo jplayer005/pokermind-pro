@@ -51,14 +51,23 @@ export function buildBank(file: PackedFile): SpotBank {
 }
 
 let cache: Promise<SpotBank> | null = null
+let loaded: SpotBank | null = null
 
 /** Carrega o banco uma unica vez (chunk separado). */
 export function loadSpots(): Promise<SpotBank> {
   if (!cache) {
-    cache = import('@/data/spots/pushfold.json').then((m) => buildBank(m.default as unknown as PackedFile))
+    cache = import('@/data/spots/pushfold.json').then((m) => {
+      loaded = buildBank(m.default as unknown as PackedFile)
+      return loaded
+    })
     cache.catch(() => {
       cache = null // permite tentar de novo se o chunk falhar (offline)
     })
   }
   return cache
+}
+
+/** O banco ja carregado, ou null. Permite ao coach avaliar de forma sincrona apos loadSpots(). */
+export function peekSpots(): SpotBank | null {
+  return loaded
 }

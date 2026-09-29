@@ -1,6 +1,7 @@
 // ============================================================
 // Historico de maos em texto (mao atual + ultimas jogadas).
 // ============================================================
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { RANK_CHARS } from '@/engine/cards'
 import type { GameState, HandEvent } from '@/engine/game/types'
@@ -84,10 +85,11 @@ function HandBlock({ g, unit }: { g: GameState; unit: 'bb' | 'chips' }) {
 }
 
 export default function HandLog({ games, unit, onClose }: Props) {
-  return (
-    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="w-full sm:max-w-lg max-h-[75vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-bg-base border border-border-default p-4 space-y-3"
+        style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+        className="w-full sm:max-w-lg max-h-[75vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border-default p-4 space-y-3"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -101,6 +103,7 @@ export default function HandLog({ games, unit, onClose }: Props) {
           <HandBlock key={g.handNumber} g={g} unit={unit} />
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

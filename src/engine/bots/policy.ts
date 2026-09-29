@@ -156,6 +156,79 @@ function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: R
   return pct <= stick ? { type: 'call' } : { type: 'fold' }
 }
 
+export type PreflopSituation = 'open' | 'bb_option' | 'vs_raise' | 'vs_3bet'
+
+export interface PreflopRef {
+  best: 'raise' | 'call' | 'fold' | 'check'
+  hand: string
+  pos: Position
+  pct: number
+  /** Percentil de corte da decisao principal (abrir, pagar, etc.). */
+  cutoff: number
+  situation: PreflopSituation
+  /** Numero de aumentos ja feitos no pre-flop. */
+  raises: number
+}
+
+/**
+ * Jogada de referencia do pre-flop para quem esta na vez (sem sorteio, perfil TAG).
+ * Espelha decidePreflop: se mudar uma, mude a outra. Nao cobre stack curto (<= 12bb),
+ * que o coach avalia pelos spots push/fold.
+ */
+export function preflopReference(state: GameState): PreflopRef {
+  const seat = state.seats[state.toAct]
+  const la = legalActions(state)
+  const cards = seat.cards as [number, number]
+  const hand = canonical169(cards[0], cards[1])
+  const pct = handPercentile(hand)
+  const bb = state.cfg.bb
+  const raises = state.history.filter((e) => e.street === 'preflop' && e.type === 'raise').length
+  const n = state.seats.filter((x) => !x.out).length
+  const pos = (positionsBySeat(state)[seat.id] ?? 'BTN') as Position
+
+  if (raises === 0) {
+    if (!la.canCall) {
+      return { best: pct <= 0.08 ? 'raise' : 'check', hand, pos, pct, cutoff: 0.08, situation: 'bb_option', raises }
+    }
+    const open = getOpenRaiseRange(formatFor(n), pos)
+    return {
+      best: open.includes(hand) ? 'raise' : 'fold',
+      hand, pos, pct, cutoff: coverage(open), situation: 'open', raises,
+    }
+  }
+
+  if (raises === 1) {
+    const three = THREE_BET_RANGES[pos] ?? []
+    if (three.includes(hand)) {
+      return { best: 'raise', hand, pos, pct, cutoff: Math.max(coverage(three), 0.03), situation: 'vs_raise', raises }
+    }
+    const sizeBB = state.currentBet / bb
+    const base = pos === 'BB' ? 0.38 : pos === 'SB' ? 0.14 : pos === 'BTN' ? 0.2 : pos === 'CO' ? 0.16 : 0.12
+    const callPct = base / (sizeBB > 4 ? 1.6 : 1)
+    return { best: pct <= callPct ? 'call' : 'fold', hand, pos, pct, cutoff: callPct, situation: 'vs_raise', raises }
+  }
+
+  const four = FOUR_BET_RANGES[pos] ?? []
+  if (four.includes(hand)) {
+    return { best: 'raise', hand, pos, pct, cutoff: Math.max(coverage(four), 0.02), situation: 'vs_3bet', raises }
+  }
+  return { best: pct <= 0.05 ? 'call' : 'fold', hand, pos, pct, cutoff: 0.05, situation: 'vs_3bet', raises }
+}
+
+/** Percentil de todas as maos de um conjunto de combos (para montar ranges por largura). */
+export function combosUpToPercentile(maxPct: number, dead: readonly number[]): Combo[] {
+  const deadSet = new Set(dead)
+  const out: Combo[] = []
+  for (let a = 0; a < 52; a++) {
+    if (deadSet.has(a)) continue
+    for (let b = a + 1; b < 52; b++) {
+      if (deadSet.has(b)) continue
+      if (handPercentile(canonical169(a, b)) <= maxPct) out.push([a, b])
+    }
+  }
+  return out
+}
+
 function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng): Action {
   const seat = state.seats[state.toAct]
   const cards = seat.cards as [number, number]

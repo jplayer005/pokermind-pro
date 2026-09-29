@@ -10,12 +10,16 @@ import { positionsBySeat, potTotal } from '@/engine/game/reducer'
 import { profileOf } from '@/engine/bots/profiles'
 import type { GameState, Seat } from '@/engine/game/types'
 import { fmtChips } from '@/hooks/useTableEngine'
+import { hudLine, type HudStats } from '@/engine/bots/hud'
 
 interface Props {
   game: GameState
   heroId: number
   unit: 'bb' | 'chips'
   showProfiles: boolean
+  /** Estatisticas acumuladas por assento; mostradas quando showHud e ha amostra minima. */
+  hud?: Record<number, HudStats>
+  showHud?: boolean
 }
 
 const RX = 43
@@ -34,7 +38,7 @@ const PROFILE_TONE: Record<string, string> = {
   station: 'border-accent-emerald/60',
 }
 
-export default function PokerTableView({ game, heroId, unit, showProfiles }: Props) {
+export default function PokerTableView({ game, heroId, unit, showProfiles, hud, showHud }: Props) {
   const n = game.seats.length
   const bb = game.cfg.bb
   const pos = positionsBySeat(game)
@@ -115,6 +119,7 @@ export default function PokerTableView({ game, heroId, unit, showProfiles }: Pro
               handName={win?.handName}
               showProfile={showProfiles}
               hero={seat.id === heroId}
+              hudText={showHud && seat.id !== heroId ? hudLine(hud?.[seat.id]) : ''}
             />
           </div>
         )
@@ -136,9 +141,10 @@ interface SeatProps {
   handName?: string
   showProfile: boolean
   hero: boolean
+  hudText: string
 }
 
-function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero }: SeatProps) {
+function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero, hudText }: SeatProps) {
   const profile = profileOf(seat.profile)
   const faded = seat.out || seat.folded
   const cards = seat.cards
@@ -186,6 +192,7 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
         {showProfile && !hero && (
           <div className="text-[8px] text-text-muted leading-tight truncate">{profile.label}</div>
         )}
+        {hudText && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
       </div>
 
       {/* ultima acao / vitoria */}
