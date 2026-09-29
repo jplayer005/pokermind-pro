@@ -14,7 +14,8 @@ export const SUIT_SYMBOLS: Record<Suit, string> = {
   spades: '♠', hearts: '♥', diamonds: '♦', clubs: '♣'
 }
 export const SUIT_COLORS: Record<Suit, string> = {
-  spades: '#c8d0e8', hearts: '#ff3d5a', diamonds: '#ff3d5a', clubs: '#c8d0e8'
+  // usado só na face branca do PlayingCard: naipes pretos precisam ser escuros para ler
+  spades: '#1b2033', hearts: '#e11d48', diamonds: '#e11d48', clubs: '#1b2033'
 }
 
 // ------- RANK UTILS -------

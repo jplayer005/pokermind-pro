@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Layers, Grid3x3, Video,
-  Calculator, BookOpen, User, Zap, Target,
+  Calculator, BookOpen, User, Zap, Target, Spade,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
@@ -14,6 +14,7 @@ import { useSyncTrigger } from '@/hooks/useSyncTrigger'
 // e são alcançados no celular pelos atalhos do Dashboard.
 const NAV_ITEMS: { path: string; icon: typeof Zap; label: string; desc: string; desktopOnly?: boolean }[] = [
   { path: '/dashboard',   icon: LayoutDashboard, label: 'Início',       desc: 'Dashboard e métricas' },
+  { path: '/play',        icon: Spade,           label: 'Jogar',        desc: 'Mesa contra bots' },
   { path: '/preflop',     icon: Layers,          label: 'Pré-Flop',     desc: 'Ranges e posições GTO' },
   { path: '/pushfold',    icon: Target,          label: 'Push/Fold',    desc: 'Nash e ICM, 2 a 25bb', desktopOnly: true },
   { path: '/postflop',    icon: Grid3x3,         label: 'Pós-Flop',     desc: 'Board, mão e decisões' },

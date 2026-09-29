@@ -209,6 +209,12 @@ const STAGGER = {
 // Atalhos de treino com navegação e estado de filtro
 const QUICK_LINKS = [
   {
+    icon: '♠️', label: 'Jogar contra bots', sub: 'Mesa completa: 6-max, 9-max e heads-up',
+    path: '/play', navState: null,
+    color: 'from-emerald-500/10 to-emerald-600/5', border: 'border-emerald-500/20',
+    spanFull: true,
+  },
+  {
     icon: '🃏', label: 'Drill Pré-Flop', sub: 'Começa agora — modo drill',
     path: '/preflop', navState: { scenario: 'open_raise', mode: 'drill', autoStart: true },
     color: 'from-yellow-500/10 to-yellow-600/5', border: 'border-yellow-500/20',
