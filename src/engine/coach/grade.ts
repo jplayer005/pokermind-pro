@@ -110,6 +110,7 @@ function gradePreflop(
       const leak = isLeak(grade)
       return {
         ...base, best, grade, evLossBB: null, approx: false,
+        ctx: `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${fmtId}_${heroKey}_${bucket}BB`,
         tag: leak ? `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${heroKey}_${bucket}BB` : '',
         explain: explainPushFold(spot, ref, formatoPorId(fmtId), bucket, hand, ev),
       }
@@ -141,6 +142,7 @@ function gradePreflop(
     grade,
     evLossBB: null,
     approx: false,
+    ctx: `PF_${sit}_${ref.pos}`,
     tag: leak ? `PF_${sit}_${ref.pos}_${dir}` : '',
     explain: explainPreflop(ref, hand, base.took, grade),
   }
@@ -289,6 +291,13 @@ function gradePostflop(
   if (took !== best && lossBB <= 0.05) grade = 'good'
   const leak = isLeak(grade)
   if (!leak) tag = ''
+  // todo vazamento tem nome: se nenhum caminho acima nomeou, usa a jogada tomada
+  else if (!tag) {
+    tag = took === 'fold' ? `POST_${S}_FOLD_TOO_MUCH`
+      : took === 'call' ? `POST_${S}_CALL_LIGHT`
+      : took === 'check' ? `POST_${S}_MISSED_VALUE`
+      : facing ? `POST_${S}_WEAK_RAISE` : `POST_${S}_WEAK_BET`
+  }
 
   const verdict =
     took === best
@@ -303,6 +312,7 @@ function gradePostflop(
     approx: true,
     equity: eq,
     needed: facing ? needed : undefined,
+    ctx: `POST_${S}_${facing ? 'FACING' : 'OPEN'}`,
     tag,
     explain: [...ctx, ...why, verdict],
   }

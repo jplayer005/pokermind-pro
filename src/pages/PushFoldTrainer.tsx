@@ -5,6 +5,7 @@
 // "Proxima" segue o treino e o "Por que?" e opcional.
 // ============================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Zap, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button, Card, Badge, SectionHeader } from '@/components/ui'
@@ -60,8 +61,14 @@ const GRADE_UI: Record<PushFoldGrade, { label: string; variant: 'emerald' | 'gol
 export default function PushFoldTrainer() {
   const [bank, setBank] = useState<SpotBank | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [formatId, setFormatId] = useState('6max')
-  const [stackChoice, setStackChoice] = useState<number | null>(10)
+  // Vindo de um vazamento do Dashboard: formato e stack ja escolhidos e o treino comeca direto
+  const navState = useLocation().state as { formatId?: string; stack?: number; autoStart?: boolean } | null
+  const validFormat = FORMATOS.some((f) => f.id === navState?.formatId)
+  const [formatId, setFormatId] = useState(validFormat ? (navState?.formatId as string) : '6max')
+  const [stackChoice, setStackChoice] = useState<number | null>(
+    navState?.stack && STACKS.includes(navState.stack) ? navState.stack : 10,
+  )
+  const autoStarted = useRef(false)
   const [phase, setPhase] = useState<'setup' | 'play' | 'summary'>('setup')
   const [question, setQuestion] = useState<Question | null>(null)
   const [answered, setAnswered] = useState<Answered | null>(null)
@@ -110,6 +117,15 @@ export default function PushFoldTrainer() {
     setPhase('play')
     nextQuestion()
   }
+
+  // vindo de um vazamento: assim que os spots carregam, comeca o treino uma unica vez
+  useEffect(() => {
+    if (navState?.autoStart && bank && phase === 'setup' && !autoStarted.current) {
+      autoStarted.current = true
+      start()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bank])
 
   const answer = (choseAggressive: boolean) => {
     if (!question || answered) return

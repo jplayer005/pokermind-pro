@@ -47,7 +47,7 @@ export default function PokerTableView({ game, heroId, unit, showProfiles, hud, 
   const pot = potTotal(game)
 
   return (
-    <div className="relative w-full max-w-md mx-auto aspect-[5/6] sm:aspect-[16/10] sm:max-w-2xl select-none">
+    <div className="relative w-full max-w-md mx-auto aspect-[5/6] sm:aspect-[16/10] sm:max-w-[min(42rem,max(24rem,calc((100vh-220px)*1.6)))] select-none">
       {/* feltro */}
       <div className="absolute inset-[7%_5%] rounded-[50%] border-[6px] border-[#2a1d12] bg-[radial-gradient(ellipse_at_center,#1f6b46_0%,#155235_55%,#0e3b26_100%)] shadow-[inset_0_0_40px_rgba(0,0,0,0.55),0_8px_30px_rgba(0,0,0,0.5)]">
         <div className="absolute inset-[6%] rounded-[50%] border border-white/10" />

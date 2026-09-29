@@ -11,6 +11,7 @@ import {
 } from '@/types'
 import { ACHIEVEMENTS_DATA } from '@/data/ranges'
 import { levelFromXP } from '@/lib/utils'
+import { recordDecision, type LeakStat, type DecisionInput } from '@/engine/coach/leaks'
 
 // ------- STORE DE USUÁRIO -------
 interface UserStore {
@@ -761,6 +762,36 @@ export const useHandsStore = create<HandsStore>()(
     }),
     {
       name: 'pokermind-hands',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
+// ------- STORE DE VAZAMENTOS (coach) -------
+/** Uma entrada por contexto de decisao (no maximo algumas centenas, poucos KB): sincroniza inteiro. */
+interface LeakStore {
+  stats: Record<string, LeakStat>
+  /** Total de decisoes avaliadas pelo coach. */
+  decisions: number
+  record: (d: DecisionInput) => void
+  reset: () => void
+}
+
+export const useLeakStore = create<LeakStore>()(
+  persist(
+    (set) => ({
+      stats: {},
+      decisions: 0,
+      record: (d) =>
+        set((state) => ({
+          stats: { ...state.stats, [d.ctx]: recordDecision(state.stats[d.ctx], d) },
+          decisions: state.decisions + 1,
+        })),
+      reset: () => set({ stats: {}, decisions: 0 }),
+    }),
+    {
+      name: 'pokermind-leaks',
+      version: 1,
       storage: createJSONStorage(() => localStorage),
     }
   )

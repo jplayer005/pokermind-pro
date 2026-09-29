@@ -11,6 +11,7 @@ import {
   useSpacedRepetitionStore,
   usePostflopReviewStore,
   useHandsStore,
+  useLeakStore,
 } from '@/store'
 import LoginPage from '@/pages/LoginPage'
 import type { UserProfile, UserStats, Achievement, StudyGoal } from '@/types'
@@ -77,6 +78,16 @@ async function hydrateFromFirestore(uid: string, email?: string | null) {
       const localCount = useHandsStore.getState().savedHands.length
       if (cloudUpdatedAt > 0 && (savedHands?.length ?? 0) >= localCount) {
         useHandsStore.setState({ savedHands: savedHands ?? [] })
+      }
+    }
+
+    if (data.leaks) {
+      const { stats, decisions } = data.leaks as any
+      const cloudUpdatedAt = toTimestampMillis(data.leaks.updatedAt)
+      const localDecisions = useLeakStore.getState().decisions
+      // mesma regra dos outros stores: a nuvem so vence se tem pelo menos tanto quanto o local
+      if (cloudUpdatedAt > 0 && (decisions ?? 0) >= localDecisions) {
+        useLeakStore.setState({ stats: stats ?? {}, decisions: decisions ?? 0 })
       }
     }
 

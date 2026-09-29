@@ -10,9 +10,10 @@ import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
+import { playSfx } from '@/lib/sfx'
 import { pickProfiles } from '@/engine/bots/profiles'
 import { advanceAfterHand, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
-import { useHandsStore } from '@/store'
+import { useHandsStore, useLeakStore } from '@/store'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
 export type Speed = 'slow' | 'normal' | 'fast'
@@ -178,7 +179,9 @@ export function useTableEngine(opts: TableOptions) {
       const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng' })
       decisionsRef.current.push(d)
       setLastGrade({ d, key: Date.now() })
+      useLeakStore.getState().record({ ctx: d.ctx, tag: d.tag, grade: d.grade, evLossBB: d.evLossBB })
     }
+    playSfx(action.type === 'fold' ? 'fold' : action.type === 'check' ? 'deal' : 'chip')
     setGame(applyAction(g, action))
   }, [])
 
@@ -196,6 +199,20 @@ export function useTableEngine(opts: TableOptions) {
   }, [])
 
   const heroTurn = !game.over && game.toAct >= 0 && game.seats[game.toAct]?.isHero
+
+  // sons/vibracao (so tocam se a opcao Som estiver ligada nas configuracoes)
+  useEffect(() => {
+    if (heroTurn) playSfx('turn')
+  }, [heroTurn, game.street, game.handNumber])
+  useEffect(() => {
+    if (game.handNumber > 0 && !game.over) playSfx('deal')
+  }, [game.handNumber]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!game.over || !game.result || heroId < 0) return
+    const n = game.result.net[heroId]
+    if (n > 0) playSfx('win')
+    else if (n < 0) playSfx('lose')
+  }, [game.over, game.handNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour }
 }

@@ -22,6 +22,8 @@ export interface GradedDecision {
   /** Equity estimada (0..1) e a necessaria para pagar, quando calculadas. */
   equity?: number
   needed?: number
+  /** Situacao da decisao (ex.: PF_OPEN_CO), preenchida SEMPRE: base da taxa de erro por contexto. */
+  ctx: string
   /** Tag do vazamento (ex.: PF_OPEN_CO_TOO_TIGHT). Vazia quando a decisao foi boa. */
   tag: string
   explain: string[]

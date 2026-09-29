@@ -15,6 +15,7 @@ import {
   Zap
 } from 'lucide-react'
 import { Card, ProgressBar, StatCard, SectionHeader } from '@/components/ui'
+import LeakPanel from '@/components/coach/LeakPanel'
 import { useUserStore, useTrainingStore, usePostflopReviewStore } from '@/store'
 import type { PostflopSpotProfile } from '@/store'
 import { formatPercent, formatTime, formatNumber, xpToNextLevel } from '@/lib/utils'
@@ -699,6 +700,11 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+        </motion.div>
+
+        {/* ---- VAZAMENTOS (coach) ---- */}
+        <motion.div variants={STAGGER.item}>
+          <LeakPanel />
         </motion.div>
 
         {/* ---- CONQUISTAS RECENTES ---- */}

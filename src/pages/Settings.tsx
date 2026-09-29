@@ -187,7 +187,7 @@ export default function Settings() {
   const { profile, updateName, setGoalTarget, upgradePlan, resetUserStats } = useUserStore()
   const { resetProgress } = useTrainingStore()
   const { animationsEnabled, soundEnabled, defaultDifficulty, theme, setAnimations, setSound, setDifficulty, setTheme } = useUIStore()
-  const { user, guestMode, setGuestMode } = useAuthStore()
+  const { user, guestMode, setGuestMode, syncStatus, syncWarnings } = useAuthStore()
 
   const [showEditName, setShowEditName] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -250,6 +250,16 @@ export default function Settings() {
               >
                 <span className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse shrink-0" />
               </SettingRow>
+              {(syncStatus === 'error' || syncWarnings.length > 0) && (
+                <div className="mx-1 mb-2 rounded-xl border border-accent-gold/40 bg-accent-gold/10 p-3 space-y-1">
+                  <p className="text-xs font-bold text-accent-gold">
+                    {syncStatus === 'error' ? 'A última sincronização falhou' : 'Parte dos dados não está sincronizando'}
+                  </p>
+                  {syncWarnings.map((w) => (
+                    <p key={w} className="text-[11px] text-text-secondary">{w}</p>
+                  ))}
+                </div>
+              )}
               <SettingRow
                 icon={<LogOut size={15} />}
                 label="Sair da conta"

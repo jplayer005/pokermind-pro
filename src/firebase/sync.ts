@@ -11,6 +11,7 @@ export interface SyncPayload {
   spacedRepetition?: Record<string, unknown>
   postflopReview?: Record<string, unknown>
   hands?: Record<string, unknown>
+  leaks?: Record<string, unknown>
 }
 
 export async function uploadUserData(uid: string, data: SyncPayload) {
@@ -23,7 +24,7 @@ export async function uploadUserData(uid: string, data: SyncPayload) {
 }
 
 export async function downloadUserData(uid: string): Promise<Record<string, Record<string, unknown> | null>> {
-  const storeNames = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands']
+  const storeNames = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks']
   const entries = await Promise.all(
     storeNames.map(async (name) => {
       const snap = await getDoc(userDoc(uid, name))

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
-import { createGame, startHand, applyAction } from '../game/reducer'
+import { createGame, startHand, applyAction, legalActions } from '../game/reducer'
 import { gradeDecision } from '../coach/grade'
 import { loadSpots } from '../spots'
 import { mulberry32, parseCards } from '../cards'
@@ -142,6 +142,51 @@ describe('coach: pos-flop (estimativa)', () => {
     expect(d.equity).toBeLessThan(1)
     expect(d.explain.join(' ')).toContain('Equity estimada')
   })
+})
+
+describe('coach: soak com jogadas aleatorias do heroi', () => {
+  it('nunca quebra e sempre devolve nota coerente (cash, SNG, stacks curtos e fundos)', () => {
+    const rng = mulberry32(777)
+    const grades = new Set(['best', 'good', 'inaccuracy', 'mistake', 'blunder'])
+    let graded = 0
+    for (const [n, stackBB, sng] of [[6, 100, false], [9, 15, true], [2, 8, false], [6, 40, true]] as const) {
+      let g = createGame(
+        pickProfiles(n, rng).map((p, i) => ({ name: `B${i}`, profile: p, stack: stackBB * 2, isHero: i === 0 })),
+        cfg,
+        0,
+      )
+      for (let h = 0; h < 25; h++) {
+        g = { ...g, seats: g.seats.map((s) => ({ ...s, stack: s.stack < 2 ? stackBB * 2 : s.stack })) }
+        g = startHand(g, rng)
+        let guard = 0
+        while (!g.over) {
+          const seat = g.seats[g.toAct]
+          let action
+          if (seat.isHero) {
+            const la = legalActions(g)
+            const r = rng()
+            action = r < 0.3 ? { type: 'fold' as const }
+              : r < 0.65 ? (la.canCheck ? { type: 'check' as const } : { type: 'call' as const })
+              : la.canRaise ? { type: 'raise' as const, to: Math.round(la.minTo + rng() * (la.maxTo - la.minTo)) }
+              : (la.canCheck ? { type: 'check' as const } : { type: 'call' as const })
+            const d = gradeDecision(g, action, rng, { sng })
+            graded++
+            expect(grades.has(d.grade)).toBe(true)
+            expect(d.ctx.length).toBeGreaterThan(3)
+            expect(d.explain.length).toBeGreaterThan(0)
+            expect(d.evLossBB === null || d.evLossBB >= 0).toBe(true)
+            expect(d.tag === '').toBe(!(d.grade === 'inaccuracy' || d.grade === 'mistake' || d.grade === 'blunder'))
+            if (d.equity !== undefined) expect(d.equity >= 0 && d.equity <= 1).toBe(true)
+          } else {
+            action = decideBot(g, rng)
+          }
+          g = applyAction(g, action)
+          if (++guard > 200) throw new Error('mao nao termina')
+        }
+      }
+    }
+    expect(graded).toBeGreaterThan(100)
+  }, 240_000)
 })
 
 describe('HUD e perfis', () => {
