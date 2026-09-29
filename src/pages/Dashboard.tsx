@@ -219,6 +219,12 @@ const QUICK_LINKS = [
     color: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/20',
   },
   {
+    icon: '⚡', label: 'Push/Fold Nash + ICM', sub: 'Ranges resolvidos, 9 formatos, 2-25bb',
+    path: '/pushfold', navState: null,
+    color: 'from-cyan-500/10 to-cyan-600/5', border: 'border-cyan-500/20',
+    spanFull: true,
+  },
+  {
     icon: '🃏', label: 'Pós-Flop', sub: 'GTO board + decisões',
     path: '/postflop', navState: null,
     color: 'from-orange-500/10 to-orange-600/5', border: 'border-orange-500/20',

@@ -4,6 +4,7 @@ import AuthGate from '@/components/auth/AuthGate'
 import Dashboard from '@/pages/Dashboard'
 import PreflopTrainer from '@/pages/PreflopTrainer'
 import PostflopTrainer from '@/pages/PostflopTrainer'
+import PushFoldTrainer from '@/pages/PushFoldTrainer'
 import HandReplayer from '@/pages/HandReplayer'
 import Calculators from '@/pages/Calculators'
 import Study from '@/pages/Study'
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="preflop" element={<PreflopTrainer />} />
             <Route path="postflop" element={<PostflopTrainer />} />
+            <Route path="pushfold" element={<PushFoldTrainer />} />
             <Route path="replayer" element={<HandReplayer />} />
             <Route path="calculators" element={<Calculators />} />
             <Route path="study" element={<Study />} />

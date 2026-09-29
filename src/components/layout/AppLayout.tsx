@@ -3,16 +3,19 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Layers, Grid3x3, Video,
-  Calculator, BookOpen, User, Zap,
+  Calculator, BookOpen, User, Zap, Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
 import { App as CapApp } from '@capacitor/app'
 import { useSyncTrigger } from '@/hooks/useSyncTrigger'
 
-const NAV_ITEMS = [
+// desktopOnly: a barra inferior mobile já está cheia; esses itens ficam só no menu lateral
+// e são alcançados no celular pelos atalhos do Dashboard.
+const NAV_ITEMS: { path: string; icon: typeof Zap; label: string; desc: string; desktopOnly?: boolean }[] = [
   { path: '/dashboard',   icon: LayoutDashboard, label: 'Início',       desc: 'Dashboard e métricas' },
   { path: '/preflop',     icon: Layers,          label: 'Pré-Flop',     desc: 'Ranges e posições GTO' },
+  { path: '/pushfold',    icon: Target,          label: 'Push/Fold',    desc: 'Nash e ICM, 2 a 25bb', desktopOnly: true },
   { path: '/postflop',    icon: Grid3x3,         label: 'Pós-Flop',     desc: 'Board, mão e decisões' },
   { path: '/calculators', icon: Calculator,      label: 'Calculadoras', desc: 'EV, ICM e pot odds' },
   { path: '/study',       icon: BookOpen,        label: 'Estudos',      desc: 'Cursos e flashcards' },
@@ -165,7 +168,7 @@ export default function AppLayout() {
         {/* Bottom Nav — mobile only */}
         <nav className="lg:hidden glass-strong border-t border-border-subtle flex-shrink-0 z-20 bottom-nav-safe">
           <div className="flex items-center justify-around px-1 pt-2 pb-1">
-            {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
+            {NAV_ITEMS.filter((n) => !n.desktopOnly).map(({ path, icon: Icon, label }) => {
               const isActive = location.pathname === path ||
                 (path !== '/dashboard' && location.pathname.startsWith(path))
               return (
