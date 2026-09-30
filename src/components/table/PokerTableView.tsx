@@ -27,6 +27,10 @@ interface Props {
    * do heroi) caber. 0/ausente = sem limite.
    */
   availableHeight?: number
+  /** Board a desenhar (revelado por etapas no runout). Ausente = o board inteiro do jogo. */
+  board?: number[]
+  /** false enquanto o runout aparece: adia as etiquetas de vitoria ate o board completar. */
+  revealDone?: boolean
 }
 
 const RX = 43
@@ -74,12 +78,15 @@ const PROFILE_TONE: Record<string, string> = {
   station: 'border-accent-emerald/60',
 }
 
-export default function PokerTableView({ game, heroId, unit, showProfiles, hud, showHud, availableHeight = 0 }: Props) {
+export default function PokerTableView({
+  game, heroId, unit, showProfiles, hud, showHud, availableHeight = 0, board, revealDone = true,
+}: Props) {
+  const shownBoard = board ?? game.board
   const n = game.seats.length
   const bb = game.cfg.bb
   const pos = positionsBySeat(game)
   const revealAll = game.over && !!game.result?.showdown
-  const winners = new Map((game.result?.winners ?? []).map((w) => [w.seat, w]))
+  const winners = new Map((revealDone ? (game.result?.winners ?? []) : []).map((w) => [w.seat, w]))
   const pot = potTotal(game)
   const portrait = usePortrait()
 
@@ -120,8 +127,8 @@ export default function PokerTableView({ game, heroId, unit, showProfiles, hud, 
         </div>
         <div className="flex gap-1 items-center justify-center">
           {Array.from({ length: 5 }).map((_, i) =>
-            game.board[i] !== undefined ? (
-              <PlayingCard key={i} card={fromInt(game.board[i])} size="sm" animate delay={0.05} />
+            shownBoard[i] !== undefined ? (
+              <PlayingCard key={i} card={fromInt(shownBoard[i])} size="sm" animate delay={0.05} />
             ) : (
               <div key={i} className="w-9 h-14 rounded-md border border-dashed border-white/15 bg-black/15" />
             ),

@@ -82,6 +82,7 @@ export function createGame(players: PlayerInit[], cfg: GameConfig, button = 0): 
     over: true,
     gameOver: false,
     runout: false,
+    runoutFrom: -1,
     result: null,
     history: [],
   }
@@ -127,6 +128,7 @@ export function startHand(prev: GameState, rng: Rng = Math.random): GameState {
   s.history = []
   s.result = null
   s.runout = false
+  s.runoutFrom = -1
   s.street = 'preflop'
 
   const funded = s.seats.filter((x) => !x.out)
@@ -294,9 +296,14 @@ function advanceStreet(s: GameState) {
   s.lastRaiseSize = s.cfg.bb
   const next = STREETS[STREETS.indexOf(s.street) + 1]
   const count = next === 'flop' ? 3 : 1
+  const before = s.board.length
   for (let i = 0; i < count; i++) s.board.push(s.deck.pop() as number)
   s.street = next
-  if (s.seats.filter(canAct).length <= 1) s.runout = true
+  if (s.seats.filter(canAct).length <= 1) {
+    // ninguem mais pode apostar: as cartas restantes saem sem acao (a tela revela por etapas)
+    if (!s.runout) s.runoutFrom = before
+    s.runout = true
+  }
 }
 
 // ---------- fim da mao ----------
@@ -308,6 +315,7 @@ function finishHand(s: GameState): GameState {
   const contenders = s.seats.filter(inHand)
   const showdown = contenders.length > 1
   if (showdown) {
+    if (s.board.length < 5 && !s.runout) s.runoutFrom = s.board.length
     while (s.board.length < 5) s.board.push(s.deck.pop() as number)
     if (s.street !== 'river') s.runout = true
     s.street = 'river'
@@ -339,7 +347,7 @@ function finishHand(s: GameState): GameState {
 
   const net = s.seats.map((x) => x.stack - x.startStack)
   s.seats.forEach((x) => { x.bet = 0 })
-  s.result = { showdown, runout: s.runout, pots: award.pots, net, winners, scores, refund }
+  s.result = { showdown, runout: s.runout, runoutFrom: s.runoutFrom, pots: award.pots, net, winners, scores, refund }
   s.over = true
   s.toAct = -1
 

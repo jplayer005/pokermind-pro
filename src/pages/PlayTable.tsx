@@ -14,6 +14,7 @@ import HandReviewSheet from '@/components/table/HandReviewSheet'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import { useElementHeight } from '@/hooks/useElementHeight'
+import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
@@ -67,6 +68,8 @@ interface Config {
   showProfiles: boolean
   coach: CoachMode
   showHud: boolean
+  /** Segundos para agir; 0 = sem limite. */
+  timebank: number
 }
 
 interface Summary {
@@ -121,6 +124,7 @@ export default function PlayTable() {
   const [showProfiles, setShowProfiles] = useState(true)
   const [coach, setCoach] = useState<CoachMode>('live')
   const [showHud, setShowHud] = useState(true)
+  const [timebank, setTimebank] = useState(0)
 
   const selected = MODES.find((m) => m.id === modeId) as ModeDef
 
@@ -145,7 +149,7 @@ export default function PlayTable() {
           variant="primary"
           size="lg"
           className="w-full"
-          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
+          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })}
         >
           <Play size={16} /> Sentar na mesa
         </Button>
@@ -210,6 +214,22 @@ export default function PlayTable() {
         </div>
 
         <div>
+          <p className="text-xs text-text-muted mb-2 font-body">Tempo para agir</p>
+          <div className="flex gap-2">
+            {[0, 30, 15].map((t) => (
+              <Chip key={t} active={t === timebank} onClick={() => setTimebank(t)}>
+                {t === 0 ? 'Sem limite' : `${t}s`}
+              </Chip>
+            ))}
+          </div>
+          {timebank > 0 && (
+            <p className="text-[11px] text-text-muted mt-1.5">
+              Ao estourar o tempo o app dá check (ou fold, se houver aposta) e essa jogada não é avaliada.
+            </p>
+          )}
+        </div>
+
+        <div>
           <p className="text-xs text-text-muted mb-2 font-body">Coach</p>
           <div className="flex gap-2">
             {COACH_MODES.map((c) => (
@@ -246,6 +266,7 @@ function TableGame({
     const base = {
       speed: config.speed,
       autoNext: config.autoNext,
+      timebankSec: config.timebank,
       coach: config.coach,
       modeId: config.mode.id,
       modeLabel: config.mode.label,
@@ -277,7 +298,7 @@ function TableGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour } =
+  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft } =
     useTableEngine(options)
   // numero da mao aberta na revisao (null = fechada)
   const [reviewHand, setReviewHand] = useState<number | null>(null)
@@ -289,7 +310,9 @@ function TableGame({
   const bb = game.cfg.bb
   const hero = game.seats[heroId]
   const waitingFor = game.toAct >= 0 ? game.seats[game.toAct] : null
-  const result = game.over ? game.result : null
+  const runout = useRunoutBoard(game)
+  // durante o runout (all-in) o resultado espera o board terminar de sair
+  const result = game.over && runout.done ? game.result : null
   const heroNet = result ? result.net[heroId] : 0
   const netBB = session.net / bb
   const logGames = game.handNumber > 0 && !archive.some((a) => a.handNumber === game.handNumber) ? [game, ...archive] : archive
@@ -371,15 +394,31 @@ function TableGame({
           hud={hud}
           showHud={config.showHud}
           availableHeight={Math.max(0, areaH - 28)}
+          board={runout.board}
+          revealDone={runout.done}
         />
       </div>
 
       {/* Barra de acao FIXA, sempre na mesma posicao, colada acima do menu inferior:
           o aviso do coach e as acoes nunca mudam de lugar entre as ruas. */}
       <div
-        className="shrink-0 px-4 pt-1 pb-3 border-t border-border-subtle"
+        className="relative shrink-0 px-4 pt-1 pb-3 border-t border-border-subtle"
         style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
       >
+      {/* contagem regressiva do timebank: linha sobre a borda da barra (nao muda a altura dela) */}
+      {timeLeft !== null && config.timebank > 0 && (
+        <>
+          <div className="absolute -top-px inset-x-0 h-1 bg-white/10">
+            <div
+              className={cn('h-full transition-[width] duration-200', timeLeft <= 5 ? 'bg-accent-crimson' : 'bg-accent-gold')}
+              style={{ width: `${Math.min(100, (timeLeft / config.timebank) * 100)}%` }}
+            />
+          </div>
+          <span className={cn('absolute right-4 top-2 text-[10px] font-mono', timeLeft <= 5 ? 'text-accent-crimson' : 'text-text-muted')}>
+            {Math.ceil(timeLeft)}s
+          </span>
+        </>
+      )}
       {config.coach === 'live' && (
         <CoachToast
           last={lastGrade}

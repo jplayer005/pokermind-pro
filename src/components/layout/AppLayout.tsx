@@ -12,13 +12,13 @@ import { useSyncTrigger } from '@/hooks/useSyncTrigger'
 
 // desktopOnly: a barra inferior mobile já está cheia; esses itens ficam só no menu lateral
 // e são alcançados no celular pelos atalhos do Dashboard.
-const NAV_ITEMS: { path: string; icon: typeof Zap; label: string; desc: string; desktopOnly?: boolean }[] = [
+const NAV_ITEMS: { path: string; icon: typeof Zap; label: string; short?: string; desc: string; desktopOnly?: boolean }[] = [
   { path: '/dashboard',   icon: LayoutDashboard, label: 'Início',       desc: 'Dashboard e métricas' },
   { path: '/play',        icon: Spade,           label: 'Jogar',        desc: 'Mesa contra bots' },
   { path: '/preflop',     icon: Layers,          label: 'Pré-Flop',     desc: 'Ranges e posições GTO' },
   { path: '/pushfold',    icon: Target,          label: 'Push/Fold',    desc: 'Nash e ICM, 2 a 25bb', desktopOnly: true },
   { path: '/postflop',    icon: Grid3x3,         label: 'Pós-Flop',     desc: 'Board, mão e decisões' },
-  { path: '/calculators', icon: Calculator,      label: 'Calculadoras', desc: 'EV, ICM e pot odds' },
+  { path: '/calculators', icon: Calculator,      label: 'Calculadoras', short: 'Calc.', desc: 'EV, ICM e pot odds' },
   { path: '/study',       icon: BookOpen,        label: 'Estudos',      desc: 'Cursos e flashcards' },
   { path: '/profile',     icon: User,            label: 'Perfil',       desc: 'Stats e conquistas' },
 ]
@@ -169,7 +169,7 @@ export default function AppLayout() {
         {/* Bottom Nav — mobile only */}
         <nav className="lg:hidden glass-strong border-t border-border-subtle flex-shrink-0 z-20 bottom-nav-safe">
           <div className="flex items-center justify-around px-1 pt-2 pb-1">
-            {NAV_ITEMS.filter((n) => !n.desktopOnly).map(({ path, icon: Icon, label }) => {
+            {NAV_ITEMS.filter((n) => !n.desktopOnly).map(({ path, icon: Icon, label, short }) => {
               const isActive = location.pathname === path ||
                 (path !== '/dashboard' && location.pathname.startsWith(path))
               return (
@@ -199,7 +199,7 @@ export default function AppLayout() {
                     'text-[10px] font-body font-medium truncate',
                     isActive ? 'text-accent-gold' : 'text-text-muted'
                   )}>
-                    {label}
+                    {short ?? label}
                   </span>
                 </button>
               )

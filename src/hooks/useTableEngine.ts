@@ -3,7 +3,7 @@
 // coach, HUD, proxima mao e resultado da sessao. Nao tem regra de poker aqui.
 // ============================================================
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { applyAction, createGame, startHand } from '@/engine/game/reducer'
+import { applyAction, createGame, legalActions, startHand } from '@/engine/game/reducer'
 import { decideBot } from '@/engine/bots/policy'
 import { updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
@@ -11,6 +11,7 @@ import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
 import { playSfx } from '@/lib/sfx'
+import { runoutDurationMs } from '@/hooks/useRunoutBoard'
 import { pickProfiles } from '@/engine/bots/profiles'
 import { advanceAfterHand, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
 import { useHandsStore, useLeakStore } from '@/store'
@@ -34,6 +35,8 @@ export interface TableOptions {
   buyIn: number
   speed: Speed
   autoNext: boolean
+  /** Tempo para o heroi agir, em segundos. 0 = sem limite. Ao estourar: check se der, senao fold. */
+  timebankSec: number
   coach: CoachMode
   modeId: string
   modeLabel: string
@@ -167,14 +170,14 @@ export function useTableEngine(opts: TableOptions) {
   useEffect(() => {
     if (!game.over || game.gameOver || !opts.autoNext || game.handNumber === 0) return
     if (tour?.done) return
-    const t = setTimeout(nextHand, NEXT_HAND_DELAY[opts.speed])
+    const t = setTimeout(nextHand, NEXT_HAND_DELAY[opts.speed] + runoutDurationMs(game))
     return () => clearTimeout(t)
   }, [game, tour, opts.autoNext, opts.speed, nextHand])
 
-  const act = useCallback((action: Action) => {
+  const act = useCallback((action: Action, auto = false) => {
     const g = gameRef.current
     if (g.over || g.toAct < 0 || !g.seats[g.toAct].isHero) return
-    if (optsRef.current.coach !== 'off') {
+    if (optsRef.current.coach !== 'off' && !auto) {
       // a nota e calculada com o estado ANTES da jogada
       const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng' })
       decisionsRef.current.push(d)
@@ -200,6 +203,33 @@ export function useTableEngine(opts: TableOptions) {
 
   const heroTurn = !game.over && game.toAct >= 0 && game.seats[game.toAct]?.isHero
 
+  // Timebank (opcional): contagem regressiva a cada decisao do heroi; ao estourar, age sozinho
+  // (check se possivel, senao fold) e essa jogada NAO e avaliada pelo coach.
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  useEffect(() => {
+    const sec = opts.timebankSec
+    if (!heroTurn || !sec) {
+      setTimeLeft(null)
+      return
+    }
+    const total = sec * 1000
+    const start = Date.now()
+    setTimeLeft(sec)
+    const iv = setInterval(() => {
+      const left = Math.max(0, total - (Date.now() - start))
+      setTimeLeft(left / 1000)
+      if (left <= 0) {
+        clearInterval(iv)
+        const g = gameRef.current
+        if (g.over || g.toAct < 0 || !g.seats[g.toAct].isHero) return
+        act(legalActions(g).canCheck ? { type: 'check' } : { type: 'fold' }, true)
+      }
+    }, 200)
+    return () => clearInterval(iv)
+    // reinicia a cada nova decisao do heroi (mesma mao, nova rua/aumento)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroTurn, game.history.length, game.handNumber, opts.timebankSec])
+
   // sons/vibracao (so tocam se a opcao Som estiver ligada nas configuracoes)
   useEffect(() => {
     if (heroTurn) playSfx('turn')
@@ -214,7 +244,7 @@ export function useTableEngine(opts: TableOptions) {
     else if (n < 0) playSfx('lose')
   }, [game.over, game.handNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour }
+  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft }
 }
 
 /** Formata fichas como bb (ou fichas) para exibir. */

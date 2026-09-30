@@ -136,6 +136,37 @@ describe('showdown e potes', () => {
     expect(g.seats.map((x) => x.stack)).toEqual([300, 400, 300])
   })
 
+  it('runoutFrom marca com quantas cartas o runout comecou (0 pre-flop, 3 no flop, -1 sem runout)', () => {
+    const shoveAll = (s: GameState) => {
+      let g = s
+      while (!g.over) {
+        const la = legalActions(g)
+        g = applyAction(g, la.canRaise ? allInAction(g) : la.canCall ? { type: 'call' } : { type: 'check' })
+      }
+      return g
+    }
+    // all-in pre-flop
+    let g = startHand(createGame(players([200, 200]), cfg, 0), mulberry32(31))
+    g = shoveAll(rig(g, ['As Ah', 'Kd Kc'], '2c 7d 9h Js 3c'))
+    expect(g.result!.runout).toBe(true)
+    expect(g.result!.runoutFrom).toBe(0)
+
+    // all-in no flop: limp + check, depois shove
+    let h = startHand(createGame(players([200, 200]), cfg, 0), mulberry32(32))
+    h = rig(h, ['As Ah', 'Kd Kc'], '2c 7d 9h Js 3c')
+    h = act(h, { type: 'call' }, { type: 'check' })
+    expect(h.street).toBe('flop')
+    h = shoveAll(h)
+    expect(h.result!.runout).toBe(true)
+    expect(h.result!.runoutFrom).toBe(3)
+
+    // mao decidida por fold: sem runout
+    let f = startHand(createGame(players([200, 200, 200]), cfg, 0), mulberry32(33))
+    while (!f.over) f = applyAction(f, { type: 'fold' })
+    expect(f.result!.runout).toBe(false)
+    expect(f.result!.runoutFrom).toBe(-1)
+  })
+
   it('empate: pote dividido', () => {
     let g = startHand(createGame(players([100, 100]), cfg, 0), mulberry32(12))
     g = rig(g, ['2c 3d', '4h 5s'], 'Ac Kd Qh Js Tc') // sequencia no board

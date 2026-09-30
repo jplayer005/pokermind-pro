@@ -56,6 +56,8 @@ export interface PotLayer {
 export interface HandResult {
   showdown: boolean
   runout: boolean
+  /** Quantas cartas do board havia quando o runout comecou (todos all-in); -1 se nao houve. */
+  runoutFrom: number
   pots: (PotLayer & { winners: number[] })[]
   /** variacao de fichas por assento na mao (soma = 0). */
   net: number[]
@@ -84,6 +86,8 @@ export interface GameState {
   over: boolean // mao terminada (ou mesa sem jogadores suficientes)
   gameOver: boolean // menos de 2 jogadores com fichas
   runout: boolean
+  /** Idem HandResult.runoutFrom: usado para revelar o board por etapas. */
+  runoutFrom: number
   result: HandResult | null
   history: HandEvent[]
 }
