@@ -14,6 +14,8 @@ import TrainingTable from '@/components/poker/TrainingTable'
 import { useTrainingStore } from '@/store'
 import { randomCanonical } from '@/engine/cards'
 import { loadSpots, type Spot, type SpotBank } from '@/engine/spots'
+import { loadEquity169, type EquityTable } from '@/engine/equity169'
+import { huPushFoldEV, evLoss } from '@/engine/coach/ev'
 import {
   FORMATOS, STACKS, formatoPorId, spotAleatorio, posDisplay, type Formato, type SpotRef,
 } from '@/engine/spotCatalog'
@@ -61,6 +63,7 @@ const GRADE_UI: Record<PushFoldGrade, { label: string; variant: 'emerald' | 'gol
 
 export default function PushFoldTrainer() {
   const [bank, setBank] = useState<SpotBank | null>(null)
+  const [eqTable, setEqTable] = useState<EquityTable | null>(null)
   const [loadError, setLoadError] = useState(false)
   // Vindo de um vazamento do Dashboard: formato e stack ja escolhidos e o treino comeca direto
   const navState = useLocation().state as { formatId?: string; stack?: number; autoStart?: boolean } | null
@@ -84,6 +87,8 @@ export default function PushFoldTrainer() {
   useEffect(() => {
     let alive = true
     loadSpots().then((b) => alive && setBank(b)).catch(() => alive && setLoadError(true))
+    // tabela de equity so para o EV do heads-up; sem ela o drill segue so com a faixa
+    loadEquity169().then((t) => alive && setEqTable(t)).catch(() => undefined)
     return () => { alive = false }
   }, [])
 
@@ -272,6 +277,13 @@ export default function PushFoldTrainer() {
 
   // Barra fixa: FOLD/ALL-IN e "Proxima mao" sempre na mesma posicao, acima do menu inferior.
   // max-h evita que a explicacao aberta cubra a tela toda.
+  // EV em bb so no heads-up (chip-EV com os ranges do solver); nas outras mesas, so a faixa
+  const huEv =
+    answered && bank && eqTable && formato.id === 'hu'
+      ? huPushFoldEV(bank, eqTable, ref.acao, hand, stack)
+      : null
+  const huLoss = huEv && answered ? evLoss(huEv, answered.choseAggressive) : null
+  const sgn = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
   const answerBar = (
     <div className="max-h-[45vh] overflow-y-auto">
       {!answered ? (
@@ -288,6 +300,12 @@ export default function PushFoldTrainer() {
                 Você escolheu {answered.choseAggressive ? aggLabel : 'FOLD'}. O solver escolhe {aggLabel} em{' '}
                 {Math.round(answered.ev.freq * 100)}% das vezes com {hand}.
               </p>
+              {huEv && huLoss !== null && (
+                <p className="text-[11px] text-text-muted mt-1 font-mono">
+                  EV estimado: {ref.acao === 'push' ? 'all-in' : 'call'} {sgn(huEv.agg)} bb, fold {sgn(huEv.fold)} bb
+                  {huLoss >= 0.05 ? `, custo ≈ ${huLoss.toFixed(2)} bb` : ', sem custo'}
+                </p>
+              )}
             </div>
             <button
               onClick={() => setShowWhy((v) => !v)}

@@ -10,6 +10,7 @@ import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
+import { loadEquity169 } from '@/engine/equity169'
 import { playSfx } from '@/lib/sfx'
 import { runoutDurationMs } from '@/hooks/useRunoutBoard'
 import { pickProfiles } from '@/engine/bots/profiles'
@@ -86,7 +87,10 @@ export function useTableEngine(opts: TableOptions) {
 
   // o coach de stack curto usa os spots push/fold: carrega o chunk em segundo plano
   useEffect(() => {
-    if (opts.coach !== 'off') void loadSpots()
+    if (opts.coach !== 'off') {
+      void loadSpots()
+      void loadEquity169()
+    }
   }, [opts.coach])
 
   const nextHand = useCallback(() => {

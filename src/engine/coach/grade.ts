@@ -12,6 +12,8 @@ import type { Action, GameState, LegalActions } from '../game/types'
 import { combosUpToPercentile, preflopReference } from '../bots/policy'
 import { profileOf } from '../bots/profiles'
 import { peekSpots } from '../spots'
+import { peekEquity169 } from '../equity169'
+import { evLoss, huPushFoldEV } from './ev'
 import { formatoPorId, nearestStack, type SpotRef } from '../spotCatalog'
 import { gradePushFold, explainPushFold } from './pushfold'
 import { isLeak, type Grade, type GradedDecision, type Kind } from './types'
@@ -108,11 +110,25 @@ function gradePreflop(
       const fmtId = sngIcm ? (n === 6 ? 'sng6' : 'sng9') : prefix === 'HU' ? 'hu' : prefix
       const best: Kind = ev.best === 'aggressive' ? (ref.acao === 'push' ? 'raise' : 'call') : 'fold'
       const leak = isLeak(grade)
+      // Heads-up: alem da faixa, o EV em bb (ranges do solver + tabela de equity). Nas mesas
+      // maiores so ha a faixa: o EV multiway nao e calculado.
+      const table = prefix === 'HU' ? peekEquity169() : null
+      const hu = table ? huPushFoldEV(bank, table, ref.acao, hand, bucket) : null
+      const explain = explainPushFold(spot, ref, formatoPorId(fmtId), bucket, hand, ev)
+      if (hu) {
+        const sg = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
+        explain.splice(
+          explain.length - 1, 0,
+          `EV estimado (${bucket}bb, heads-up): ${ref.acao === 'push' ? 'all-in' : 'call'} ${sg(hu.agg)} bb, fold ${sg(hu.fold)} bb.`,
+        )
+      }
       return {
-        ...base, best, grade, evLossBB: null, approx: false,
+        ...base, best, grade,
+        evLossBB: hu ? round1(evLoss(hu, aggressive)) : null,
+        approx: !!hu,
         ctx: `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${fmtId}_${heroKey}_${bucket}BB`,
         tag: leak ? `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${heroKey}_${bucket}BB` : '',
-        explain: explainPushFold(spot, ref, formatoPorId(fmtId), bucket, hand, ev),
+        explain,
       }
     }
   }

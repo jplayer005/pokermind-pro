@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { createGame, startHand, applyAction, legalActions } from '../game/reducer'
 import { gradeDecision } from '../coach/grade'
 import { loadSpots } from '../spots'
+import { loadEquity169 } from '../equity169'
 import { mulberry32, parseCards } from '../cards'
 import { decideBot } from '../bots/policy'
 import { pickProfiles } from '../bots/profiles'
@@ -96,6 +97,30 @@ describe('coach: stack curto usa os spots push/fold', () => {
     const d = gradeDecision(heroFirstToAct(6, 'As Ah', 10), { type: 'fold' })
     expect(d.grade).toBe('blunder')
     expect(d.explain.join(' ')).toContain('Jogada correta: ALL-IN')
+  })
+})
+
+describe('coach: EV em bb no heads-up (push/fold)', () => {
+  it('shove de 72o com 10bb custa EV real; AA custa 0 e foldar AA custa muito', async () => {
+    await loadEquity169()
+    const bad = gradeDecision(heroFirstToAct(2, '7s 2d', 10), raise(20))
+    expect(bad.approx).toBe(true)
+    expect(bad.evLossBB).not.toBeNull()
+    expect(bad.evLossBB as number).toBeGreaterThan(0.2)
+    expect(bad.explain.join(' ')).toContain('EV estimado')
+
+    const good = gradeDecision(heroFirstToAct(2, 'As Ah', 10), raise(20))
+    expect(good.evLossBB).toBe(0)
+
+    const fold = gradeDecision(heroFirstToAct(2, 'As Ah', 10), { type: 'fold' })
+    expect(fold.evLossBB as number).toBeGreaterThan(2)
+  })
+
+  it('6-max continua so com a faixa (sem EV multiway)', async () => {
+    await loadEquity169()
+    const d = gradeDecision(heroFirstToAct(6, '7s 2d', 10), raise(20))
+    expect(d.evLossBB).toBeNull()
+    expect(d.approx).toBe(false)
   })
 })
 
