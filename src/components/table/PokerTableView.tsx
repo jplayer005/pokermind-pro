@@ -276,13 +276,20 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
         <div className={cn('font-mono font-bold text-accent-gold leading-tight', compact ? 'text-[10px]' : 'text-[11px]')}>
           {seat.out ? 'fora' : seat.allIn && seat.stack === 0 ? 'ALL-IN' : fmtChips(seat.stack, bb, unit)}
         </div>
-        {showProfile && !hero && (
-          <div className="text-[8px] text-text-muted leading-tight truncate">
-            {compact ? (PROFILE_SHORT[seat.profile] ?? profile.label.slice(0, 3).toUpperCase()) : profile.label}
-          </div>
+        {compact ? (
+          // compacto: uma unica linha, sigla do perfil + VPIP/PFR (ex.: "TAG 34/21"), sem crescer a placa
+          (() => {
+            const m = hudText.match(/V(\d+) P(\d+)/)
+            const tag = showProfile && !hero ? (PROFILE_SHORT[seat.profile] ?? profile.label.slice(0, 3).toUpperCase()) : ''
+            const line = [tag, m ? `${m[1]}/${m[2]}` : ''].filter(Boolean).join(' ')
+            return line ? <div className={cn('text-[8px] leading-tight truncate font-mono', m ? 'text-accent-blue' : 'text-text-muted')}>{line}</div> : null
+          })()
+        ) : (
+          <>
+            {showProfile && !hero && <div className="text-[8px] text-text-muted leading-tight truncate">{profile.label}</div>}
+            {hudText && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
+          </>
         )}
-        {/* HUD fica de fora no modo compacto: nao cabe em uma placa de 64px */}
-        {hudText && !compact && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
       </div>
 
       {/* ultima acao / vitoria */}
