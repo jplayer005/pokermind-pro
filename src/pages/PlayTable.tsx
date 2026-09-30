@@ -391,7 +391,7 @@ function TableGame({
       </div>
 
       {/* espaco flexivel: a mesa se ajusta ao que sobra (28px = folga dos assentos do topo) */}
-      <div ref={areaRef} className="relative flex-1 min-h-0 px-4 pt-5 flex items-center justify-center overflow-hidden">
+      <div ref={areaRef} className="relative flex-1 min-h-0 px-4 pt-5 flex items-end justify-center overflow-hidden">
         <PokerTableView
           game={game}
           heroId={heroId}
@@ -416,7 +416,7 @@ function TableGame({
       {/* Barra de acao FIXA, sempre na mesma posicao, colada acima do menu inferior:
           o aviso do coach e as acoes nunca mudam de lugar entre as ruas. */}
       <div
-        className="relative shrink-0 px-4 pt-1 pb-3 border-t border-border-subtle"
+        className="relative shrink-0 px-4 pt-3 pb-3 border-t border-border-subtle"
         style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
       >
       {/* contagem regressiva do timebank: linha sobre a borda da barra (nao muda a altura dela) */}
@@ -433,7 +433,7 @@ function TableGame({
           </span>
         </>
       )}
-      <div className="min-h-[56px]">
+      <div className="min-h-[54px]">
         {heroTurn ? (
           <ActionBar game={game} unit={unit} onAct={act} />
         ) : result ? (
