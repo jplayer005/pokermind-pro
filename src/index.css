@@ -51,8 +51,11 @@
   --border-default: #262a44;
 
   /* Safe area para mobile/WebView */
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* env() onde o WebView suporta; senao a variavel que o plugin SystemBars do Capacitor injeta.
+     Sem o fallback, no Android edge-to-edge (targetSdk 36) o menu inferior ficava sob os
+     botoes do sistema e escondia o rodape das telas. */
+  --safe-top: env(safe-area-inset-top, var(--safe-area-inset-top, 0px));
+  --safe-bottom: env(safe-area-inset-bottom, var(--safe-area-inset-bottom, 0px));
 }
 
 /* ============================================================

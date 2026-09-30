@@ -25,9 +25,13 @@ export default function ActionBar({ game, unit, onAct }: Props) {
   const seat = game.seats[game.toAct]
   const bb = game.cfg.bb
   const [amount, setAmount] = useState(la.minTo)
+  // O seletor de aposta comeca recolhido: so Fold / Check-Call / Aumentar ficam fixos na tela
+  // (barra baixa, a mesa nao fica coberta). Tocar em Aumentar abre o seletor; tocar de novo confirma.
+  const [sizing, setSizing] = useState(false)
 
   // reinicia o valor sugerido a cada nova decisao
   useEffect(() => {
+    setSizing(false)
     setAmount(la.minTo)
   }, [game.history.length, la.minTo])
 
@@ -59,7 +63,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
 
   return (
     <div className="space-y-2">
-      {la.canRaise && (
+      {la.canRaise && sizing && (
         <div className="rounded-xl bg-bg-elevated/80 border border-border-default p-2.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex gap-1.5 flex-wrap">
@@ -89,10 +93,19 @@ export default function ActionBar({ game, unit, onAct }: Props) {
                 All-in
               </button>
             </div>
-            <span className="text-sm font-mono font-bold text-accent-gold shrink-0">
-              {fmtChips(amount, bb, unit)}
-              {unit === 'bb' ? ' bb' : ''}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-sm font-mono font-bold text-accent-gold">
+                {fmtChips(amount, bb, unit)}
+                {unit === 'bb' ? ' bb' : ''}
+              </span>
+              <button
+                aria-label="Fechar seletor de aposta"
+                onClick={() => setSizing(false)}
+                className="text-[11px] text-text-muted underline underline-offset-2"
+              >
+                fechar
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -140,9 +153,9 @@ export default function ActionBar({ game, unit, onAct }: Props) {
           size="lg"
           variant="primary"
           disabled={!la.canRaise}
-          onClick={() => onAct({ type: 'raise', to: clamp(amount) })}
+          onClick={() => (sizing ? onAct({ type: 'raise', to: clamp(amount) }) : setSizing(true))}
         >
-          {isAllIn ? 'All-in' : raiseLabel}
+          {sizing ? (isAllIn ? 'All-in' : `Confirmar ${fmtChips(amount, bb, unit)}`) : raiseLabel}
         </Button>
       </div>
     </div>

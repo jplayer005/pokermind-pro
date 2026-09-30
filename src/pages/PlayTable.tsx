@@ -218,14 +218,20 @@ export default function PlayTable() {
           </Chip>
         </div>
 
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full"
-          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
+        {/* fixo no fim da area visivel: o botao de iniciar nunca fica escondido embaixo */}
+        <div
+          className="sticky bottom-0 -mx-4 -mb-4 px-4 pt-3 pb-4 rounded-b-2xl"
+          style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
         >
-          <Play size={16} /> Sentar na mesa
-        </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
+          >
+            <Play size={16} /> Sentar na mesa
+          </Button>
+        </div>
       </Card>
     </div></div>
   )
@@ -295,7 +301,7 @@ function TableGame({
   const tourText = tour && place ? `${place}º de ${tour.config.fieldSize}, prêmio ${prize.toFixed(2)} buy-ins` : undefined
 
   return (
-    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-3">
+    <div className="page-scroll"><div className="p-4 pb-0 max-w-2xl mx-auto space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Badge variant="gold">{config.mode.label}</Badge>
@@ -357,8 +363,15 @@ function TableGame({
         showProfiles={config.showProfiles}
         hud={hud}
         showHud={config.showHud}
+        reservePx={tour ? 424 : 344}
       />
 
+      {/* Barra fixa na base da area visivel (acima do menu inferior): o aviso do coach e as
+          acoes ficam sempre a vista, sem precisar rolar a cada rua. */}
+      <div
+        className="sticky bottom-0 z-10 -mx-4 px-4 pt-1 pb-3 border-t border-border-subtle"
+        style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
+      >
       {config.coach === 'live' && (
         <CoachToast
           last={lastGrade}
@@ -366,7 +379,7 @@ function TableGame({
         />
       )}
 
-      <div className="min-h-[120px]">
+      <div className="min-h-[64px]">
         {heroTurn ? (
           <ActionBar game={game} unit={unit} onAct={act} />
         ) : result ? (
@@ -437,6 +450,7 @@ function TableGame({
                 : 'Distribuindo...'}
           </div>
         )}
+      </div>
       </div>
 
       {logOpen && <HandLog games={logGames} unit={unit} onClose={() => setLogOpen(false)} />}

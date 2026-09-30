@@ -210,10 +210,16 @@ export default function PushFoldTrainer() {
               ))}
             </div>
           </div>
-          <Button variant="primary" size="lg" className="w-full" disabled={!bank} onClick={start}>
-            <Zap size={16} />
-            {loadError ? 'Falha ao carregar os spots' : bank ? 'Começar treino' : 'Carregando spots...'}
-          </Button>
+          {/* fixo no fim da area visivel: o botao de iniciar nunca fica escondido embaixo */}
+          <div
+            className="sticky bottom-0 -mx-4 -mb-4 px-4 pt-3 pb-4 rounded-b-2xl"
+            style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+          >
+            <Button variant="primary" size="lg" className="w-full" disabled={!bank} onClick={start}>
+              <Zap size={16} />
+              {loadError ? 'Falha ao carregar os spots' : bank ? 'Começar treino' : 'Carregando spots...'}
+            </Button>
+          </div>
         </Card>
       </div></div>
     )
@@ -291,6 +297,12 @@ export default function PushFoldTrainer() {
           : <>Ação chega em você no <span className="text-text-primary font-semibold">{posDisplay(ref.hero)}</span>, todos deram fold.</>}
       </p>
 
+      {/* Fixo na base da area visivel, acima do menu inferior: FOLD/ALL-IN e "Proxima mao"
+          ficam sempre a vista. max-h evita que a explicacao aberta cubra a tela toda. */}
+      <div
+        className="sticky bottom-0 z-10 -mx-4 px-4 pt-2 pb-3 max-h-[55vh] overflow-y-auto border-t border-border-subtle"
+        style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
+      >
       {!answered ? (
         <div className="grid grid-cols-2 gap-3">
           <Button size="lg" onClick={() => answer(false)}>FOLD</Button>
@@ -323,6 +335,7 @@ export default function PushFoldTrainer() {
           <Button variant="primary" size="lg" className="w-full" onClick={nextQuestion}>Próxima mão</Button>
         </div>
       )}
+      </div>
 
       <div className="text-center">
         <button onClick={finish} className="text-xs text-text-muted hover:text-text-primary underline underline-offset-2">
