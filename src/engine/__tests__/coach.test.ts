@@ -277,3 +277,46 @@ describe('store: teto de maos jogadas', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('coach: range do vilao por acoes (pos-flop)', () => {
+  function flopFacing(bet: number, preAction: 'limp' | 'open') {
+    let g = startHand(createGame(mk(2), cfg, 0), mulberry32(31))
+    const hero = g.toAct
+    g = rig(g, { [hero]: 'Ac Kh', [1 - hero]: 'Kd Qd' }, '2c 7d 9h Js 3c')
+    g.seats[hero].isHero = true
+    if (preAction === 'limp') {
+      g = applyAction(g, { type: 'call' })
+      g = applyAction(g, { type: 'check' })
+    } else {
+      g = applyAction(g, raise(5))
+      g = applyAction(g, { type: 'call' })
+    }
+    // quem age primeiro no flop aposta (HU: BB); garante o vilao como agressor
+    if (g.toAct === hero) g = applyAction(g, { type: 'check' })
+    g = applyAction(g, raise(bet))
+    return { g, hero }
+  }
+
+  it('monta um range nao vazio, mais estreito para aposta grande que para pequena', async () => {
+    const { buildVillainRange } = await import('../coach/range')
+    const small = buildVillainRange(flopFacing(2, 'limp').g)
+    const big = buildVillainRange(flopFacing(8, 'limp').g)
+    expect(small && big).toBeTruthy()
+    expect(small!.combos.length).toBeGreaterThan(big!.combos.length)
+    expect(big!.steps.join(' ')).toContain('apostou')
+  })
+
+  it('o range de quem abriu e mais estreito que o de quem so viu o flop', async () => {
+    const { buildVillainRange } = await import('../coach/range')
+    const limp = buildVillainRange(flopFacing(4, 'limp').g)
+    expect(limp).toBeTruthy()
+    expect(limp!.combos.length).toBeGreaterThan(0)
+  })
+
+  it('a explicacao cita como o range foi montado', () => {
+    const { g } = flopFacing(6, 'limp')
+    const d = gradeDecision(g, { type: 'call' }, mulberry32(5))
+    expect(d.explain.join(' ')).toMatch(/range suposto/)
+    expect(d.explain.join(' ')).toMatch(/apostou/)
+  })
+})

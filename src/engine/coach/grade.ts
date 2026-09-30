@@ -11,6 +11,7 @@ import { legalActions, positionsBySeat, potTotal } from '../game/reducer'
 import type { Action, GameState, LegalActions } from '../game/types'
 import { combosUpToPercentile, preflopReference } from '../bots/policy'
 import { profileOf } from '../bots/profiles'
+import { buildVillainRange, describeRange } from './range'
 import { peekSpots } from '../spots'
 import { peekEquity169 } from '../equity169'
 import { evLoss, huPushFoldEV } from './ev'
@@ -218,6 +219,7 @@ function explainPreflop(ref: ReturnType<typeof preflopReference>, hand: string, 
 
 // ---------------------------------------------------------------- pos-flop
 
+/** Reserva: largura por percentil, usada quando o range por acoes nao se forma. */
 export function estimateVillainWidth(state: GameState, facing: boolean, toCall: number, pot: number): number {
   const seat = state.seats[state.toAct]
   const lastRaise = [...state.history].reverse().find((e) => e.type === 'raise' && e.seat !== seat.id)
@@ -242,15 +244,19 @@ function gradePostflop(
   const S = state.street.toUpperCase()
   const foes = Math.max(1, state.seats.filter((x) => !x.out && !x.folded).length - 1)
 
+  const vr = buildVillainRange(state)
   const width = estimateVillainWidth(state, facing, toCall, pot)
-  const combos = combosUpToPercentile(width, [...base.hole, ...state.board])
+  const combos = vr ? vr.combos : combosUpToPercentile(width, [...base.hole, ...state.board])
   const raw = equityVsCombos(base.hole, combos, state.board, 700, rng).equity
   const eq = Math.pow(raw, 1 + 0.7 * (foes - 1))
   const needed = facing ? toCall / (pot + toCall) : 0
   const bbs = (c: number) => `${round1(c / bb)} bb`
 
+  const deadN = base.hole.length + state.board.length
   const ctx = [
-    `Equity estimada: ${pct(eq)} contra o top ${Math.round(width * 100)}% das mãos${foes > 1 ? ` (${foes} oponentes)` : ''}. Estimativa, não solver.`,
+    vr
+      ? `Equity estimada: ${pct(eq)} contra o range suposto do vilão${foes > 1 ? ` (${foes} oponentes)` : ''}. ${describeRange(vr, deadN)} Estimativa, não solver.`
+      : `Equity estimada: ${pct(eq)} contra o top ${Math.round(width * 100)}% das mãos${foes > 1 ? ` (${foes} oponentes)` : ''}. Estimativa, não solver.`,
   ]
 
   let best: Kind
