@@ -70,6 +70,9 @@ function usePortrait(): boolean {
   return portrait
 }
 
+/** Sigla de 3 letras do perfil, para o assento compacto. */
+const PROFILE_SHORT: Record<string, string> = { tag: 'TAG', nit: 'NIT', lag: 'LAG', maniac: 'MAN', station: 'CST' }
+
 const PROFILE_TONE: Record<string, string> = {
   tag: 'border-accent-blue/60',
   nit: 'border-slate-400/60',
@@ -139,7 +142,11 @@ export default function PokerTableView({
       {/* assentos */}
       {game.seats.map((seat) => {
         const k = (seat.id - heroId + n) % n
-        const { x, y } = seatXY(k, n, portrait)
+        const base = seatXY(k, n, portrait)
+        // mesa cheia na vertical: os dois vizinhos do heroi vao para as laterais para nao ficarem
+        // embaixo das cartas dele
+        const x = portrait && n >= 7 && (k === 1 || k === n - 1) ? (k === 1 ? 19 : 81) : base.x
+        const y = base.y
         const toward = (f: number) => ({ left: `${x + (50 - x) * f}%`, top: `${y + (50 - y) * f}%` })
         const isTurn = game.toAct === seat.id && !game.over
         const win = winners.get(seat.id)
@@ -187,6 +194,8 @@ export default function PokerTableView({
               hero={seat.id === heroId}
               hudText={showHud && seat.id !== heroId ? hudLine(hud?.[seat.id]) : ""}
               bottomAnchor={portrait && k === 0}
+              compact={portrait && n >= 7 && seat.id !== heroId}
+              heroSmall={portrait && n >= 7}
             />
           </div>
         )
@@ -211,16 +220,24 @@ interface SeatProps {
   hudText: string
   /** Ancora o assento na base da mesa (mesa vertical): a metade da altura do assento fica dentro da caixa. */
   bottomAnchor: boolean
+  /** Assento reduzido para mesas cheias (7+) no celular em pe: placa menor, sem HUD. */
+  compact: boolean
+  /** Cartas do heroi menores (mesa cheia na vertical): cabem na largura da placa. */
+  heroSmall: boolean
 }
 
-function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero, hudText, bottomAnchor }: SeatProps) {
+function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero, hudText, bottomAnchor, compact, heroSmall }: SeatProps) {
   const profile = profileOf(seat.profile)
   const faded = seat.out || seat.folded
   const cards = seat.cards
   const showCards = !!cards && !seat.out && (hero || reveal)
   return (
     <div
-      className={cn('absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[84px]', faded && 'opacity-45')}
+      className={cn(
+        'absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center',
+        compact ? 'w-[64px]' : 'w-[84px]',
+        faded && 'opacity-45',
+      )}
       style={{ left: `${x}%`, top: bottomAnchor ? "calc(100% - 50px)" : `${y}%` }}
     >
       {/* cartas */}
@@ -228,8 +245,8 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
         <div className={cn('flex z-0', hero ? 'gap-1 -mb-3' : '-space-x-2 -mb-1.5')}>
           {showCards ? (
             <>
-              <PlayingCard card={fromInt(cards[0])} size={hero ? 'md' : 'sm'} />
-              <PlayingCard card={fromInt(cards[1])} size={hero ? 'md' : 'sm'} />
+              <PlayingCard card={fromInt(cards[0])} size={hero ? (heroSmall ? 'sm' : 'md') : compact ? 'xs' : 'sm'} />
+              <PlayingCard card={fromInt(cards[1])} size={hero ? (heroSmall ? 'sm' : 'md') : compact ? 'xs' : 'sm'} />
             </>
           ) : (
             <>
@@ -243,25 +260,29 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
       {/* placa do jogador */}
       <div
         className={cn(
-          'relative z-10 w-full rounded-xl border bg-[#0d1424]/95 px-1.5 py-1 text-center transition-shadow',
+          'relative z-10 w-full border bg-[#0d1424]/95 text-center transition-shadow',
+          compact ? 'rounded-lg px-1 py-0.5' : 'rounded-xl px-1.5 py-1',
           hero ? 'border-accent-gold/70' : showProfile ? PROFILE_TONE[seat.profile] ?? 'border-white/15' : 'border-white/15',
           isTurn && 'ring-2 ring-accent-gold shadow-[0_0_14px_rgba(245,197,66,0.55)]',
           win && 'ring-2 ring-accent-emerald shadow-[0_0_16px_rgba(52,211,153,0.6)]',
         )}
       >
-        <div className="flex items-center justify-center gap-1">
-          <span className="text-[10px] font-body font-semibold text-text-primary truncate max-w-[52px]">
+        <div className="flex items-center justify-center gap-0.5">
+          <span className={cn('font-body font-semibold text-text-primary truncate', compact ? 'text-[9px] max-w-[34px]' : 'text-[10px] max-w-[52px]')}>
             {hero ? 'Você' : seat.name}
           </span>
-          {label && <span className="text-[8px] font-mono text-text-muted">{label}</span>}
+          {label && <span className={cn('font-mono text-text-muted', compact ? 'text-[7px]' : 'text-[8px]')}>{label}</span>}
         </div>
-        <div className="text-[11px] font-mono font-bold text-accent-gold leading-tight">
+        <div className={cn('font-mono font-bold text-accent-gold leading-tight', compact ? 'text-[10px]' : 'text-[11px]')}>
           {seat.out ? 'fora' : seat.allIn && seat.stack === 0 ? 'ALL-IN' : fmtChips(seat.stack, bb, unit)}
         </div>
         {showProfile && !hero && (
-          <div className="text-[8px] text-text-muted leading-tight truncate">{profile.label}</div>
+          <div className="text-[8px] text-text-muted leading-tight truncate">
+            {compact ? (PROFILE_SHORT[seat.profile] ?? profile.label.slice(0, 3).toUpperCase()) : profile.label}
+          </div>
         )}
-        {hudText && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
+        {/* HUD fica de fora no modo compacto: nao cabe em uma placa de 64px */}
+        {hudText && !compact && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
       </div>
 
       {/* ultima acao / vitoria */}

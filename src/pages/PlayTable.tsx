@@ -391,7 +391,7 @@ function TableGame({
       </div>
 
       {/* espaco flexivel: a mesa se ajusta ao que sobra (28px = folga dos assentos do topo) */}
-      <div ref={areaRef} className="flex-1 min-h-0 px-4 pt-5 flex items-center justify-center overflow-hidden">
+      <div ref={areaRef} className="relative flex-1 min-h-0 px-4 pt-5 flex items-center justify-center overflow-hidden">
         <PokerTableView
           game={game}
           heroId={heroId}
@@ -403,6 +403,14 @@ function TableGame({
           board={runout.board}
           revealDone={runout.done}
         />
+        {/* aviso do coach flutuando no topo da mesa: nao reserva altura entre a mesa e os botoes */}
+        {config.coach === 'live' && (
+          <CoachToast
+            overlay
+            last={lastGrade}
+            onOpen={() => lastGrade && setReviewHand(lastGrade.d.handNumber)}
+          />
+        )}
       </div>
 
       {/* Barra de acao FIXA, sempre na mesma posicao, colada acima do menu inferior:
@@ -425,14 +433,7 @@ function TableGame({
           </span>
         </>
       )}
-      {config.coach === 'live' && (
-        <CoachToast
-          last={lastGrade}
-          onOpen={() => lastGrade && setReviewHand(lastGrade.d.handNumber)}
-        />
-      )}
-
-      <div className="min-h-[64px]">
+      <div className="min-h-[56px]">
         {heroTurn ? (
           <ActionBar game={game} unit={unit} onAct={act} />
         ) : result ? (

@@ -20,11 +20,16 @@ export const KIND_LABEL: Record<Kind, string> = { fold: 'Fold', check: 'Check', 
 interface Props {
   last: LastGrade | null
   onOpen: () => void
+  /**
+   * true = flutua sobre o container pai (que deve ser `relative`), sem reservar altura:
+   * o aviso nao empurra nem afasta a mesa dos botoes de acao.
+   */
+  overlay?: boolean
 }
 
 const SHOW_MS = 3600
 
-export default function CoachToast({ last, onOpen }: Props) {
+export default function CoachToast({ last, onOpen, overlay = false }: Props) {
   const [visible, setVisible] = useState<GradedDecision | null>(null)
 
   useEffect(() => {
@@ -36,14 +41,23 @@ export default function CoachToast({ last, onOpen }: Props) {
 
   const ui = visible ? GRADE_UI[visible.grade] : null
   return (
-    <div className="h-10 flex items-center justify-center" aria-live="polite">
+    <div
+      className={cn(
+        'flex items-center justify-center',
+        // overlay: sem altura reservada; o container so recebe toque no proprio aviso
+        overlay ? 'absolute top-1 inset-x-2 z-20 pointer-events-none' : 'h-10',
+      )}
+      aria-live="polite"
+    >
       {visible && ui && (
         <button
           onClick={onOpen}
           className={cn(
             'max-w-full flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px]',
+            overlay && 'pointer-events-auto shadow-lg backdrop-blur',
             ui.box,
           )}
+          style={overlay ? { backgroundColor: 'rgb(var(--c-bg-base) / 0.88)' } : undefined}
         >
           <span className={cn('font-display font-bold', ui.text)}>{ui.label}</span>
           {visible.took !== visible.best && (
