@@ -94,6 +94,9 @@ export function mttConfig(fieldSize: number): TournamentConfig {
 export const paidPlaces = (t: TournamentState) => t.config.payouts.length
 export const inTheMoney = (t: TournamentState) => t.remaining <= paidPlaces(t)
 export const isBubble = (t: TournamentState) => t.remaining === paidPlaces(t) + 1
+/** MTT na bolha com campo fora da mesa: joga-se mao a mao (todas as mesas dao uma mao por vez). */
+export const isHandForHand = (t: TournamentState) =>
+  t.config.kind === 'mtt' && t.heroPlace === null && t.offTable > 0 && isBubble(t)
 export const currentLevel = (t: TournamentState) => levelAt(t.levelIdx)
 /** Premio em buy-ins para uma colocacao (0 fora do dinheiro). */
 export const prizeInBuyIns = (config: TournamentConfig, place: number) =>
@@ -173,6 +176,35 @@ export function advanceAfterHand(
 
   // 1) eliminados na mesa: menor stack inicial fica com a pior colocacao
   const busted = seats.filter((s) => !s.out && s.stack <= 0).sort((a, b) => a.startStack - b.startStack)
+  // Mao a mao (bolha do MTT): no maximo UMA eliminacao no campo por mao, e ela concorre com as da
+  // mesa do heroi pela pior colocacao: quem tinha menos fichas cai primeiro (o campo simulado
+  // usa a metade do stack medio fora da mesa como proxy, ja que quem quebra costuma ser curto).
+  const hfh = isHandForHand(t)
+  let hfhOffBust = false
+  if (hfh) {
+    const chipsAtTable = seats.reduce((a, s) => a + s.stack, 0)
+    const avgOff = (t.totalChips - chipsAtTable) / t.offTable
+    const p = bustProbability(avgOff / game.cfg.bb)
+    for (let i = 0; i < t.offTable && !hfhOffBust; i++) if (rng() < p) hfhOffBust = true
+    hfhOffBust = hfhOffBust && t.offTable > 1
+    if (hfhOffBust) {
+      const proxy = avgOff / 2
+      const worse = busted.filter((b) => b.startStack < proxy)
+      const better = busted.filter((b) => b.startStack >= proxy)
+      const takeOut = (s: (typeof busted)[number]) => {
+        finishes.push({ name: s.name, place: remaining, isHero: s.isHero })
+        if (s.isHero) heroPlace = remaining
+        remaining--
+        s.out = true
+      }
+      worse.forEach(takeOut)
+      finishes.push({ name: `Jogador ${nextId++}`, place: remaining, isHero: false })
+      remaining--
+      offTable--
+      better.forEach(takeOut)
+      busted.length = 0
+    }
+  }
   for (const s of busted) {
     finishes.push({ name: s.name, place: remaining, isHero: s.isHero })
     if (s.isHero) heroPlace = remaining
@@ -185,7 +217,7 @@ export function advanceAfterHand(
   const lvl = levelAt(nextLevelIdx)
 
   // 2) campo simulado (so MTT): eliminacoes fora da mesa
-  if (t.config.kind === 'mtt' && offTable > 0 && heroPlace === null) {
+  if (t.config.kind === 'mtt' && offTable > 0 && heroPlace === null && !hfh) {
     const avgOff = (t.totalChips - tableChips) / offTable
     const p = bustProbability(avgOff / game.cfg.bb)
     let k = 0

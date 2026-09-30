@@ -7,7 +7,7 @@
 import { Badge } from '@/components/ui'
 import { calculateICM } from '@/lib/poker'
 import {
-  currentLevel, inTheMoney, isBubble, paidPlaces, type TournamentState,
+  currentLevel, inTheMoney, isBubble, isHandForHand, paidPlaces, type TournamentState,
 } from '@/engine/game/tournament'
 import type { GameState } from '@/engine/game/types'
 
@@ -34,6 +34,7 @@ export default function TournamentHeader({ tour, game, heroId }: Props) {
   const lvl = currentLevel(tour)
   const left = Math.max(0, tour.config.handsPerLevel - tour.handsInLevel)
   const bubble = isBubble(tour)
+  const handForHand = isHandForHand(tour)
   const money = inTheMoney(tour)
   const icm = heroIcmPct(tour, game, heroId)
 
@@ -61,7 +62,7 @@ export default function TournamentHeader({ tour, game, heroId }: Props) {
             Restam <span className="text-text-primary font-bold">{tour.remaining}</span>/{tour.config.fieldSize}
           </span>
           <span className="whitespace-nowrap text-[11px] text-text-muted">paga {paidPlaces(tour)}</span>
-          {bubble && <Badge variant="crimson">Bolha</Badge>}
+          {bubble && <Badge variant="crimson">{handForHand ? "Bolha, mão a mão" : "Bolha"}</Badge>}
           {money && !tour.done && <Badge variant="emerald">No dinheiro</Badge>}
         </div>
         {icm !== null && (

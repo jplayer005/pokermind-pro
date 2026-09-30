@@ -5,7 +5,7 @@ import { pickProfiles } from '../bots/profiles'
 import { mulberry32 } from '../cards'
 import {
   levelAt, mttPayouts, sngConfig, mttConfig, startTournament, advanceAfterHand, bustProbability,
-  inTheMoney, isBubble, prizeInBuyIns, paidPlaces, type TournamentState, type TournamentConfig,
+  inTheMoney, isBubble, isHandForHand, prizeInBuyIns, paidPlaces, type TournamentState, type TournamentConfig,
 } from '../game/tournament'
 import type { GameState } from '../game/types'
 
@@ -138,4 +138,39 @@ describe('torneios simulados ponta a ponta', () => {
       expect(places.every((p) => p >= 1 && p <= 27)).toBe(true)
     }
   }, 400_000)
+})
+
+describe('bolha mao a mao (MTT)', () => {
+  const start = () => {
+    const cfg = mttConfig(27)
+    const s = startTournament(cfg, 'Voce', () => 'tag', mulberry32(5))
+    const game = startHand(createGame(s.players, s.cfg, 0), mulberry32(6))
+    return { s, game }
+  }
+
+  it('so vale no MTT, na bolha, com campo fora da mesa', () => {
+    const { s } = start()
+    const bubbleT = { ...s.tour, remaining: paidPlaces(s.tour) + 1 }
+    expect(isHandForHand(bubbleT)).toBe(true)
+    expect(isHandForHand({ ...bubbleT, remaining: paidPlaces(s.tour) + 2 })).toBe(false)
+    expect(isHandForHand({ ...bubbleT, offTable: 0 })).toBe(false)
+    expect(isHandForHand({ ...bubbleT, config: sngConfig(6) })).toBe(false)
+  })
+
+  it('no maximo uma eliminacao por mao no campo; ninguem perde duas maos sem quebrar', () => {
+    const { s, game } = start()
+    const rng = mulberry32(99)
+    let tour: TournamentState = { ...s.tour, remaining: paidPlaces(s.tour) + 1 }
+    let drops = 0
+    for (let i = 0; i < 400 && isHandForHand(tour); i++) {
+      const before = tour.remaining
+      const r = advanceAfterHand(tour, { ...game, seats: game.seats.map((x) => ({ ...x })) }, rng)
+      expect(before - r.tour.remaining).toBeLessThanOrEqual(1)
+      if (r.tour.remaining < before) drops++
+      tour = r.tour
+    }
+    expect(drops).toBeGreaterThan(0)
+    expect(isBubble(tour)).toBe(false)
+    expect(new Set(tour.finishes.map((f) => f.place)).size).toBe(tour.finishes.length)
+  })
 })
