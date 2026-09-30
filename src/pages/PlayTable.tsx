@@ -329,9 +329,39 @@ function TableGame({
   return (
     <div className="h-full flex flex-col max-w-2xl mx-auto w-full">
       <div className="shrink-0 px-4 pt-3 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Badge variant="gold">{config.mode.label}</Badge>
+      {/* Linha 1: titulo (encolhe e trunca) + botoes de icone (largura fixa, nunca encolhem).
+          Linha 2: informacoes em etiquetas que QUEBRAM de linha em vez de se sobrepor. */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <span className="min-w-0 truncate text-[11px] font-mono font-bold text-accent-gold bg-accent-gold/15 border border-accent-gold/30 rounded-full px-2.5 py-0.5">
+            {config.mode.label}
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => setUnit((u) => (u === 'bb' ? 'chips' : 'bb'))}
+              className="h-8 min-w-[2.75rem] px-2 rounded-lg text-[11px] font-mono border border-border-default text-text-secondary"
+            >
+              {unit === 'bb' ? 'bb' : 'fichas'}
+            </button>
+            <button
+              aria-label="Histórico"
+              onClick={() => setLogOpen(true)}
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-border-default text-text-secondary"
+            >
+              <History size={14} />
+            </button>
+            <button
+              aria-label="Sair da mesa"
+              onClick={() =>
+                onExit({ label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText })
+              }
+              className="h-8 w-8 flex items-center justify-center rounded-lg border border-border-default text-text-secondary"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
           {!tour && (
             <>
               <Badge>0,5/1</Badge>
@@ -340,14 +370,12 @@ function TableGame({
               </Badge>
             </>
           )}
-          <span className="text-[11px] text-text-muted font-mono hidden sm:inline">{session.hands} mãos</span>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge>{session.hands} {session.hands === 1 ? 'mão' : 'mãos'}</Badge>
           {coachOn && latest && (
             <button
               onClick={() => setReviewHand(latest.game.handNumber)}
               className={cn(
-                'px-2 py-1 rounded-lg text-[11px] font-mono border',
+                'ml-auto px-2 h-6 rounded-full text-[10px] font-mono font-bold border whitespace-nowrap',
                 latestLeaks > 0
                   ? 'border-accent-gold/50 bg-accent-gold/10 text-accent-gold'
                   : 'border-border-default text-text-secondary',
@@ -356,28 +384,6 @@ function TableGame({
               Revisar #{latest.game.handNumber}{latestLeaks > 0 ? ` (${latestLeaks})` : ''}
             </button>
           )}
-          <button
-            onClick={() => setUnit((u) => (u === 'bb' ? 'chips' : 'bb'))}
-            className="px-2 py-1 rounded-lg text-[11px] font-mono border border-border-default text-text-secondary"
-          >
-            {unit === 'bb' ? 'bb' : 'fichas'}
-          </button>
-          <button
-            aria-label="Histórico"
-            onClick={() => setLogOpen(true)}
-            className="p-1.5 rounded-lg border border-border-default text-text-secondary"
-          >
-            <History size={14} />
-          </button>
-          <button
-            aria-label="Sair da mesa"
-            onClick={() =>
-              onExit({ label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText })
-            }
-            className="p-1.5 rounded-lg border border-border-default text-text-secondary"
-          >
-            <LogOut size={14} />
-          </button>
         </div>
       </div>
 

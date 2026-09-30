@@ -1,6 +1,8 @@
 // ============================================================
 // Cabecalho do torneio: nivel, blinds/ante, jogadores restantes, bolha/dinheiro,
 // proximo nivel e (no Sit&Go) a equity ICM do heroi.
+// Layout defensivo: o que pode crescer (blinds) trunca; o que e curto nao encolhe;
+// as etiquetas quebram de linha em vez de se sobrepor (testado de 320 a 390 px).
 // ============================================================
 import { Badge } from '@/components/ui'
 import { calculateICM } from '@/lib/poker'
@@ -37,26 +39,33 @@ export default function TournamentHeader({ tour, game, heroId }: Props) {
 
   return (
     <div className="rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
+      {/* linha 1: nivel + blinds (trunca se ficar muito grande) | proximo nivel (fixo) */}
+      <div className="flex items-center justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Badge variant="gold">Nível {tour.levelIdx + 1}</Badge>
-          <span className="text-xs font-mono text-text-primary truncate">
-            {n(lvl.sb)}/{n(lvl.bb)}{lvl.ante > 0 ? ` ante ${n(lvl.ante)}` : ''}
+          <span className="shrink-0">
+            <Badge variant="gold">Nível {tour.levelIdx + 1}</Badge>
+          </span>
+          <span className="min-w-0 truncate text-xs font-mono text-text-primary">
+            {n(lvl.sb)}/{n(lvl.bb)}
+            {lvl.ante > 0 ? ` a${n(lvl.ante)}` : ''}
           </span>
         </div>
-        <span className="text-[11px] text-text-muted font-mono shrink-0">próx. nível em {left} {left === 1 ? 'mão' : 'mãos'}</span>
+        <span className="shrink-0 whitespace-nowrap text-[10px] text-text-muted font-mono">
+          próx. nível: {left} {left === 1 ? 'mão' : 'mãos'}
+        </span>
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-text-secondary font-mono">
+      {/* linha 2: restantes/premiados + etiquetas (quebram de linha) | ICM (fixo) */}
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+          <span className="whitespace-nowrap text-xs text-text-secondary font-mono">
             Restam <span className="text-text-primary font-bold">{tour.remaining}</span>/{tour.config.fieldSize}
           </span>
-          <span className="text-[11px] text-text-muted">paga {paidPlaces(tour)}</span>
+          <span className="whitespace-nowrap text-[11px] text-text-muted">paga {paidPlaces(tour)}</span>
           {bubble && <Badge variant="crimson">Bolha</Badge>}
           {money && !tour.done && <Badge variant="emerald">No dinheiro</Badge>}
         </div>
         {icm !== null && (
-          <span className="text-[11px] text-text-secondary font-mono">ICM {icm.toFixed(1)}%</span>
+          <span className="shrink-0 whitespace-nowrap text-[11px] text-text-secondary font-mono">ICM {icm.toFixed(1)}%</span>
         )}
       </div>
     </div>
