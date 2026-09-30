@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom'
 import { Zap, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button, Card, Badge, SectionHeader } from '@/components/ui'
+import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import TrainingTable from '@/components/poker/TrainingTable'
 import { useTrainingStore } from '@/store'
 import { randomCanonical } from '@/engine/cards'
@@ -161,7 +162,14 @@ export default function PushFoldTrainer() {
   // ---------- SETUP ----------
   if (phase === 'setup') {
     return (
-      <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
+      <BottomBarScreen
+        bar={
+          <Button variant="primary" size="lg" className="w-full" disabled={!bank} onClick={start}>
+            <Zap size={16} />
+            {loadError ? 'Falha ao carregar os spots' : bank ? 'Começar treino' : 'Carregando spots...'}
+          </Button>
+        }
+      >
         <SectionHeader
           title="Push/Fold"
           subtitle="Ranges de all-in e call resolvidos (Nash e ICM), de 2 a 25bb. Funciona offline."
@@ -210,18 +218,8 @@ export default function PushFoldTrainer() {
               ))}
             </div>
           </div>
-          {/* fixo no fim da area visivel: o botao de iniciar nunca fica escondido embaixo */}
-          <div
-            className="sticky bottom-0 -mx-4 -mb-4 px-4 pt-3 pb-4 rounded-b-2xl"
-            style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
-          >
-            <Button variant="primary" size="lg" className="w-full" disabled={!bank} onClick={start}>
-              <Zap size={16} />
-              {loadError ? 'Falha ao carregar os spots' : bank ? 'Começar treino' : 'Carregando spots...'}
-            </Button>
-          </div>
         </Card>
-      </div></div>
+      </BottomBarScreen>
     )
   }
 
@@ -229,7 +227,13 @@ export default function PushFoldTrainer() {
   if (phase === 'summary') {
     const misses = history.filter((h) => h.ev.grade === 'mistake')
     return (
-      <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
+      <BottomBarScreen
+        bar={
+          <Button variant="primary" size="lg" className="w-full" onClick={() => setPhase('setup')}>
+            <RotateCcw size={14} /> Novo treino
+          </Button>
+        }
+      >
         <SectionHeader title="Resumo da sessão" subtitle={`${formato.label}${stackChoice ? `, ${stackChoice}bb` : ', stacks variados'}`} />
         <Card className="p-4 text-center">
           <p className="text-4xl font-display font-bold text-text-primary">{accuracy}%</p>
@@ -251,10 +255,7 @@ export default function PushFoldTrainer() {
             </ul>
           </Card>
         )}
-        <Button variant="primary" className="w-full" onClick={() => setPhase('setup')}>
-          <RotateCcw size={14} /> Novo treino
-        </Button>
-      </div></div>
+      </BottomBarScreen>
     )
   }
 
@@ -269,40 +270,10 @@ export default function PushFoldTrainer() {
     : undefined
   const ui = answered ? GRADE_UI[answered.ev.grade] : null
 
-  return (
-    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="gold">{formato.label}</Badge>
-          <Badge variant="neutral">{stack}bb</Badge>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-text-secondary font-mono">
-          <span>{hits}/{total}</span>
-          <span className={cn(streak >= 5 && 'text-accent-gold')}>sequência {streak}</span>
-        </div>
-      </div>
-
-      <TrainingTable
-        heroPosition={tableHero}
-        villainPosition={tableVillain}
-        handNotation={hand}
-        stackDepth={stack}
-        tableFormat={formato.tableFormat}
-        compact
-      />
-
-      <p className="text-center text-sm text-text-secondary font-body">
-        {isCall
-          ? <>O <span className="text-text-primary font-semibold">{posDisplay(ref.shover)}</span> deu ALL-IN. Você está no <span className="text-text-primary font-semibold">{posDisplay(ref.hero)}</span>.</>
-          : <>Ação chega em você no <span className="text-text-primary font-semibold">{posDisplay(ref.hero)}</span>, todos deram fold.</>}
-      </p>
-
-      {/* Fixo na base da area visivel, acima do menu inferior: FOLD/ALL-IN e "Proxima mao"
-          ficam sempre a vista. max-h evita que a explicacao aberta cubra a tela toda. */}
-      <div
-        className="sticky bottom-0 z-10 -mx-4 px-4 pt-2 pb-3 max-h-[55vh] overflow-y-auto border-t border-border-subtle"
-        style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
-      >
+  // Barra fixa: FOLD/ALL-IN e "Proxima mao" sempre na mesma posicao, acima do menu inferior.
+  // max-h evita que a explicacao aberta cubra a tela toda.
+  const answerBar = (
+    <div className="max-h-[45vh] overflow-y-auto">
       {!answered ? (
         <div className="grid grid-cols-2 gap-3">
           <Button size="lg" onClick={() => answer(false)}>FOLD</Button>
@@ -335,13 +306,42 @@ export default function PushFoldTrainer() {
           <Button variant="primary" size="lg" className="w-full" onClick={nextQuestion}>Próxima mão</Button>
         </div>
       )}
+    </div>
+  )
+
+  return (
+    <BottomBarScreen bar={answerBar}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant="gold">{formato.label}</Badge>
+          <Badge variant="neutral">{stack}bb</Badge>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-text-secondary font-mono">
+          <span>{hits}/{total}</span>
+          <span className={cn(streak >= 5 && 'text-accent-gold')}>sequência {streak}</span>
+        </div>
       </div>
+
+      <TrainingTable
+        heroPosition={tableHero}
+        villainPosition={tableVillain}
+        handNotation={hand}
+        stackDepth={stack}
+        tableFormat={formato.tableFormat}
+        compact
+      />
+
+      <p className="text-center text-sm text-text-secondary font-body">
+        {isCall
+          ? <>O <span className="text-text-primary font-semibold">{posDisplay(ref.shover)}</span> deu ALL-IN. Você está no <span className="text-text-primary font-semibold">{posDisplay(ref.hero)}</span>.</>
+          : <>Ação chega em você no <span className="text-text-primary font-semibold">{posDisplay(ref.hero)}</span>, todos deram fold.</>}
+      </p>
 
       <div className="text-center">
         <button onClick={finish} className="text-xs text-text-muted hover:text-text-primary underline underline-offset-2">
           Encerrar e ver resumo
         </button>
       </div>
-    </div></div>
+    </BottomBarScreen>
   )
 }

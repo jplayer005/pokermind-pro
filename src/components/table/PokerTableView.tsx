@@ -22,11 +22,11 @@ interface Props {
   hud?: Record<number, HudStats>
   showHud?: boolean
   /**
-   * Altura (px) que o resto da tela ocupa (cabecalho, menu, barra de acoes...). Na mesa vertical a
-   * largura e limitada por (altura da tela - reserva) para a mesa inteira, com a mao do heroi,
-   * caber acima da barra de acoes em telefones baixos.
+   * Altura (px) medida do espaco que sobra para a mesa (entre o cabecalho e a barra de acoes).
+   * A largura da mesa e limitada por ela, mantendo a proporcao, para a mesa inteira (com a mao
+   * do heroi) caber. 0/ausente = sem limite.
    */
-  reservePx?: number
+  availableHeight?: number
 }
 
 const RX = 43
@@ -74,7 +74,7 @@ const PROFILE_TONE: Record<string, string> = {
   station: 'border-accent-emerald/60',
 }
 
-export default function PokerTableView({ game, heroId, unit, showProfiles, hud, showHud, reservePx = 344 }: Props) {
+export default function PokerTableView({ game, heroId, unit, showProfiles, hud, showHud, availableHeight = 0 }: Props) {
   const n = game.seats.length
   const bb = game.cfg.bb
   const pos = positionsBySeat(game)
@@ -87,11 +87,14 @@ export default function PokerTableView({ game, heroId, unit, showProfiles, hud, 
     <div
       className={cn(
         'relative w-full mx-auto select-none',
-        portrait
-          ? 'max-w-md aspect-[5/6]'
-          : 'aspect-[16/10] max-w-[min(42rem,max(24rem,calc((100vh-220px)*1.6)))]',
+        portrait ? 'max-w-md aspect-[5/6]' : 'max-w-2xl aspect-[16/10]',
       )}
-      style={portrait ? { width: `min(100%, max(15rem, calc((100vh - ${reservePx}px) * 0.8333)))` } : undefined}
+      style={
+        availableHeight > 0
+          ? // proporcao da mesa: vertical 5:6 (altura = 1,2 x largura), horizontal 16:10
+            { width: `min(100%, ${Math.round(availableHeight * (portrait ? 5 / 6 : 1.6))}px)` }
+          : undefined
+      }
     >
       {/* feltro: capsula vertical no celular em pe, elipse horizontal nas telas largas */}
       <div

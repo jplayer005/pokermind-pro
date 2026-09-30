@@ -2,7 +2,7 @@
 // POKERMIND PRO - MESA JOGAVEL (treino contra bots)
 // Cash 6-max, 9-max e Heads-up; Sit&Go (6 e 9) e MTT (campo simulado).
 // ============================================================
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { History, LogOut, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button, Card, Badge, SectionHeader } from '@/components/ui'
@@ -12,6 +12,8 @@ import HandLog from '@/components/table/HandLog'
 import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
 import TournamentHeader from '@/components/table/TournamentHeader'
+import BottomBarScreen from '@/components/layout/BottomBarScreen'
+import { useElementHeight } from '@/hooks/useElementHeight'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
@@ -137,7 +139,18 @@ export default function PlayTable() {
   }
 
   return (
-    <div className="page-scroll"><div className="p-4 pb-28 max-w-2xl mx-auto space-y-4">
+    <BottomBarScreen
+      bar={
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
+        >
+          <Play size={16} /> Sentar na mesa
+        </Button>
+      }
+    >
       <SectionHeader title="Jogar" subtitle="Mesa completa contra bots com estilos diferentes. Treine leitura e decisões em jogo." />
 
       {last && (
@@ -218,22 +231,8 @@ export default function PlayTable() {
           </Chip>
         </div>
 
-        {/* fixo no fim da area visivel: o botao de iniciar nunca fica escondido embaixo */}
-        <div
-          className="sticky bottom-0 -mx-4 -mb-4 px-4 pt-3 pb-4 rounded-b-2xl"
-          style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
-        >
-          <Button
-            variant="primary"
-            size="lg"
-            className="w-full"
-            onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud })}
-          >
-            <Play size={16} /> Sentar na mesa
-          </Button>
-        </div>
       </Card>
-    </div></div>
+    </BottomBarScreen>
   )
 }
 
@@ -300,8 +299,13 @@ function TableGame({
   const prize = tour && place ? prizeInBuyIns(tour.config, place) : 0
   const tourText = tour && place ? `${place}º de ${tour.config.fieldSize}, prêmio ${prize.toFixed(2)} buy-ins` : undefined
 
+  // A mesa ocupa o espaco que sobra entre o cabecalho e a barra de acoes (fixa na base).
+  const areaRef = useRef<HTMLDivElement>(null)
+  const areaH = useElementHeight(areaRef)
+
   return (
-    <div className="page-scroll"><div className="p-4 pb-0 max-w-2xl mx-auto space-y-3">
+    <div className="h-full flex flex-col max-w-2xl mx-auto w-full">
+      <div className="shrink-0 px-4 pt-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Badge variant="gold">{config.mode.label}</Badge>
@@ -355,21 +359,25 @@ function TableGame({
       </div>
 
       {tour && <TournamentHeader tour={tour} game={game} heroId={heroId} />}
+      </div>
 
-      <PokerTableView
-        game={game}
-        heroId={heroId}
-        unit={unit}
-        showProfiles={config.showProfiles}
-        hud={hud}
-        showHud={config.showHud}
-        reservePx={tour ? 424 : 344}
-      />
+      {/* espaco flexivel: a mesa se ajusta ao que sobra (28px = folga dos assentos do topo) */}
+      <div ref={areaRef} className="flex-1 min-h-0 px-4 pt-5 flex items-center justify-center overflow-hidden">
+        <PokerTableView
+          game={game}
+          heroId={heroId}
+          unit={unit}
+          showProfiles={config.showProfiles}
+          hud={hud}
+          showHud={config.showHud}
+          availableHeight={Math.max(0, areaH - 28)}
+        />
+      </div>
 
-      {/* Barra fixa na base da area visivel (acima do menu inferior): o aviso do coach e as
-          acoes ficam sempre a vista, sem precisar rolar a cada rua. */}
+      {/* Barra de acao FIXA, sempre na mesma posicao, colada acima do menu inferior:
+          o aviso do coach e as acoes nunca mudam de lugar entre as ruas. */}
       <div
-        className="sticky bottom-0 z-10 -mx-4 px-4 pt-1 pb-3 border-t border-border-subtle"
+        className="shrink-0 px-4 pt-1 pb-3 border-t border-border-subtle"
         style={{ backgroundColor: 'rgb(var(--c-bg-base))' }}
       >
       {config.coach === 'live' && (
@@ -461,6 +469,6 @@ function TableGame({
           onSave={(flag) => saveReview(openReview.game.handNumber, flag)}
         />
       )}
-    </div></div>
+    </div>
   )
 }

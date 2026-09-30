@@ -5,6 +5,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
+import PlayingCard from '@/components/poker/PlayingCard'
+import { fromInt } from '@/engine/cards'
 import { legalActions, potTotal } from '@/engine/game/reducer'
 import type { Action, GameState } from '@/engine/game/types'
 import { fmtChips } from '@/hooks/useTableEngine'
@@ -62,9 +64,23 @@ export default function ActionBar({ game, unit, onAct }: Props) {
   const raiseLabel = opening ? 'Apostar' : 'Aumentar'
 
   return (
-    <div className="space-y-2">
+    <div className="relative">
       {la.canRaise && sizing && (
-        <div className="rounded-xl bg-bg-elevated/80 border border-border-default p-2.5 space-y-2">
+        // Flutua POR CIMA da mesa (nao empurra o layout): a barra e a mesa mantem o tamanho.
+        // As cartas do heroi aparecem aqui porque o painel cobre a parte de baixo da mesa.
+        <div
+          className="absolute bottom-full inset-x-0 mb-2 z-20 rounded-xl border border-border-default p-2.5 space-y-2 shadow-xl"
+          style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+        >
+          <div className="flex items-center gap-2">
+            {seat.cards && (
+              <div className="flex gap-1 shrink-0">
+                <PlayingCard card={fromInt(seat.cards[0])} size="xs" />
+                <PlayingCard card={fromInt(seat.cards[1])} size="xs" />
+              </div>
+            )}
+            <span className="text-[11px] text-text-muted">sua mão</span>
+          </div>
           <div className="flex items-center justify-between gap-2">
             <div className="flex gap-1.5 flex-wrap">
               {presets.map((p) => (
@@ -152,6 +168,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
         <Button
           size="lg"
           variant="primary"
+          className="whitespace-nowrap px-2"
           disabled={!la.canRaise}
           onClick={() => (sizing ? onAct({ type: 'raise', to: clamp(amount) }) : setSizing(true))}
         >
