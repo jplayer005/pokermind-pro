@@ -64,6 +64,11 @@ export interface LastGrade {
   key: number
 }
 
+/** Premios para o ICM do coach: so quando todos os jogadores vivos estao na mesa (SNG, mesa final). */
+function icmPayoutsOf(t: TournamentState | null): number[] | undefined {
+  return t && t.offTable === 0 && !t.done ? t.config.payouts : undefined
+}
+
 export function useTableEngine(opts: TableOptions) {
   const [game, setGame] = useState<GameState>(() => createGame(opts.players, opts.cfg, 0))
   const [archive, setArchive] = useState<GameState[]>([])
@@ -187,7 +192,7 @@ export function useTableEngine(opts: TableOptions) {
     if (g.over || g.toAct < 0 || !g.seats[g.toAct].isHero) return
     if (optsRef.current.coach !== 'off' && !auto) {
       // a nota e calculada com o estado ANTES da jogada
-      const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng' })
+      const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng', icmPayouts: icmPayoutsOf(tourRef.current) })
       decisionsRef.current.push(d)
       setLastGrade({ d, key: Date.now() })
       useLeakStore.getState().record({ ctx: d.ctx, tag: d.tag, grade: d.grade, evLossBB: d.evLossBB })

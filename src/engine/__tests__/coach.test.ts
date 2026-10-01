@@ -116,9 +116,21 @@ describe('coach: EV em bb no heads-up (push/fold)', () => {
     expect(fold.evLossBB as number).toBeGreaterThan(2)
   })
 
-  it('6-max continua so com a faixa (sem EV multiway)', async () => {
+  it('6-max: EV em fichas multiway; ICM so quando a mesa toda esta no torneio', async () => {
     await loadEquity169()
-    const d = gradeDecision(heroFirstToAct(6, '7s 2d', 10), raise(20))
+    const bad = gradeDecision(heroFirstToAct(6, '7s 2d', 10), raise(20))
+    expect(bad.approx).toBe(true)
+    expect(bad.evLossBB as number).toBeGreaterThan(0)
+    expect(bad.explain.join(' ')).toContain('EV estimado')
+    expect(bad.explain.join(' ')).not.toContain('Valor ICM')
+
+    const sng = gradeDecision(heroFirstToAct(6, '7s 2d', 10), raise(20), Math.random, { sng: true, icmPayouts: [0.65, 0.35] })
+    expect(sng.explain.join(' ')).toContain('Valor ICM')
+  })
+
+  it('6-max abaixo de 7bb continua so com a faixa (o modelo multiway nao vale)', async () => {
+    await loadEquity169()
+    const d = gradeDecision(heroFirstToAct(6, '7s 2d', 5), raise(10))
     expect(d.evLossBB).toBeNull()
     expect(d.approx).toBe(false)
   })

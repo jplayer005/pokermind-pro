@@ -14,7 +14,7 @@ import { profileOf } from '../bots/profiles'
 import { buildVillainRange, describeRange } from './range'
 import { peekSpots } from '../spots'
 import { peekEquity169 } from '../equity169'
-import { evLoss, huPushFoldEV } from './ev'
+import { evLoss, huPushFoldEV, mwCallEV, mwPushEV, type MwEV, type MwPlayer } from './ev'
 import { formatoPorId, nearestStack, type SpotRef } from '../spotCatalog'
 import { gradePushFold, explainPushFold } from './pushfold'
 import { isLeak, type Grade, type GradedDecision, type Kind } from './types'
@@ -39,6 +39,8 @@ function gradeByLoss(lossBB: number): Grade {
 export interface GradeContext {
   /** Sit&Go: usa os spots ICM do solver (sng6_top2 / sng9_top2) quando a mesa esta cheia. */
   sng?: boolean
+  /** Premios (fracoes, 1o primeiro) quando todos os jogadores vivos estao na mesa (SNG, mesa final): liga o EV em ICM. */
+  icmPayouts?: number[]
 }
 
 export function gradeDecision(
@@ -112,10 +114,28 @@ function gradePreflop(
       const best: Kind = ev.best === 'aggressive' ? (ref.acao === 'push' ? 'raise' : 'call') : 'fold'
       const leak = isLeak(grade)
       // Heads-up: alem da faixa, o EV em bb (ranges do solver + tabela de equity). Nas mesas
-      // maiores so ha a faixa: o EV multiway nao e calculado.
+      // maiores, EV multiway (so o primeiro que paga) e, com a mesa toda no torneio, valor ICM.
       const table = prefix === 'HU' ? peekEquity169() : null
       const hu = table ? huPushFoldEV(bank, table, ref.acao, hand, bucket) : null
+      // abaixo de 7bb o solver empurra com maos largas e o modelo (so o 1o que paga) deixa de concordar com ele
+      const tableAll = prefix !== 'HU' && bucket >= 7 ? peekEquity169() : null
+      const mw = tableAll ? multiwayEV(state, seat.id, ref, prefix, bucket, hand, tableAll, bank, ctx.icmPayouts) : null
       const explain = explainPushFold(spot, ref, formatoPorId(fmtId), bucket, hand, ev)
+      if (mw) {
+        const bbv = (c: number) => `${c >= 0 ? '+' : ''}${(c / bb).toFixed(2)}`
+        const verb = ref.acao === 'push' ? 'all-in' : 'call'
+        explain.splice(
+          explain.length - 1, 0,
+          `EV estimado (${bucket}bb, ${n} jogadores, só o primeiro que paga): ${verb} ${bbv(mw.chip.agg)} bb, fold ${bbv(mw.chip.fold)} bb.`,
+        )
+        if (mw.icm) {
+          explain.splice(
+            explain.length - 1, 0,
+            `Valor ICM (stacks reais): ${verb} ${mw.icm.agg.toFixed(1)}% do prêmio, fold ${mw.icm.fold.toFixed(1)}%.`,
+          )
+        }
+      }
+      const chipBB = mw ? { agg: mw.chip.agg / bb, fold: mw.chip.fold / bb, delta: mw.chip.delta / bb } : null
       if (hu) {
         const sg = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`
         explain.splice(
@@ -125,8 +145,8 @@ function gradePreflop(
       }
       return {
         ...base, best, grade,
-        evLossBB: hu ? round1(evLoss(hu, aggressive)) : null,
-        approx: !!hu,
+        evLossBB: hu ? round1(evLoss(hu, aggressive)) : chipBB ? round1(evLoss(chipBB, aggressive)) : null,
+        approx: !!hu || !!mw,
         ctx: `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${fmtId}_${heroKey}_${bucket}BB`,
         tag: leak ? `PF_${ref.acao === 'push' ? 'PUSH' : 'CALLSHOVE'}_${heroKey}_${bucket}BB` : '',
         explain,
@@ -163,6 +183,38 @@ function gradePreflop(
     tag: leak ? `PF_${sit}_${ref.pos}_${dir}` : '',
     explain: explainPreflop(ref, hand, base.took, grade),
   }
+}
+
+/** Monta os jogadores (so quem segue vivo na mesa) e calcula o EV multiway; null se faltar spot. */
+function multiwayEV(
+  state: GameState, heroId: number, ref: SpotRef, prefix: string, bucket: number, hand: string,
+  table: NonNullable<ReturnType<typeof peekEquity169>>,
+  bank: NonNullable<ReturnType<typeof peekSpots>>,
+  payouts?: number[],
+): MwEV | null {
+  const pos = positionsBySeat(state)
+  const live = state.seats.filter((x) => !x.out)
+  const key = (id: number) => {
+    const l = pos[id] ?? ''
+    return POS_KEY[l] ?? l
+  }
+  const players: MwPlayer[] = live.map((x) => ({ key: key(x.id), total: x.stack + x.total, committed: x.total, folded: x.folded }))
+  const hero = live.findIndex((x) => x.id === heroId)
+  if (hero < 0) return null
+  const common = { bank, table, prefix, bucket, hand, hero, players, payouts }
+  if (ref.acao === 'push') {
+    const order = ['UTG', 'UTG1', 'MP', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']
+    const hi = order.indexOf(players[hero].key)
+    const behind = live
+      .map((x, i) => ({ x, i }))
+      .filter(({ x, i }) => !x.folded && i !== hero && order.indexOf(players[i].key) > hi)
+      .sort((a, b) => order.indexOf(players[a.i].key) - order.indexOf(players[b.i].key))
+      .map(({ i }) => i)
+    return mwPushEV({ ...common, behind })
+  }
+  const lastRaise = [...state.history].reverse().find((e) => e.type === 'raise' && e.street === 'preflop')
+  const shover = lastRaise ? live.findIndex((x) => x.id === lastRaise.seat) : -1
+  return shover < 0 ? null : mwCallEV({ ...common, shover })
 }
 
 function explainPreflop(ref: ReturnType<typeof preflopReference>, hand: string, took: Kind, grade: Grade): string[] {
