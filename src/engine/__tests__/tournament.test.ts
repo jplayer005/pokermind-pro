@@ -174,3 +174,44 @@ describe('bolha mao a mao (MTT)', () => {
     expect(new Set(tour.finishes.map((f) => f.place)).size).toBe(tour.finishes.length)
   })
 })
+
+describe('ICM dos bots perto do dinheiro', () => {
+  const mtt = (remaining: number) =>
+    ({ config: mttConfig(27), remaining, offTable: 10, heroPlace: null }) as TournamentState
+
+  it('so ha pressao perto do dinheiro; zero longe dele e depois de entrar', async () => {
+    const { icmPressure } = await import('../game/tournament')
+    const paid = paidPlaces(mtt(10))
+    expect(icmPressure(mtt(paid + 12), 1500, 1500)).toBe(0)
+    expect(icmPressure(mtt(paid), 1500, 1500)).toBe(0)
+    expect(icmPressure(mtt(paid + 1), 1500, 1500)).toBeGreaterThan(icmPressure(mtt(paid + 3), 1500, 1500))
+  })
+
+  it('stack medio aperta, chip leader pressiona, stack minimo fica desesperado', async () => {
+    const { icmPressure } = await import('../game/tournament')
+    const t = mtt(paidPlaces(mtt(10)) + 1)
+    const mid = icmPressure(t, 1500, 1500)
+    expect(icmPressure(t, 4000, 1500)).toBeLessThan(mid)
+    expect(icmPressure(t, 400, 1500)).toBeLessThan(0)
+    expect(mid).toBeGreaterThan(0)
+  })
+
+  it('o mesmo bot abre menos maos e empurra menos com pressao positiva, mais com negativa', () => {
+    const rate = (icm: number, stackBB: number) => {
+      const rng = mulberry32(1234)
+      let played = 0
+      for (let h = 0; h < 400; h++) {
+        const g = startHand(
+          createGame(Array.from({ length: 6 }, (_, i) => ({ name: `B${i}`, profile: 'lag', stack: stackBB * 2 })), { sb: 1, bb: 2, ante: 0 }, 0),
+          rng,
+        )
+        const a = decideBot(g, rng, icm)
+        if (a.type === 'raise' || a.type === 'call') played++
+      }
+      return played
+    }
+    expect(rate(0.6, 40)).toBeLessThan(rate(0, 40))
+    expect(rate(0.6, 10)).toBeLessThan(rate(0, 10))
+    expect(rate(-0.3, 10)).toBeGreaterThanOrEqual(rate(0, 10))
+  })
+})

@@ -14,7 +14,7 @@ import { loadEquity169 } from '@/engine/equity169'
 import { playSfx } from '@/lib/sfx'
 import { runoutDurationMs } from '@/hooks/useRunoutBoard'
 import { pickProfiles } from '@/engine/bots/profiles'
-import { advanceAfterHand, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
+import { advanceAfterHand, icmPressure, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
 import { useHandsStore, useLeakStore } from '@/store'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
@@ -130,7 +130,11 @@ export function useTableEngine(opts: TableOptions) {
     const t = setTimeout(() => {
       const g = gameRef.current
       if (g.over || g.toAct !== seat.id) return
-      setGame(applyAction(g, decideBot(g)))
+      const t = tourRef.current
+      const live = g.seats.filter((x) => !x.out)
+      const avg = live.length ? live.reduce((a, x) => a + x.stack + x.bet, 0) / live.length : 0
+      const pressure = t ? icmPressure(t, seat.stack + seat.bet, avg) : 0
+      setGame(applyAction(g, decideBot(g, Math.random, pressure)))
     }, lo + Math.random() * (hi - lo))
     return () => clearTimeout(t)
   }, [game, opts.speed])

@@ -81,17 +81,18 @@ function formatFor(n: number): TableFormat {
 
 // ---------- decisao ----------
 
-export function decideBot(state: GameState, rng: Rng = Math.random): Action {
+/** `icm`: pressao de ICM do torneio (ver tournament.icmPressure); 0 fora de torneio ou longe do dinheiro. */
+export function decideBot(state: GameState, rng: Rng = Math.random, icm = 0): Action {
   const seat = state.seats[state.toAct]
   const la = legalActions(state)
   const profile = profileOf(seat.profile)
   if (!seat.cards) return checkOrFold(la)
   return state.street === 'preflop'
-    ? decidePreflop(state, la, profile, rng)
-    : decidePostflop(state, la, profile, rng)
+    ? decidePreflop(state, la, profile, rng, icm)
+    : decidePostflop(state, la, profile, rng, icm)
 }
 
-function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng): Action {
+function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number): Action {
   const seat = state.seats[state.toAct]
   const cards = seat.cards as [number, number]
   const hand = canonical169(cards[0], cards[1])
@@ -102,10 +103,12 @@ function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: R
   const n = state.seats.filter((x) => !x.out).length
   const pos = (positionsBySeat(state)[seat.id] ?? 'BTN') as Position
   const facing = la.canCall
+  // ICM: >0 aperta os ranges de entrada, <0 (stack desesperado) alarga o push
+  const tight = Math.min(1.3, Math.max(0.4, 1 - icm))
 
   // Stack curto: empurra ou foge
   if (stackBB <= 12) {
-    const pushPct = Math.min(0.55, (0.18 + (12 - stackBB) * 0.03) * p.looseness)
+    const pushPct = Math.min(0.6, (0.18 + (12 - stackBB) * 0.03) * p.looseness * tight)
     if (raises === 0 && pct <= pushPct && la.canRaise) return { type: 'raise', to: la.maxTo }
     if (raises > 0 && pct <= pushPct * 0.5) return la.canRaise ? { type: 'raise', to: la.maxTo } : { type: 'call' }
     return checkOrFold(la)
@@ -115,16 +118,18 @@ function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: R
   if (raises === 0) {
     if (!facing) {
       // opcao do BB
-      return pct <= 0.08 * p.looseness && rng() < 0.8 * Math.min(1, p.aggression)
+      return pct <= 0.08 * p.looseness * tight && rng() < 0.8 * Math.min(1, p.aggression)
         ? raiseTo(la, bb * 3.5, seat.stack, seat.bet)
         : { type: 'check' }
     }
     const open = getOpenRaiseRange(formatFor(n), pos)
     const inRange = open.includes(hand)
     const cov = coverage(open)
-    let opens = inRange
-    if (p.looseness < 1) opens = inRange && pct <= cov * p.looseness
-    else if (p.looseness > 1) opens = inRange || (pct <= cov * p.looseness && rng() < 0.6)
+    // sem pressao de ICM (tight = 1) o comportamento e exatamente o de antes
+    const squeeze = tight < 1 ? tight : 1
+    let opens = inRange && (tight >= 1 || pct <= cov * squeeze)
+    if (p.looseness < 1) opens = inRange && pct <= cov * p.looseness * tight
+    else if (p.looseness > 1) opens = (inRange && (tight >= 1 || pct <= cov * squeeze)) || (pct <= cov * p.looseness * tight && rng() < 0.6)
     if (opens) {
       const size = pos === 'SB' ? 3 : pos === 'BTN' || pos === 'CO' ? 2.3 : 2.5
       return raiseTo(la, bb * size, seat.stack, seat.bet)
@@ -143,7 +148,7 @@ function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: R
       return raiseTo(la, state.currentBet * mult, seat.stack, seat.bet)
     }
     const base = pos === 'BB' ? 0.38 : pos === 'SB' ? 0.14 : pos === 'BTN' ? 0.2 : pos === 'CO' ? 0.16 : 0.12
-    const callPct = (base * p.looseness) / (sizeBB > 4 ? 1.6 : 1) + Math.max(0, p.stickiness) * 0.4
+    const callPct = ((base * p.looseness) / (sizeBB > 4 ? 1.6 : 1) + Math.max(0, p.stickiness) * 0.4) * tight
     return pct <= callPct ? { type: 'call' } : { type: 'fold' }
   }
 
@@ -152,7 +157,7 @@ function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: R
   if (four.includes(hand)) {
     return raiseTo(la, state.currentBet * 2.3, seat.stack, seat.bet)
   }
-  const stick = 0.05 * p.looseness + Math.max(0, p.stickiness) * 0.3
+  const stick = (0.05 * p.looseness + Math.max(0, p.stickiness) * 0.3) * tight
   return pct <= stick ? { type: 'call' } : { type: 'fold' }
 }
 
@@ -229,7 +234,7 @@ export function combosUpToPercentile(maxPct: number, dead: readonly number[]): C
   return out
 }
 
-function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng): Action {
+function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number): Action {
   const seat = state.seats[state.toAct]
   const cards = seat.cards as [number, number]
   const pot = potTotal(state)
@@ -240,7 +245,7 @@ function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: 
   const multi = Math.pow(raw, 1 + 0.7 * (foes - 1))
   const facing = la.canCall
   const toCall = la.callAmount
-  const discount = facing ? 0.1 + 0.1 * Math.min(1, toCall / Math.max(pot, 1)) : 0
+  const discount = facing ? 0.1 + 0.1 * Math.min(1, toCall / Math.max(pot, 1)) + 0.1 * Math.max(0, icm) : 0
   const adj = multi - discount
   const A = p.aggression
   const streetFactor = state.street === 'flop' ? 1 : state.street === 'turn' ? 0.7 : 0.5

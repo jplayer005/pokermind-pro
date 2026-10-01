@@ -102,6 +102,21 @@ export const currentLevel = (t: TournamentState) => levelAt(t.levelIdx)
 export const prizeInBuyIns = (config: TournamentConfig, place: number) =>
   place >= 1 && place <= config.payouts.length ? config.payouts[place - 1] * config.fieldSize : 0
 
+/**
+ * Pressao de ICM sentida por um bot (-0,3..0,6): perto do dinheiro, stacks medios apertam
+ * (perder fichas custa mais do que ganhar), o chip leader pressiona os outros e o stack
+ * muito curto fica desesperado (empurra mais). 0 longe do dinheiro e depois de entrar nele.
+ */
+export function icmPressure(t: TournamentState, stack: number, avgStack: number): number {
+  const paid = paidPlaces(t)
+  if (t.remaining <= paid || t.remaining > paid + 4 || avgStack <= 0) return 0
+  const base = t.remaining === paid + 1 ? 0.6 : t.remaining <= paid + 2 ? 0.35 : 0.15
+  const ratio = stack / avgStack
+  if (ratio < 0.45) return -0.3
+  if (ratio > 1.5) return base * 0.4
+  return base
+}
+
 export function ordinal(place: number): string {
   return `${place}º`
 }
