@@ -11,6 +11,7 @@ import { COURSES_DATA, FLASHCARDS_DATA } from '@/data/ranges'
 import { cn } from '@/lib/utils'
 import { Flashcard } from '@/types'
 import { useUserStore } from '@/store'
+import NotesTab from '@/components/study/NotesTab'
 
 type StudyTab = 'courses' | 'flashcards' | 'metagame' | 'notes'
 
@@ -683,36 +684,7 @@ export default function Study() {
             {tab === 'metagame' && <MetaGameTab />}
 
             {/* ANOTAÇÕES */}
-            {tab === 'notes' && (
-              <div className="space-y-3">
-                <Card className="p-4">
-                  <SectionHeader title="Minhas Anotações" />
-                  <textarea
-                    placeholder="Escreva suas anotações de estudo aqui...&#10;&#10;Dica: Anote spots difíceis, conceitos novos e insights das sessões."
-                    className="w-full bg-bg-base border border-border-subtle rounded-xl p-3 text-sm text-text-primary placeholder-text-muted font-body min-h-40 resize-none focus:border-accent-gold focus:outline-none transition-colors"
-                  />
-                  <Button variant="secondary" size="sm" className="w-full mt-3">
-                    Salvar Anotação
-                  </Button>
-                </Card>
-                <SectionHeader title="Anotações Salvas" />
-                {[
-                  { title: 'BTN vs BB 3bet spots', date: 'Hoje', preview: 'Lembrar de usar A5s como 3bet bluff...' },
-                  { title: 'ICM Bubble MTT', date: '2 dias atrás', preview: 'No bubble, apertar range drasticamente...' },
-                ].map((note, i) => (
-                  <Card key={i} className="p-3 flex items-start gap-3" hoverable>
-                    <div className="w-8 h-8 rounded-lg bg-accent-gold/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm">📝</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-display font-bold text-text-primary">{note.title}</div>
-                      <div className="text-[10px] text-text-muted mt-0.5">{note.preview}</div>
-                      <div className="text-[10px] text-text-muted mt-1">{note.date}</div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
+            {tab === 'notes' && <NotesTab />}
 
           </motion.div>
         </AnimatePresence>

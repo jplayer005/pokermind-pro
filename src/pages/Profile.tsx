@@ -22,6 +22,7 @@ import {
   Edit3, Settings, Lock, X, Plus, Trash2,
   BarChart2, Award, Clock, Layers, LogIn, LogOut
 } from 'lucide-react'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { StudyGoal } from '@/types'
 
 // ============================================================
@@ -279,14 +280,16 @@ function EditNameModal({ name, onSave, onClose }: {
   name: string; onSave: (n: string) => void; onClose: () => void
 }) {
   const [value, setValue] = useState(name)
+  useEscapeKey(onClose)
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
+    <div role="dialog" aria-modal="true" aria-label="Editar nome"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
       onClick={onClose}>
       <div className="w-full max-w-sm glass-strong rounded-2xl p-5 border border-border-default"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-bold text-text-primary">Editar nome</div>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={16} /></button>
+          <button aria-label="Fechar" onClick={onClose} className="w-11 h-11 -m-3 flex items-center justify-center text-text-muted hover:text-text-primary"><X size={16} /></button>
         </div>
         <input
           type="text" value={value} onChange={e => setValue(e.target.value)}
@@ -345,14 +348,16 @@ function AddGoalModal({ onAdd, onClose }: {
     onClose()
   }
 
+  useEscapeKey(onClose)
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
+    <div role="dialog" aria-modal="true" aria-label="Adicionar meta"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
       onClick={onClose}>
       <div className="w-full max-w-sm glass-strong rounded-2xl p-5 border border-border-default"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-bold text-text-primary">Adicionar Meta</div>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary"><X size={16} /></button>
+          <button aria-label="Fechar" onClick={onClose} className="w-11 h-11 -m-3 flex items-center justify-center text-text-muted hover:text-text-primary"><X size={16} /></button>
         </div>
         <div className="space-y-2 mb-4">
           {GOAL_TYPE_OPTIONS.map((opt, i) => (
@@ -436,6 +441,7 @@ export default function Profile() {
   const [showAddGoal, setShowAddGoal] = useState(false)
   const [achFilter, setAchFilter] = useState('all')
   const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const { stats, achievements, goals } = profile
   const levelData = getLevelData(stats.level)
@@ -757,11 +763,18 @@ export default function Profile() {
                   </button>
                 </div>
               ) : (
+                <>
                 <button
                   onClick={async () => {
                     setAuthLoading(true)
+                    setAuthError(null)
                     try { await signInWithGoogle(); setGuestMode(false) }
-                    catch { /* silent */ }
+                    catch (e) {
+                      const msg = e instanceof Error ? e.message : ''
+                      if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {
+                        setAuthError('Não foi possível entrar com o Google. Confira a internet e tente de novo.')
+                      }
+                    }
                     finally { setAuthLoading(false) }
                   }}
                   disabled={authLoading}
@@ -771,6 +784,8 @@ export default function Profile() {
                   <span className="text-sm">{authLoading ? 'Entrando...' : 'Entrar com Google'}</span>
                   <span className="ml-auto text-[10px] text-text-muted">Sincroniza na nuvem</span>
                 </button>
+                {authError && <p role="alert" className="text-[11px] text-accent-crimson px-1">{authError}</p>}
+                </>
               )}
             </div>
           </div>

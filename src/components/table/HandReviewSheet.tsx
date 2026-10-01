@@ -10,6 +10,7 @@ import { RANK_CHARS } from '@/engine/cards'
 import { isLeak } from '@/engine/coach/types'
 import type { Review } from '@/hooks/useTableEngine'
 import { GRADE_UI, KIND_LABEL } from './CoachToast'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 const SUITS = ['♠', '♥', '♦', '♣']
 const RED = new Set([1, 2])
@@ -30,9 +31,10 @@ export default function HandReviewSheet({ review, onClose, onSave }: Props) {
   const leaks = decisions.filter((d) => isLeak(d.grade)).length
   const hero = game.seats.find((s) => s.isHero)
 
+  useEscapeKey(onClose)
   // Portal: um ancestral animado (transform) faria o `fixed` prender na coluna de conteudo.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="Revisão da mão" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
       <div
         style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
         className="w-full sm:max-w-lg max-h-[80vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border-default p-4 space-y-3"

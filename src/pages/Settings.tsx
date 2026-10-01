@@ -13,6 +13,7 @@ import {
   Info, ChevronRight, Check, AlertTriangle, Zap, Crown,
   LogIn, LogOut, Cloud
 } from 'lucide-react'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 // ============================================================
 // PRIMITIVOS
@@ -91,8 +92,12 @@ function ConfirmModal({
   onCancel: () => void
   danger?: boolean
 }) {
+  useEscapeKey(onCancel)
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
       onClick={onCancel}
     >
@@ -142,8 +147,12 @@ function EditNamePanel({ name, onSave, onClose }: {
   name: string; onSave: (n: string) => void; onClose: () => void
 }) {
   const [value, setValue] = useState(name)
+  useEscapeKey(onClose)
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Editar nome"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm px-4 pb-6"
       onClick={onClose}
     >
@@ -194,6 +203,7 @@ export default function Settings() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   const isPremium = profile.plan !== 'free'
   const dailyGoal = profile.goals.find((g: any) => g.id === 'g001')
@@ -316,10 +326,17 @@ export default function Settings() {
               sublabel={guestMode ? 'Modo sem login — dados locais apenas' : 'Faça login para sincronizar na nuvem'}
               onClick={async () => {
                 setAuthLoading(true)
+                setAuthError(null)
                 try {
                   await signInWithGoogle()
                   setGuestMode(false)
-                } catch { /* silent */ }
+                } catch (e) {
+                  // fechar a janela de login de proposito nao e erro
+                  const msg = e instanceof Error ? e.message : ''
+                  if (!msg.includes('popup-closed') && !msg.includes('cancelled')) {
+                    setAuthError('Não foi possível entrar com o Google. Confira a internet e tente de novo.')
+                  }
+                }
                 finally { setAuthLoading(false) }
               }}
             >
@@ -328,6 +345,9 @@ export default function Settings() {
                 : <span className="text-xs text-accent-gold shrink-0 font-semibold">Entrar</span>
               }
             </SettingRow>
+          )}
+          {!user && authError && (
+            <p role="alert" className="mx-4 mb-3 text-[11px] text-accent-crimson">{authError}</p>
           )}
         </SectionCard>
 

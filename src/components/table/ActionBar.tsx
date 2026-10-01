@@ -30,12 +30,21 @@ export default function ActionBar({ game, unit, onAct }: Props) {
   // O seletor de aposta comeca recolhido: so Fold / Check-Call / Aumentar ficam fixos na tela
   // (barra baixa, a mesa nao fica coberta). Tocar em Aumentar abre o seletor; tocar de novo confirma.
   const [sizing, setSizing] = useState(false)
+  // Fold com check de graca e quase sempre um toque acidental: o 1o toque arma, o 2o confirma.
+  const [foldArmed, setFoldArmed] = useState(false)
 
   // reinicia o valor sugerido a cada nova decisao
   useEffect(() => {
     setSizing(false)
+    setFoldArmed(false)
     setAmount(la.minTo)
   }, [game.history.length, la.minTo])
+
+  useEffect(() => {
+    if (!foldArmed) return
+    const t = setTimeout(() => setFoldArmed(false), 2500)
+    return () => clearTimeout(t)
+  }, [foldArmed])
 
   const clamp = (v: number) => Math.max(la.minTo, Math.min(la.maxTo, Math.round(v)))
   const pot = potTotal(game)
@@ -88,7 +97,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
                   key={p.label}
                   onClick={() => setAmount(p.to)}
                   className={cn(
-                    'px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-colors',
+                    'px-3 min-h-[40px] rounded-lg text-[11px] font-mono border transition-colors',
                     amount === p.to
                       ? 'bg-accent-gold/20 border-accent-gold/50 text-accent-gold'
                       : 'bg-bg-base border-border-default text-text-secondary active:bg-bg-overlay',
@@ -100,7 +109,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
               <button
                 onClick={() => setAmount(la.maxTo)}
                 className={cn(
-                  'px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-colors',
+                  'px-3 min-h-[40px] rounded-lg text-[11px] font-mono border transition-colors',
                   isAllIn
                     ? 'bg-accent-crimson/20 border-accent-crimson/50 text-accent-crimson'
                     : 'bg-bg-base border-border-default text-text-secondary active:bg-bg-overlay',
@@ -117,7 +126,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
               <button
                 aria-label="Fechar seletor de aposta"
                 onClick={() => setSizing(false)}
-                className="text-[11px] text-text-muted underline underline-offset-2"
+                className="min-h-[40px] px-2 text-[11px] text-text-muted underline underline-offset-2"
               >
                 fechar
               </button>
@@ -127,7 +136,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
             <button
               aria-label="Diminuir aposta"
               onClick={() => setAmount((a) => clamp(a - bb / 2))}
-              className="w-8 h-8 rounded-lg bg-bg-base border border-border-default text-text-primary text-lg leading-none active:bg-bg-overlay"
+              className="w-11 h-11 rounded-lg bg-bg-base border border-border-default text-text-primary text-lg leading-none active:bg-bg-overlay"
             >
               -
             </button>
@@ -144,7 +153,7 @@ export default function ActionBar({ game, unit, onAct }: Props) {
             <button
               aria-label="Aumentar aposta"
               onClick={() => setAmount((a) => clamp(a + bb / 2))}
-              className="w-8 h-8 rounded-lg bg-bg-base border border-border-default text-text-primary text-lg leading-none active:bg-bg-overlay"
+              className="w-11 h-11 rounded-lg bg-bg-base border border-border-default text-text-primary text-lg leading-none active:bg-bg-overlay"
             >
               +
             </button>
@@ -153,8 +162,16 @@ export default function ActionBar({ game, unit, onAct }: Props) {
       )}
 
       <div className="grid grid-cols-3 gap-2">
-        <Button size="lg" variant="danger" onClick={() => onAct({ type: 'fold' })}>
-          Fold
+        <Button
+          size="lg"
+          variant="danger"
+          className="whitespace-nowrap px-2"
+          onClick={() => {
+            if (la.canCheck && !foldArmed) { setFoldArmed(true); return }
+            onAct({ type: 'fold' })
+          }}
+        >
+          {foldArmed ? 'Fold mesmo?' : 'Fold'}
         </Button>
         {la.canCheck ? (
           <Button size="lg" onClick={() => onAct({ type: 'check' })}>

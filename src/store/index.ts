@@ -456,7 +456,21 @@ export const useTrainingStore = create<TrainingStore>()(
 // ------- STORE DE NAVEGAÇÃO / UI -------
 export type AppTheme = 'dark' | 'light' | 'system'
 
+/** Ultima configuracao usada na tela Jogar (a proxima visita ja abre igual). */
+export interface PlayPrefs {
+  modeId: string
+  buyInBB: number
+  speed: string
+  autoNext: boolean
+  showProfiles: boolean
+  coach: string
+  showHud: boolean
+  timebank: number
+}
+
 interface UIStore {
+  playPrefs: PlayPrefs | null
+  setPlayPrefs: (p: PlayPrefs) => void
   activeSection: NavSection
   isSidebarOpen: boolean
   isFullscreen: boolean
@@ -477,6 +491,8 @@ interface UIStore {
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
+      playPrefs: null,
+      setPlayPrefs: (p) => set({ playPrefs: p }),
       activeSection: 'dashboard',
       isSidebarOpen: false,
       isFullscreen: false,
@@ -502,6 +518,7 @@ export const useUIStore = create<UIStore>()(
         soundEnabled: state.soundEnabled,
         defaultDifficulty: state.defaultDifficulty,
         theme: state.theme,
+        playPrefs: state.playPrefs,
       }),
     }
   )
@@ -791,6 +808,61 @@ export const useLeakStore = create<LeakStore>()(
     }),
     {
       name: 'pokermind-leaks',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
+// ------- STORE DE ANOTACOES DE ESTUDO -------
+export interface StudyNote {
+  id: string
+  title: string
+  body: string
+  createdAt: number
+  updatedAt: number
+}
+
+interface NotesStore {
+  notes: StudyNote[]
+  addNote: (title: string, body: string) => string | null
+  updateNote: (id: string, title: string, body: string) => void
+  deleteNote: (id: string) => void
+  reset: () => void
+}
+
+/** Sem titulo digitado, usa a primeira linha do texto (ate 48 caracteres). */
+export function noteTitle(title: string, body: string): string {
+  const t = title.trim()
+  if (t) return t.slice(0, 80)
+  const first = body.trim().split('\n')[0] ?? ''
+  return first.length > 48 ? `${first.slice(0, 48)}...` : first
+}
+
+export const useNotesStore = create<NotesStore>()(
+  persist(
+    (set) => ({
+      notes: [],
+      // nota vazia nao e salva (devolve null para a tela avisar)
+      addNote: (title, body) => {
+        if (!body.trim() && !title.trim()) return null
+        const now = Date.now()
+        const id = `note_${now}_${Math.random().toString(36).slice(2, 7)}`
+        const note: StudyNote = { id, title: noteTitle(title, body), body: body.trim(), createdAt: now, updatedAt: now }
+        set((state) => ({ notes: [note, ...state.notes] }))
+        return id
+      },
+      updateNote: (id, title, body) =>
+        set((state) => ({
+          notes: state.notes.map((n) =>
+            n.id === id ? { ...n, title: noteTitle(title, body), body: body.trim(), updatedAt: Date.now() } : n,
+          ),
+        })),
+      deleteNote: (id) => set((state) => ({ notes: state.notes.filter((n) => n.id !== id) })),
+      reset: () => set({ notes: [] }),
+    }),
+    {
+      name: 'pokermind-notes',
       version: 1,
       storage: createJSONStorage(() => localStorage),
     }

@@ -89,7 +89,7 @@ export default function AppLayout() {
                 key={path}
                 onClick={() => navigate(path)}
                 className={cn(
-                  'relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-left',
+                  'relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 text-left',
                   isActive
                     ? 'text-accent-gold'
                     : 'text-text-muted hover:text-text-secondary hover:bg-bg-elevated'
@@ -177,13 +177,13 @@ export default function AppLayout() {
                   key={path}
                   onClick={() => navigate(path)}
                   className={cn(
-                    'flex flex-col items-center gap-0.5 px-0.5 py-1.5 rounded-xl transition-all duration-200 min-w-0 flex-1',
+                    'flex flex-col items-center gap-0.5 px-0.5 py-1.5 rounded-xl transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 min-w-0 flex-1',
                     'active:scale-95',
                     isActive ? 'text-accent-gold' : 'text-text-muted hover:text-text-secondary'
                   )}
                 >
                   <div className={cn(
-                    'relative p-1.5 rounded-lg transition-all duration-200',
+                    'relative p-1.5 rounded-lg transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200',
                     isActive && 'bg-accent-gold/10'
                   )}>
                     <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />

@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { RANK_CHARS } from '@/engine/cards'
 import type { GameState, HandEvent } from '@/engine/game/types'
 import { fmtChips } from '@/hooks/useTableEngine'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 const SUITS = ['♠', '♥', '♦', '♣']
 const cardText = (c: number) => RANK_CHARS[c >> 2] + SUITS[c & 3]
@@ -85,8 +86,9 @@ function HandBlock({ g, unit }: { g: GameState; unit: 'bb' | 'chips' }) {
 }
 
 export default function HandLog({ games, unit, onClose }: Props) {
+  useEscapeKey(onClose)
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="Histórico da mesa" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
       <div
         style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
         className="w-full sm:max-w-lg max-h-[75vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border-default p-4 space-y-3"
@@ -94,7 +96,7 @@ export default function HandLog({ games, unit, onClose }: Props) {
       >
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-display font-bold text-text-primary">Histórico</h3>
-          <button aria-label="Fechar" onClick={onClose} className="p-1 text-text-muted hover:text-text-primary">
+          <button aria-label="Fechar" onClick={onClose} className="w-11 h-11 -m-2 flex items-center justify-center text-text-muted hover:text-text-primary">
             <X size={16} />
           </button>
         </div>

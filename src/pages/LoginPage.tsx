@@ -46,7 +46,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center px-5"
+    <div className="min-h-[100dvh] bg-bg-base flex flex-col items-center justify-center px-5"
       style={{ paddingTop: 'max(40px, var(--safe-top))', paddingBottom: 'max(40px, var(--safe-bottom))' }}>
 
       {/* Logo */}
@@ -85,7 +85,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-accent-gold hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed text-bg-base font-semibold rounded-xl py-3.5 transition-all duration-200 active:scale-95 shadow-lg shadow-yellow-900/25"
+            className="w-full flex items-center justify-center gap-3 bg-accent-gold hover:bg-yellow-500 disabled:opacity-60 disabled:cursor-not-allowed text-bg-base font-semibold rounded-xl py-3.5 transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 active:scale-95 shadow-lg shadow-yellow-900/25"
           >
             {loading ? (
               <motion.div
@@ -123,7 +123,7 @@ export default function LoginPage() {
           <button
             onClick={() => setGuestMode(true)}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary disabled:opacity-60 border border-border-subtle hover:border-border-default rounded-xl py-3 transition-all duration-200 active:scale-95 text-sm font-medium"
+            className="w-full flex items-center justify-center gap-2 text-text-secondary hover:text-text-primary disabled:opacity-60 border border-border-subtle hover:border-border-default rounded-xl py-3 transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 active:scale-95 text-sm font-medium"
           >
             <UserX size={16} />
             Continuar sem login

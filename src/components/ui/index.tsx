@@ -24,7 +24,7 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center gap-2 font-body font-medium rounded-xl transition-all duration-200 active:scale-95 select-none'
+  const base = 'inline-flex items-center justify-center gap-2 font-body font-medium rounded-xl transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 active:scale-95 select-none'
 
   const variants = {
     primary: 'bg-accent-gold text-bg-base hover:bg-yellow-400 shadow-glow-gold',
@@ -81,7 +81,7 @@ export function Card({ children, className, glow = 'none', hoverable, onClick }:
       className={cn(
         // border-subtle agora é mais escuro que bg-elevated → parece sombra/recesso
         // em vez de linha clara. Shadow externo reforça a sensação de "elevação".
-        'bg-bg-elevated border border-border-subtle rounded-xl2 transition-all duration-200',
+        'bg-bg-elevated border border-border-subtle rounded-xl2 transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200',
         'shadow-[0_2px_10px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.025)]',
         hoverable && 'cursor-pointer active:scale-[0.99]',
         glow !== 'none' && glows[glow],

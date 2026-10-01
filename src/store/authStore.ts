@@ -41,16 +41,28 @@ interface AuthStore {
   setUnsafeDocs: (docs: string[]) => void
 }
 
+// "Continuar sem login" vale entre aberturas do app: sem isto a tela de login voltava toda vez.
+const GUEST_KEY = 'pokermind-guest'
+function readGuest(): boolean {
+  try { return localStorage.getItem(GUEST_KEY) === '1' } catch { return false }
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  guestMode: false,
+  guestMode: readGuest(),
   authLoading: true,
   syncStatus: 'idle',
   syncWarnings: [],
   syncReport: null,
   unsafeDocs: [],
   setUser: (user) => set({ user }),
-  setGuestMode: (guestMode) => set({ guestMode }),
+  setGuestMode: (guestMode) => {
+    try {
+      if (guestMode) localStorage.setItem(GUEST_KEY, '1')
+      else localStorage.removeItem(GUEST_KEY)
+    } catch { /* sem armazenamento: so vale nesta abertura */ }
+    set({ guestMode })
+  },
   setAuthLoading: (authLoading) => set({ authLoading }),
   setSyncStatus: (syncStatus) => set({ syncStatus }),
   setSyncWarnings: (syncWarnings) => set({ syncWarnings }),

@@ -13,6 +13,7 @@ import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
+import { useUIStore } from '@/store'
 import { useElementHeight } from '@/hooks/useElementHeight'
 import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
@@ -116,15 +117,17 @@ export default function PlayTable() {
   const [last, setLast] = useState<Summary | null>(null)
   const [run, setRun] = useState(0)
 
-  // form do setup
-  const [modeId, setModeId] = useState('cash6')
-  const [buyInBB, setBuyInBB] = useState(100)
-  const [speed, setSpeed] = useState<Speed>('normal')
-  const [autoNext, setAutoNext] = useState(true)
-  const [showProfiles, setShowProfiles] = useState(true)
-  const [coach, setCoach] = useState<CoachMode>('live')
-  const [showHud, setShowHud] = useState(true)
-  const [timebank, setTimebank] = useState(0)
+  // form do setup: abre com a ultima configuracao usada (valida contra as opcoes de hoje)
+  const saved = useUIStore.getState().playPrefs
+  const savedMode = MODES.some((m) => m.id === saved?.modeId) ? (saved?.modeId as string) : 'cash6'
+  const [modeId, setModeId] = useState(savedMode)
+  const [buyInBB, setBuyInBB] = useState([50, 100, 200].includes(saved?.buyInBB ?? 0) ? (saved?.buyInBB as number) : 100)
+  const [speed, setSpeed] = useState<Speed>(SPEEDS.some((s) => s.id === saved?.speed) ? (saved?.speed as Speed) : 'normal')
+  const [autoNext, setAutoNext] = useState(saved?.autoNext ?? true)
+  const [showProfiles, setShowProfiles] = useState(saved?.showProfiles ?? true)
+  const [coach, setCoach] = useState<CoachMode>(COACH_MODES.some((c) => c.id === saved?.coach) ? (saved?.coach as CoachMode) : 'live')
+  const [showHud, setShowHud] = useState(saved?.showHud ?? true)
+  const [timebank, setTimebank] = useState([0, 15, 30].includes(saved?.timebank ?? -1) ? (saved?.timebank as number) : 0)
 
   const selected = MODES.find((m) => m.id === modeId) as ModeDef
 
@@ -149,7 +152,10 @@ export default function PlayTable() {
           variant="primary"
           size="lg"
           className="w-full"
-          onClick={() => setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })}
+          onClick={() => {
+            useUIStore.getState().setPlayPrefs({ modeId, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })
+            setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })
+          }}
         >
           <Play size={16} /> Sentar na mesa
         </Button>
@@ -337,16 +343,18 @@ function TableGame({
             {config.mode.label}
           </span>
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* area de toque de 44px sem aumentar o visual: o ::before estende o alvo ao redor do botao */}
             <button
+              aria-label={unit === 'bb' ? 'Mostrar valores em fichas' : 'Mostrar valores em big blinds'}
               onClick={() => setUnit((u) => (u === 'bb' ? 'chips' : 'bb'))}
-              className="h-8 min-w-[2.75rem] px-2 rounded-lg text-[11px] font-mono border border-border-default text-text-secondary"
+              className="relative h-8 min-w-[2.75rem] px-2 rounded-lg text-[11px] font-mono border border-border-default text-text-secondary before:absolute before:-inset-1.5 before:content-['']"
             >
               {unit === 'bb' ? 'bb' : 'fichas'}
             </button>
             <button
               aria-label="Histórico"
               onClick={() => setLogOpen(true)}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border border-border-default text-text-secondary"
+              className="relative h-8 w-8 flex items-center justify-center rounded-lg border border-border-default text-text-secondary before:absolute before:-inset-1.5 before:content-['']"
             >
               <History size={14} />
             </button>

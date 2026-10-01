@@ -15,6 +15,7 @@ import {
   BookOpen, Download, Share2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { handToText } from '@/lib/handText'
 
 // ============================================================
 // DADOS MOCK DE MÃOS DEMONSTRAÇÃO
@@ -368,8 +369,14 @@ function NewHandModal({ onClose, onSave }: { onClose: () => void; onSave: (hand:
 // ============================================================
 
 export default function HandReplayer() {
-  const { savedHands, saveHand, deleteHand } = useHandsStore()
+  const { savedHands, saveHand, deleteHand, updateHand } = useHandsStore()
   const [selectedHand, setSelectedHand] = useState<SavedHand | null>(null)
+  // exemplos (mãos demo): aparecem sozinhos só enquanto não há mãos reais
+  const [showExamples, setShowExamples] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [shareMsg, setShareMsg] = useState<string | null>(null)
+  const [notesDraft, setNotesDraft] = useState('')
+  const [tagsDraft, setTagsDraft] = useState('')
   const [currentStep, setCurrentStep] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [showVillainCards, setShowVillainCards] = useState(false)
@@ -377,7 +384,63 @@ export default function HandReplayer() {
   const [activeTab, setActiveTab] = useState<'list' | 'replay'>('list')
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const allHands = [...DEMO_HANDS, ...savedHands]
+  // mãos reais primeiro; os exemplos só quando não há nenhuma mão sua ou quando você pede
+  const examplesVisible = savedHands.length === 0 || showExamples
+  const allHands = examplesVisible ? [...savedHands, ...DEMO_HANDS] : savedHands
+  const isDemo = (h: SavedHand) => h.id.startsWith('demo_')
+
+  const flashMsg = (m: string) => {
+    setShareMsg(m)
+    setTimeout(() => setShareMsg(null), 2200)
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // WebView sem permissao de area de transferencia: cai no metodo antigo (textarea oculto)
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.setAttribute('readonly', '')
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(ta)
+        return ok
+      } catch {
+        return false
+      }
+    }
+  }
+
+  const handleExport = async (h: SavedHand) => {
+    flashMsg((await copyText(handToText(h))) ? 'Texto da mão copiado.' : 'Não foi possível copiar neste aparelho.')
+  }
+
+  const handleShare = async (h: SavedHand) => {
+    const text = handToText(h)
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: h.title, text })
+        return
+      }
+    } catch (e) {
+      // o usuário fechou a folha de compartilhamento: não é erro
+      if (e instanceof DOMException && e.name === 'AbortError') return
+    }
+    flashMsg((await copyText(text)) ? 'Compartilhar não existe aqui: texto copiado.' : 'Não foi possível compartilhar.')
+  }
+
+  const saveNotes = () => {
+    if (!selectedHand || isDemo(selectedHand)) return
+    const tags = Array.from(new Set(tagsDraft.split(/[,#\s]+/).map((t) => t.trim().toLowerCase()).filter(Boolean))).slice(0, 8)
+    updateHand(selectedHand.id, { notes: notesDraft.trim(), tags })
+    setSelectedHand({ ...selectedHand, notes: notesDraft.trim(), tags })
+    flashMsg('Anotações salvas.')
+  }
 
   useEffect(() => {
     if (isPlaying && selectedHand) {
@@ -395,6 +458,7 @@ export default function HandReplayer() {
 
   const handleSelectHand = (hand: SavedHand) => {
     setSelectedHand(hand); setCurrentStep(0); setIsPlaying(false)
+    setNotesDraft(hand.notes ?? ''); setTagsDraft(hand.tags.join(' '))
     setShowVillainCards(false); setActiveTab('replay')
   }
 
@@ -474,16 +538,39 @@ export default function HandReplayer() {
                       <div className="flex items-center gap-1 text-[10px] text-text-muted">
                         <FileText size={10} />{hand.actions.length} ações
                       </div>
-                      {!hand.id.startsWith('demo_') && (
-                        <button onClick={e => { e.stopPropagation(); deleteHand(hand.id) }}
-                          className="p-1 text-text-muted hover:text-red-400 transition-colors">
-                          <Trash2 size={12} />
-                        </button>
+                      {isDemo(hand) && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-blue/10 text-accent-blue">exemplo</span>
+                      )}
+                      {!isDemo(hand) && (
+                        confirmDeleteId === hand.id ? (
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => { deleteHand(hand.id); setConfirmDeleteId(null) }}
+                              className="min-h-[44px] px-3 rounded-lg text-[11px] font-semibold bg-accent-crimson/15 text-accent-crimson">
+                              Excluir
+                            </button>
+                            <button onClick={() => setConfirmDeleteId(null)}
+                              className="min-h-[44px] px-3 rounded-lg text-[11px] text-text-muted">
+                              Manter
+                            </button>
+                          </div>
+                        ) : (
+                          <button aria-label={`Excluir mão ${hand.title}`}
+                            onClick={e => { e.stopPropagation(); setConfirmDeleteId(hand.id) }}
+                            className="w-11 h-11 flex items-center justify-center text-text-muted hover:text-red-400 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
                 </motion.div>
               ))
+            )}
+            {savedHands.length > 0 && (
+              <button onClick={() => setShowExamples(v => !v)}
+                className="w-full min-h-[44px] text-xs text-text-muted hover:text-text-secondary">
+                {showExamples ? 'Ocultar mãos de exemplo' : 'Mostrar mãos de exemplo'}
+              </button>
             )}
           </div>
         )}
@@ -548,12 +635,12 @@ export default function HandReplayer() {
                   </div>
 
                   <div className="flex items-center justify-center gap-3">
-                    <button onClick={() => { setCurrentStep(0); setIsPlaying(false) }}
-                      className="p-2.5 rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
+                    <button aria-label="Voltar ao início" onClick={() => { setCurrentStep(0); setIsPlaying(false) }}
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
                       <SkipBack size={18} />
                     </button>
-                    <button onClick={() => setCurrentStep(c => Math.max(0, c - 1))} disabled={currentStep === 0}
-                      className="p-2.5 rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors disabled:opacity-30">
+                    <button aria-label="Ação anterior" onClick={() => setCurrentStep(c => Math.max(0, c - 1))} disabled={currentStep === 0}
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors disabled:opacity-30">
                       <ChevronLeft size={18} />
                     </button>
                     <motion.button whileTap={{ scale: 0.92 }}
@@ -561,13 +648,13 @@ export default function HandReplayer() {
                       className="p-4 rounded-full bg-yellow-500 text-bg-base shadow-lg">
                       {isPlaying ? <Pause size={22} /> : <Play size={22} />}
                     </motion.button>
-                    <button onClick={() => setCurrentStep(c => Math.min(selectedHand.actions.length, c + 1))}
+                    <button aria-label="Próxima ação" onClick={() => setCurrentStep(c => Math.min(selectedHand.actions.length, c + 1))}
                       disabled={currentStep >= selectedHand.actions.length}
-                      className="p-2.5 rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors disabled:opacity-30">
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors disabled:opacity-30">
                       <ChevronRight size={18} />
                     </button>
-                    <button onClick={() => setCurrentStep(selectedHand.actions.length)}
-                      className="p-2.5 rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
+                    <button aria-label="Ir ao fim" onClick={() => setCurrentStep(selectedHand.actions.length)}
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-bg-elevated text-text-muted hover:text-text-primary transition-colors">
                       <SkipForward size={18} />
                     </button>
                   </div>
@@ -593,22 +680,47 @@ export default function HandReplayer() {
                   </motion.div>
                 )}
 
-                {/* NOTAS */}
-                {selectedHand.notes && (
-                  <UICard>
-                    <h4 className="text-xs font-bold text-text-muted uppercase mb-2">Anotações</h4>
-                    <p className="text-sm text-text-secondary leading-relaxed">{selectedHand.notes}</p>
+                {/* NOTAS: editáveis nas mãos suas; os exemplos só mostram */}
+                {isDemo(selectedHand) ? (
+                  selectedHand.notes && (
+                    <UICard>
+                      <h4 className="text-xs font-bold text-text-muted uppercase mb-2">Anotações</h4>
+                      <p className="text-sm text-text-secondary leading-relaxed">{selectedHand.notes}</p>
+                    </UICard>
+                  )
+                ) : (
+                  <UICard className="p-4 space-y-2">
+                    <h4 className="text-xs font-bold text-text-muted uppercase">Anotações e tags</h4>
+                    <textarea
+                      value={notesDraft}
+                      onChange={e => setNotesDraft(e.target.value)}
+                      aria-label="Anotações da mão"
+                      placeholder="O que você pensou nesta mão? O que faria diferente?"
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl p-3 text-sm text-text-primary placeholder-text-muted min-h-24 resize-none focus:border-accent-gold focus:outline-none"
+                    />
+                    <input
+                      value={tagsDraft}
+                      onChange={e => setTagsDraft(e.target.value)}
+                      aria-label="Tags da mão"
+                      placeholder="Tags separadas por espaço (ex.: blefe river)"
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder-text-muted focus:border-accent-gold focus:outline-none"
+                    />
+                    <Button variant="secondary" size="sm" className="w-full" onClick={saveNotes}
+                      disabled={notesDraft.trim() === (selectedHand.notes ?? '').trim() && tagsDraft.trim() === selectedHand.tags.join(' ')}>
+                      Salvar anotações
+                    </Button>
                   </UICard>
                 )}
 
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="flex-1">
-                    <Download size={14} /> Exportar
+                  <Button variant="ghost" size="sm" className="flex-1 min-h-[44px]" onClick={() => handleExport(selectedHand)}>
+                    <Download size={14} /> Copiar texto
                   </Button>
-                  <Button variant="ghost" size="sm" className="flex-1">
+                  <Button variant="ghost" size="sm" className="flex-1 min-h-[44px]" onClick={() => handleShare(selectedHand)}>
                     <Share2 size={14} /> Compartilhar
                   </Button>
                 </div>
+                {shareMsg && <p role="status" className="text-center text-[11px] text-accent-emerald">{shareMsg}</p>}
               </div>
             )}
           </div>

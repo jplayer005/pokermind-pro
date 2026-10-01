@@ -1,6 +1,8 @@
 import { HashRouter as BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import AuthGate from '@/components/auth/AuthGate'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import MotionRoot from '@/components/MotionRoot'
 import Dashboard from '@/pages/Dashboard'
 import PreflopTrainer from '@/pages/PreflopTrainer'
 import PostflopTrainer from '@/pages/PostflopTrainer'
@@ -15,7 +17,9 @@ import Settings from '@/pages/Settings'
 export default function App() {
   return (
     <BrowserRouter>
+      <MotionRoot>
       <AuthGate>
+        <ErrorBoundary>
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
@@ -29,9 +33,12 @@ export default function App() {
             <Route path="study" element={<Study />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
+        </ErrorBoundary>
       </AuthGate>
+      </MotionRoot>
     </BrowserRouter>
   )
 }
