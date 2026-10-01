@@ -13,6 +13,7 @@ import { ACHIEVEMENTS_DATA } from '@/data/ranges'
 import { levelFromXP } from '@/lib/utils'
 import { recordDecision, type LeakStat, type DecisionInput } from '@/engine/coach/leaks'
 import { creditForDecisions, type PlaySession } from '@/engine/progress'
+import { mergeTombstones } from '@/engine/syncMerge'
 import type { Grade } from '@/engine/coach/types'
 
 // ------- STORE DE USUÁRIO -------
@@ -757,6 +758,8 @@ export const MAX_PLAYED_HANDS = 40
 
 interface HandsStore {
   savedHands: SavedHand[]
+  /** Lapides: maos apagadas (id -> quando), para nao voltarem do outro aparelho ao sincronizar. */
+  deleted: Record<string, number>
   saveHand: (hand: SavedHand) => void
   /** Salva uma mão jogada na mesa, descartando as mais antigas acima do teto
    *  (exceto as marcadas com a tag 'revisar'). Não mexe nas mãos salvas à mão. */
@@ -769,6 +772,7 @@ export const useHandsStore = create<HandsStore>()(
   persist(
     (set) => ({
       savedHands: [],
+      deleted: {},
 
       saveHand: (hand) =>
         set((state) => ({ savedHands: [hand, ...state.savedHands] })),
@@ -784,7 +788,10 @@ export const useHandsStore = create<HandsStore>()(
         }),
 
       deleteHand: (id) =>
-        set((state) => ({ savedHands: state.savedHands.filter((h) => h.id !== id) })),
+        set((state) => ({
+          savedHands: state.savedHands.filter((h) => h.id !== id),
+          deleted: mergeTombstones(state.deleted, { [id]: Date.now() }),
+        })),
 
       updateHand: (id, updates) =>
         set((state) => ({
@@ -839,6 +846,7 @@ export interface StudyNote {
 
 interface NotesStore {
   notes: StudyNote[]
+  deleted: Record<string, number>
   addNote: (title: string, body: string) => string | null
   updateNote: (id: string, title: string, body: string) => void
   deleteNote: (id: string) => void
@@ -857,6 +865,7 @@ export const useNotesStore = create<NotesStore>()(
   persist(
     (set) => ({
       notes: [],
+      deleted: {},
       // nota vazia nao e salva (devolve null para a tela avisar)
       addNote: (title, body) => {
         if (!body.trim() && !title.trim()) return null
@@ -872,8 +881,12 @@ export const useNotesStore = create<NotesStore>()(
             n.id === id ? { ...n, title: noteTitle(title, body), body: body.trim(), updatedAt: Date.now() } : n,
           ),
         })),
-      deleteNote: (id) => set((state) => ({ notes: state.notes.filter((n) => n.id !== id) })),
-      reset: () => set({ notes: [] }),
+      deleteNote: (id) =>
+        set((state) => ({
+          notes: state.notes.filter((n) => n.id !== id),
+          deleted: mergeTombstones(state.deleted, { [id]: Date.now() }),
+        })),
+      reset: () => set({ notes: [], deleted: {} }),
     }),
     {
       name: 'pokermind-notes',

@@ -1,11 +1,20 @@
 import { useEffect, useRef } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { useUserStore, useTrainingStore, useSpacedRepetitionStore, usePostflopReviewStore, useHandsStore, useLeakStore } from '@/store'
-import { uploadUserData } from '@/firebase/sync'
+import {
+  useUserStore, useTrainingStore, useSpacedRepetitionStore, usePostflopReviewStore, useHandsStore,
+  useLeakStore, useNotesStore, usePlayStore,
+} from '@/store'
+import { uploadUserData, SYNC_DOCS, DOC_SIZE_LIMIT, type SyncPayload } from '@/firebase/sync'
+import { getLocalDoc, applyMergedDoc } from '@/firebase/localDocs'
 
 const DEBOUNCE_MS = 2000
-/** Margem abaixo do limite de 1 MiB por documento do Firestore. */
-const HANDS_DOC_LIMIT = 800_000
+
+const DOC_LABEL: Record<string, string> = {
+  hands: 'Mãos salvas',
+  spacedRepetition: 'Revisão espaçada',
+  notes: 'Anotações',
+  play: 'Sessões da mesa',
+}
 
 export function useSyncTrigger() {
   const { user, guestMode, setSyncStatus, setSyncWarnings } = useAuthStore()
@@ -19,8 +28,12 @@ export function useSyncTrigger() {
   const sm2Data = useSpacedRepetitionStore((s) => s.sm2Data)
   const postflopProfiles = usePostflopReviewStore((s) => s.profiles)
   const savedHands = useHandsStore((s) => s.savedHands)
+  const deletedHands = useHandsStore((s) => s.deleted)
   const leakStats = useLeakStore((s) => s.stats)
   const leakDecisions = useLeakStore((s) => s.decisions)
+  const notes = useNotesStore((s) => s.notes)
+  const deletedNotes = useNotesStore((s) => s.deleted)
+  const playSessions = usePlayStore((s) => s.sessions)
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
@@ -37,21 +50,28 @@ export function useSyncTrigger() {
         Object.keys(sm2Data).length === 0 &&
         Object.keys(postflopProfiles).length === 0 &&
         savedHands.length === 0 &&
-        leakDecisions === 0
+        leakDecisions === 0 &&
+        notes.length === 0 &&
+        playSessions.length === 0
       if (pristine) {
         setSyncStatus('idle')
         return
       }
       setSyncStatus('syncing')
       try {
-        const sm2Keys = Object.keys(sm2Data)
-        // Cada store sobe num documento do Firestore (limite ~1 MiB). O que nao cabe NAO
-        // sobe, e o jogador precisa saber disso (antes era ignorado em silencio).
+        // Cada documento do Firestore tem limite de ~1 MiB. O que nao cabe NAO sobe, e o
+        // jogador precisa saber disso (nunca em silencio).
         const warnings: string[] = []
-        const sm2Ok = sm2Keys.length <= 800
-        if (!sm2Ok) warnings.push('Revisão espaçada grande demais para sincronizar (mais de 800 itens). Ela continua salva neste aparelho.')
-        const handsOk = JSON.stringify(savedHands).length <= HANDS_DOC_LIMIT
-        if (!handsOk) warnings.push('Mãos salvas grandes demais para sincronizar. Apague algumas no Replayer; elas continuam neste aparelho.')
+        const payload: SyncPayload = {}
+        for (const name of SYNC_DOCS) {
+          const doc = getLocalDoc(name)
+          if (!doc) continue
+          if (JSON.stringify(doc).length > DOC_SIZE_LIMIT) {
+            warnings.push(`${DOC_LABEL[name] ?? name} grande demais para sincronizar. Continua salvo neste aparelho.`)
+            continue
+          }
+          payload[name] = doc
+        }
         // Documentos que nao deu para ler da nuvem ficam de fora: enviar o estado local por cima
         // poderia apagar o que ja esta la.
         const unsafe = useAuthStore.getState().unsafeDocs
@@ -59,16 +79,11 @@ export function useSyncTrigger() {
           warnings.push(`Não foi possível ler da nuvem: ${unsafe.join(', ')}. Esses dados não foram enviados, para não apagar o que já está salvo lá.`)
         }
         setSyncWarnings(warnings)
-        const result = await uploadUserData(user.uid, {
-          profile: profile as unknown as Record<string, unknown>,
-          training: training as unknown as Record<string, unknown>,
-          ...(sm2Ok
-            ? { spacedRepetition: { sm2Data } as unknown as Record<string, unknown> }
-            : {}),
-          postflopReview: { profiles: postflopProfiles } as unknown as Record<string, unknown>,
-          ...(handsOk ? { hands: { savedHands } as unknown as Record<string, unknown> } : {}),
-          leaks: { stats: leakStats, decisions: leakDecisions } as unknown as Record<string, unknown>,
-        }, unsafe)
+        const result = await uploadUserData(user.uid, payload, unsafe)
+
+        // o que outro aparelho enviou nesse meio tempo chega aqui (so aplica se mudou: sem laco)
+        for (const [name, merged] of Object.entries(result.merged)) applyMergedDoc(name, merged)
+
         const failedDocs = Object.keys(result.failed)
         useAuthStore.getState().setSyncReport({ uploadedAt: Date.now(), uploadFailed: result.failed })
         if (failedDocs.length > 0) {
@@ -84,5 +99,8 @@ export function useSyncTrigger() {
       }
     }, DEBOUNCE_MS)
     return () => clearTimeout(timerRef.current)
-  }, [profile, training, sm2Data, postflopProfiles, savedHands, leakStats, leakDecisions, user?.uid, guestMode])
+  }, [
+    profile, training, sm2Data, postflopProfiles, savedHands, deletedHands, leakStats, leakDecisions,
+    notes, deletedNotes, playSessions, user?.uid, guestMode,
+  ])
 }

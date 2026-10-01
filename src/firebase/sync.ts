@@ -1,32 +1,35 @@
-import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, Timestamp, runTransaction, deleteDoc } from 'firebase/firestore'
 import { db } from './config'
+import { MERGERS, stripMeta } from '@/engine/syncMerge'
 
 function userDoc(uid: string, storeName: string) {
   return doc(db, 'users', uid, 'data', storeName)
 }
 
-export interface SyncPayload {
-  profile?: Record<string, unknown>
-  training?: Record<string, unknown>
-  spacedRepetition?: Record<string, unknown>
-  postflopReview?: Record<string, unknown>
-  hands?: Record<string, unknown>
-  leaks?: Record<string, unknown>
-}
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type Obj = Record<string, any>
 
-export const SYNC_DOCS = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks'] as const
+export type SyncPayload = Partial<Record<(typeof SYNC_DOCS)[number], Obj>>
+
+export const SYNC_DOCS = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks', 'notes', 'play'] as const
+
+/** Limite por documento do Firestore e uma margem de seguranca (1 MiB). */
+export const DOC_SIZE_LIMIT = 800_000
 
 const errText = (e: unknown) => (e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : String(e))
 
 export interface UploadResult {
   /** Documento -> motivo da falha. Vazio = tudo enviou. */
   failed: Record<string, string>
+  /** Documento -> resultado da fusao com a nuvem (o app aplica de volta no aparelho). */
+  merged: Record<string, Obj>
 }
 
 /**
  * Envia cada documento em separado: uma falha (ex.: regra de seguranca) nao derruba os outros.
- * `skip` = documentos que NAO podem ser sobrescritos (nao deu para ler o que ha na nuvem, entao
- * enviar o estado local poderia apagar dados do jogador).
+ * Cada envio e uma TRANSACAO: le o que esta na nuvem, funde com o local (uniao, ver
+ * engine/syncMerge) e grava o resultado. Assim dois aparelhos nunca se sobrescrevem.
+ * `skip` = documentos que NAO podem ser gravados (nao deu para ler a nuvem no login).
  */
 export async function uploadUserData(
   uid: string,
@@ -34,18 +37,29 @@ export async function uploadUserData(
   skip: readonly string[] = [],
 ): Promise<UploadResult> {
   const failed: Record<string, string> = {}
-  const entries = (Object.entries(data) as [keyof SyncPayload, Record<string, unknown>][]).filter(
+  const merged: Record<string, Obj> = {}
+  const entries = (Object.entries(data) as [string, Obj][]).filter(
     ([key, v]) => v !== undefined && v !== null && !skip.includes(key),
   )
   const results = await Promise.allSettled(
-    entries.map(([key, value]) =>
-      setDoc(userDoc(uid, key), { ...value, updatedAt: serverTimestamp() }, { merge: false }),
+    entries.map(([key, local]) =>
+      runTransaction(db, async (tx) => {
+        const ref = userDoc(uid, key)
+        const snap = await tx.get(ref)
+        const cloud = snap.exists() ? (snap.data() as Obj) : null
+        const result = MERGERS[key](local, cloud)
+        // JSON ida e volta tira os `undefined`, que o Firestore recusa ("Unsupported field value")
+        const out = JSON.parse(JSON.stringify(stripMeta(result) ?? {})) as Obj
+        if (JSON.stringify(out).length > DOC_SIZE_LIMIT) throw new Error('documento grande demais')
+        tx.set(ref, { ...out, updatedAt: serverTimestamp() }, { merge: false })
+        merged[key] = out
+      }),
     ),
   )
   results.forEach((r, i) => {
     if (r.status === 'rejected') failed[entries[i][0]] = errText(r.reason)
   })
-  return { failed }
+  return { failed, merged }
 }
 
 export interface DownloadResult {
@@ -70,6 +84,19 @@ export async function downloadUserData(uid: string): Promise<DownloadResult> {
     }),
   )
   return { data, failed }
+}
+
+/** Apaga documentos do usuario na nuvem (todos, ou so os de `names`), ao resetar dados no app. */
+export async function clearUserCloudData(
+  uid: string,
+  names: readonly string[] = SYNC_DOCS,
+): Promise<{ failed: Record<string, string> }> {
+  const failed: Record<string, string> = {}
+  const results = await Promise.allSettled(names.map((name) => deleteDoc(userDoc(uid, name))))
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') failed[names[i]] = errText(r.reason)
+  })
+  return { failed }
 }
 
 export function toTimestampMillis(val: unknown): number {

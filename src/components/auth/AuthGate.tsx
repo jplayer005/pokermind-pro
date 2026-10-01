@@ -3,18 +3,13 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 import { auth } from '@/firebase/config'
-import { downloadUserData, toTimestampMillis, SYNC_DOCS } from '@/firebase/sync'
+import { downloadUserData, SYNC_DOCS } from '@/firebase/sync'
+import { getLocalDoc, applyMergedDoc } from '@/firebase/localDocs'
+import { MERGERS } from '@/engine/syncMerge'
 import { useAuthStore } from '@/store/authStore'
-import {
-  useUserStore,
-  useTrainingStore,
-  useSpacedRepetitionStore,
-  usePostflopReviewStore,
-  useHandsStore,
-  useLeakStore,
-} from '@/store'
+import { useUserStore } from '@/store'
 import LoginPage from '@/pages/LoginPage'
-import type { UserProfile, UserStats, Achievement, StudyGoal } from '@/types'
+import type { UserStats } from '@/types'
 
 async function hydrateFromFirestore(uid: string, email?: string | null) {
   try {
@@ -36,74 +31,15 @@ async function hydrateFromFirestore(uid: string, email?: string | null) {
       localXP: localXPBefore,
     })
 
-    // Profile: compara XP para resolver conflito
-    if (data.profile) {
-      const cloudXP = (data.profile.stats as UserStats | undefined)?.xp ?? 0
-      const localXP = userState.profile.stats.xp
-      const cloudUpdatedAt = toTimestampMillis(data.profile.updatedAt)
-      const localUpdatedAt = toTimestampMillis((userState.profile as any).updatedAt)
-
-      // "Mais nova" nao basta: uma nuvem recem-criada e vazia (XP 0) nao pode sobrescrever
-      // um perfil local com progresso. So vence se tem mais XP, ou e mais nova e nao tem menos.
-      if (cloudXP > localXP || (cloudUpdatedAt > localUpdatedAt && cloudXP >= localXP)) {
-        const { updatedAt, ...rest } = data.profile as any
-        useUserStore.setState((state) => ({
-          profile: {
-            ...state.profile,
-            ...(rest as Partial<UserProfile>),
-            id: uid,
-          },
-        }))
-      }
-    } else {
-      // Primeira vez na nuvem: já vai sincronizar via useSyncTrigger (debounce 2s)
-    }
-
-    if (data.training) {
-      const { updatedAt, ...rest } = data.training as any
-      const cloudUpdatedAt = toTimestampMillis(data.training.updatedAt)
-      const localHistory = useTrainingStore.getState().sessionHistory
-      const localXP = useUserStore.getState().profile.stats.xp
-      if (cloudUpdatedAt > 0 && (rest.sessionHistory?.length ?? 0) >= localHistory.length) {
-        useTrainingStore.setState({ ...rest })
-      }
-    }
-
-    if (data.spacedRepetition) {
-      const { updatedAt, sm2Data } = data.spacedRepetition as any
-      const cloudUpdatedAt = toTimestampMillis(data.spacedRepetition.updatedAt)
-      const localCount = Object.keys(useSpacedRepetitionStore.getState().sm2Data).length
-      if (cloudUpdatedAt > 0 && Object.keys(sm2Data ?? {}).length >= localCount) {
-        useSpacedRepetitionStore.setState({ sm2Data: sm2Data ?? {} })
-      }
-    }
-
-    if (data.postflopReview) {
-      const { updatedAt, profiles } = data.postflopReview as any
-      const cloudUpdatedAt = toTimestampMillis(data.postflopReview.updatedAt)
-      const localCount = Object.keys(usePostflopReviewStore.getState().profiles).length
-      if (cloudUpdatedAt > 0 && Object.keys(profiles ?? {}).length >= localCount) {
-        usePostflopReviewStore.setState({ profiles: profiles ?? {} })
-      }
-    }
-
-    if (data.hands) {
-      const { updatedAt, savedHands } = data.hands as any
-      const cloudUpdatedAt = toTimestampMillis(data.hands.updatedAt)
-      const localCount = useHandsStore.getState().savedHands.length
-      if (cloudUpdatedAt > 0 && (savedHands?.length ?? 0) >= localCount) {
-        useHandsStore.setState({ savedHands: savedHands ?? [] })
-      }
-    }
-
-    if (data.leaks) {
-      const { stats, decisions } = data.leaks as any
-      const cloudUpdatedAt = toTimestampMillis(data.leaks.updatedAt)
-      const localDecisions = useLeakStore.getState().decisions
-      // mesma regra dos outros stores: a nuvem so vence se tem pelo menos tanto quanto o local
-      if (cloudUpdatedAt > 0 && (decisions ?? 0) >= localDecisions) {
-        useLeakStore.setState({ stats: stats ?? {}, decisions: decisions ?? 0 })
-      }
+    // Fusao por UNIAO (engine/syncMerge): o que ja existe neste aparelho e o que veio da nuvem
+    // convivem; nenhum lado apaga o outro. O resultado volta para o aparelho e, no proximo envio,
+    // para a nuvem.
+    for (const name of SYNC_DOCS) {
+      const cloud = data[name]
+      if (!cloud || failed[name]) continue
+      const local = getLocalDoc(name)
+      if (!local) continue
+      applyMergedDoc(name, MERGERS[name](local, cloud))
     }
 
     // Garante que o ID e e-mail do profile apontam para o usuário Firebase real

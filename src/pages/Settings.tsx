@@ -4,7 +4,8 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUserStore, useTrainingStore, useUIStore } from '@/store'
+import { useUserStore, useTrainingStore, useUIStore, useLeakStore, useSpacedRepetitionStore, usePostflopReviewStore, usePlayStore } from '@/store'
+import { clearUserCloudData } from '@/firebase/sync'
 import { useAuthStore } from '@/store/authStore'
 import { signInWithGoogle, signOut } from '@/firebase/auth'
 import { cn } from '@/lib/utils'
@@ -83,7 +84,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 // ============================================================
 
 function ConfirmModal({
-  title, message, confirmLabel, onConfirm, onCancel, danger = false,
+  title, message, confirmLabel, onConfirm, onCancel, danger = false, busy = false, error = null,
 }: {
   title: string
   message: string
@@ -91,6 +92,8 @@ function ConfirmModal({
   onConfirm: () => void
   onCancel: () => void
   danger?: boolean
+  busy?: boolean
+  error?: string | null
 }) {
   useEscapeKey(onCancel)
   return (
@@ -115,23 +118,26 @@ function ConfirmModal({
           <div className="text-sm font-bold text-text-primary">{title}</div>
         </div>
         <p className="text-sm text-text-secondary mb-5">{message}</p>
+        {error && <p role="alert" className="text-xs text-accent-crimson mb-4">{error}</p>}
         <div className="flex gap-2">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border border-border-default text-sm text-text-secondary hover:text-text-primary transition-colors"
+            disabled={busy}
+            className="flex-1 py-2.5 rounded-xl border border-border-default text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={onConfirm}
+            disabled={busy}
             className={cn(
-              'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors',
+              'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50',
               danger
                 ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
                 : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30'
             )}
           >
-            {confirmLabel}
+            {busy ? 'Apagando...' : confirmLabel}
           </button>
         </div>
       </div>
@@ -204,6 +210,8 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [dataBusy, setDataBusy] = useState(false)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   const isPremium = profile.plan !== 'free'
   const dailyGoal = profile.goals.find((g: any) => g.id === 'g001')
@@ -213,17 +221,49 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 1500)
   }
 
-  const handleResetProgress = () => {
-    resetProgress()
-    resetUserStats()
-    setShowResetConfirm(false)
-    flashSaved()
+  // Com conta, a copia da nuvem precisa sumir junto: a sincronizacao e por uniao e ela traria tudo
+  // de volta. Se a nuvem nao puder ser limpa, NADA e apagado (evita o app ficar pela metade).
+  const clearCloud = async (names?: readonly string[]): Promise<boolean> => {
+    if (!user) return true
+    const { failed } = await clearUserCloudData(user.uid, names)
+    if (Object.keys(failed).length > 0) {
+      setDataError('Não foi possível apagar a cópia na nuvem. Confira a internet e tente de novo; nada foi apagado.')
+      return false
+    }
+    return true
   }
 
-  const handleClearAll = () => {
-    localStorage.clear()
-    setShowClearConfirm(false)
-    window.location.reload()
+  const handleResetProgress = async () => {
+    setDataError(null)
+    setDataBusy(true)
+    try {
+      // progresso = treino, XP e estatisticas, vazamentos, revisao espacada e sessoes da mesa.
+      // Perfil (nome, plano), maos salvas e anotacoes ficam.
+      if (!(await clearCloud(['profile', 'training', 'spacedRepetition', 'postflopReview', 'leaks', 'play']))) return
+      resetProgress()
+      resetUserStats()
+      useLeakStore.getState().reset()
+      useSpacedRepetitionStore.getState().resetSR()
+      usePostflopReviewStore.getState().resetReview()
+      usePlayStore.getState().reset()
+      setShowResetConfirm(false)
+      flashSaved()
+    } finally {
+      setDataBusy(false)
+    }
+  }
+
+  const handleClearAll = async () => {
+    setDataError(null)
+    setDataBusy(true)
+    try {
+      if (!(await clearCloud())) return
+      localStorage.clear()
+      setShowClearConfirm(false)
+      window.location.reload()
+    } finally {
+      setDataBusy(false)
+    }
   }
 
   return (
@@ -569,7 +609,9 @@ export default function Settings() {
       {showResetConfirm && (
         <ConfirmModal
           title="Resetar progresso?"
-          message="Isso apagará todo seu histórico de sessões e estatísticas de treino. Seu perfil e preferências serão mantidos."
+          message={`Zera XP, nível, sequência, histórico de treino, vazamentos, revisão espaçada e sessões da mesa. Perfil, mãos salvas e anotações ficam.${user ? " Como você está logado, a cópia na nuvem também é apagada." : ""}`}
+          busy={dataBusy}
+          error={dataError}
           confirmLabel="Resetar progresso"
           onConfirm={handleResetProgress}
           onCancel={() => setShowResetConfirm(false)}
@@ -579,7 +621,9 @@ export default function Settings() {
       {showClearConfirm && (
         <ConfirmModal
           title="Apagar todos os dados?"
-          message="Isso remove TODOS os dados do app: perfil, histórico, preferências e conquistas. Essa ação não pode ser desfeita."
+          message={`Isso remove TODOS os dados do app: perfil, histórico, mãos, anotações, preferências e conquistas. Essa ação não pode ser desfeita.${user ? " Como você está logado, a cópia na nuvem também é apagada." : ""}`}
+          busy={dataBusy}
+          error={dataError}
           confirmLabel="Apagar tudo"
           onConfirm={handleClearAll}
           onCancel={() => setShowClearConfirm(false)}
