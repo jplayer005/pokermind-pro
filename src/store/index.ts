@@ -12,6 +12,8 @@ import {
 import { ACHIEVEMENTS_DATA } from '@/data/ranges'
 import { levelFromXP } from '@/lib/utils'
 import { recordDecision, type LeakStat, type DecisionInput } from '@/engine/coach/leaks'
+import { creditForDecisions, type PlaySession } from '@/engine/progress'
+import type { Grade } from '@/engine/coach/types'
 
 // ------- STORE DE USUÁRIO -------
 interface UserStore {
@@ -375,6 +377,8 @@ interface TrainingStore {
   resetProgress: () => void
   competitionHighScores: CompetitionScore[]
   addCompetitionScore: (entry: CompetitionScore) => void
+  /** Conta decisoes feitas fora dos drills (ex.: na mesa) na meta diaria, sem criar sessao de drill. */
+  addToday: (n: number) => void
 }
 
 export const useTrainingStore = create<TrainingStore>()(
@@ -436,6 +440,16 @@ export const useTrainingStore = create<TrainingStore>()(
           currentSession: null,
           totalQuestionsToday: 0,
           lastResetDate: new Date().toISOString().split('T')[0],
+        }),
+
+      addToday: (n) =>
+        set((state) => {
+          const today = new Date().toISOString().split('T')[0]
+          const needsReset = state.lastResetDate !== today
+          return {
+            totalQuestionsToday: (needsReset ? 0 : state.totalQuestionsToday) + Math.max(0, n),
+            lastResetDate: today,
+          }
         }),
 
       addCompetitionScore: (entry) =>
@@ -863,6 +877,60 @@ export const useNotesStore = create<NotesStore>()(
     }),
     {
       name: 'pokermind-notes',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
+// ------- STORE DA MESA (sessoes jogadas e XP do dia) -------
+export const MAX_PLAY_SESSIONS = 50
+
+interface PlayStore {
+  sessions: PlaySession[]
+  /** XP ja concedido pela mesa no dia (para o teto diario). */
+  xpDay: string
+  xpToday: number
+  /** Credita as decisoes avaliadas de UMA mao: XP, acertos, sequencia e meta diaria. */
+  creditHand: (grades: Grade[]) => void
+  recordSession: (s: PlaySession) => void
+  reset: () => void
+}
+
+const localDay = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export const usePlayStore = create<PlayStore>()(
+  persist(
+    (set, get) => ({
+      sessions: [],
+      xpDay: '',
+      xpToday: 0,
+
+      creditHand: (grades) => {
+        if (grades.length === 0) return
+        const day = localDay()
+        const granted = get().xpDay === day ? get().xpToday : 0
+        const credit = creditForDecisions(grades, granted)
+        set({ xpDay: day, xpToday: granted + credit.xp })
+
+        const user = useUserStore.getState()
+        if (credit.xp > 0) user.addXP(credit.xp)
+        const st = useUserStore.getState().profile.stats
+        const total = st.totalQuestions + credit.answered
+        const right = st.totalCorrect + credit.correct
+        user.updateStats({ totalQuestions: total, totalCorrect: right, accuracy: total > 0 ? right / total : 0 })
+        user.updateStreak()
+        useTrainingStore.getState().addToday(credit.answered)
+      },
+
+      recordSession: (s) => set((state) => ({ sessions: [s, ...state.sessions].slice(0, MAX_PLAY_SESSIONS) })),
+      reset: () => set({ sessions: [], xpDay: '', xpToday: 0 }),
+    }),
+    {
+      name: 'pokermind-play',
       version: 1,
       storage: createJSONStorage(() => localStorage),
     }

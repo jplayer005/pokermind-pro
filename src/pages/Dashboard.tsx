@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Card, ProgressBar, StatCard, SectionHeader } from '@/components/ui'
 import LeakPanel from '@/components/coach/LeakPanel'
+import PlayHistoryCard from '@/components/coach/PlayHistoryCard'
 import { useUserStore, useTrainingStore, usePostflopReviewStore } from '@/store'
 import type { PostflopSpotProfile } from '@/store'
 import { formatPercent, formatTime, formatNumber, xpToNextLevel } from '@/lib/utils'
@@ -700,6 +701,11 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
+        </motion.div>
+
+        {/* ---- MESA (sessoes jogadas) ---- */}
+        <motion.div variants={STAGGER.item}>
+          <PlayHistoryCard />
         </motion.div>
 
         {/* ---- VAZAMENTOS (coach) ---- */}

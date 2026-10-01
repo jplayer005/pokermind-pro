@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { handToText } from '@/lib/handText'
+import CoachDecisions from '@/components/table/CoachDecisions'
 
 // ============================================================
 // DADOS MOCK DE MÃOS DEMONSTRAÇÃO
@@ -678,6 +679,13 @@ export default function HandReplayer() {
                     </div>
                     <div className="text-xs text-text-muted mt-1">Pot total: {selectedHand.pot.toFixed(1)} BB</div>
                   </motion.div>
+                )}
+
+                {/* AVALIAÇÃO DO COACH (mãos jogadas na mesa) */}
+                {selectedHand.decisions && selectedHand.decisions.length > 0 && (
+                  <UICard className="p-4">
+                    <CoachDecisions decisions={selectedHand.decisions} />
+                  </UICard>
                 )}
 
                 {/* NOTAS: editáveis nas mãos suas; os exemplos só mostram */}

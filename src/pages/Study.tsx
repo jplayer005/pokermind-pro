@@ -10,7 +10,11 @@ import { Card, Badge, Button, SectionHeader, ProgressBar, PremiumLock } from '@/
 import { COURSES_DATA, FLASHCARDS_DATA } from '@/data/ranges'
 import { cn } from '@/lib/utils'
 import { Flashcard } from '@/types'
-import { useUserStore } from '@/store'
+import { useUserStore, useSpacedRepetitionStore } from '@/store'
+import { buildFlashcardQueue } from '@/engine/progress'
+
+// prefixo no SM-2 para nao colidir com os ids das perguntas dos drills
+const FLASHCARD_KEY = 'fc:'
 import NotesTab from '@/components/study/NotesTab'
 
 type StudyTab = 'courses' | 'flashcards' | 'metagame' | 'notes'
@@ -123,14 +127,22 @@ function CourseCard({ course }: { course: typeof COURSES_DATA[0] }) {
 // ------- SISTEMA DE FLASHCARDS -------
 function FlashcardSystem() {
   const { addXP, updateStats, updateStreak } = useUserStore()
-  const [cards, setCards] = useState<Flashcard[]>(
-    FLASHCARDS_DATA.map(f => ({ ...f, nextReview: Date.now() }))
-  )
+  const sm2Data = useSpacedRepetitionStore((s) => s.sm2Data)
+  const { updateSM2 } = useSpacedRepetitionStore.getState()
+  // fila do dia pelo SM-2: vencidos primeiro, depois ate 10 novos. Fixada no inicio da sessao:
+  // responder um cartao nao pode mudar a fila no meio.
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split("T")[0]
+  const buildQueue = () => buildFlashcardQueue(FLASHCARDS_DATA.map(f => FLASHCARD_KEY + f.id), useSpacedRepetitionStore.getState().sm2Data, today)
+  const [queueInfo, setQueueInfo] = useState(buildQueue)
+  const cards: Flashcard[] = queueInfo.queue
+    .map(key => FLASHCARDS_DATA.find(f => FLASHCARD_KEY + f.id === key))
+    .filter((f): f is NonNullable<typeof f> => !!f)
   const [currentIdx, setCurrentIdx] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [sessionStats, setSessionStats] = useState({ correct: 0, incorrect: 0 })
   const sessionStartRef = useRef<number>(Date.now())
+  void sm2Data // re-renderiza quando o SM-2 muda
 
   const currentCard = cards[currentIdx]
 
@@ -140,7 +152,9 @@ function FlashcardSystem() {
       incorrect: sessionStats.incorrect + (correct ? 0 : 1),
     }
     setSessionStats(newStats)
-    if (correct) addXP(5)
+    updateSM2(FLASHCARD_KEY + currentCard.id, correct)
+    // XP so na PRIMEIRA vez que acerta o cartao no dia (revisar de novo nao rende, sem farm)
+    if (correct && (useSpacedRepetitionStore.getState().sm2Data[FLASHCARD_KEY + currentCard.id]?.totalAttempts ?? 0) <= 1) addXP(5)
 
     if (currentIdx + 1 >= cards.length) {
       const sessionDuration = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 60000))
@@ -163,11 +177,30 @@ function FlashcardSystem() {
   }
 
   function restartSession() {
+    // nova fila: o que acabou de ser respondido ja foi reagendado e sai dela
+    setQueueInfo(buildQueue())
     setCurrentIdx(0)
     setIsFlipped(false)
     setIsFinished(false)
     setSessionStats({ correct: 0, incorrect: 0 })
     sessionStartRef.current = Date.now()
+  }
+
+  // nada para hoje: tudo em dia (e nao ha cartoes novos)
+  if (cards.length === 0) {
+    const next = Object.entries(useSpacedRepetitionStore.getState().sm2Data)
+      .filter(([k]) => k.startsWith(FLASHCARD_KEY))
+      .map(([, v]) => v.nextReview)
+      .sort()[0]
+    return (
+      <div className="text-center py-8 space-y-2">
+        <div className="text-4xl">✅</div>
+        <h3 className="text-base font-display font-bold text-text-primary">Tudo em dia por hoje</h3>
+        <p className="text-xs text-text-muted">
+          {next ? `Próxima revisão em ${next.split("-").reverse().join("/")}.` : "Volte amanhã para novos cartões."}
+        </p>
+      </div>
+    )
   }
 
   if (isFinished) {
@@ -182,7 +215,7 @@ function FlashcardSystem() {
           <div className="flex items-center gap-1.5"><Check size={14} className="text-accent-emerald" /><span className="text-text-secondary">{sessionStats.correct} corretos</span></div>
           <div className="flex items-center gap-1.5"><X size={14} className="text-accent-crimson" /><span className="text-text-secondary">{sessionStats.incorrect} errados</span></div>
         </div>
-        <Button variant="gold" size="md" onClick={restartSession}><RotateCcw size={14} />Repetir</Button>
+        <Button variant="gold" size="md" onClick={restartSession}><RotateCcw size={14} />Continuar</Button>
       </motion.div>
     )
   }
@@ -594,6 +627,12 @@ const COURSE_FILTERS = [
 
 export default function Study() {
   const [tab, setTab] = useState<StudyTab>('courses')
+  const sm2All = useSpacedRepetitionStore((s) => s.sm2Data)
+  const dueSubtitle = () => {
+    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
+    const q = buildFlashcardQueue(FLASHCARDS_DATA.map(f => FLASHCARD_KEY + f.id), sm2All, todayStr)
+    return q.queue.length > 0 ? `${q.due.length} para revisar hoje, ${q.fresh.length} novos` : 'Tudo em dia por hoje'
+  }
   const [courseFilter, setCourseFilter] = useState<string | null>(null)
 
   const TABS: { id: StudyTab; label: string; icon: string }[] = [
@@ -673,7 +712,7 @@ export default function Study() {
                 <Card className="p-4">
                   <SectionHeader
                     title="Revisão Espaçada"
-                    subtitle={`${FLASHCARDS_DATA.length} cards para revisar hoje`}
+                    subtitle={dueSubtitle()}
                   />
                   <FlashcardSystem />
                 </Card>

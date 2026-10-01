@@ -2,7 +2,7 @@
 // POKERMIND PRO - MESA JOGAVEL (treino contra bots)
 // Cash 6-max, 9-max e Heads-up; Sit&Go (6 e 9) e MTT (campo simulado).
 // ============================================================
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { History, LogOut, Play, RotateCcw, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button, Card, Badge, SectionHeader } from '@/components/ui'
@@ -13,7 +13,10 @@ import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
-import { useUIStore } from '@/store'
+import { useUIStore, usePlayStore } from '@/store'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
+import { setBackGuard } from '@/lib/backGuard'
+import type { PlaySession } from '@/engine/progress'
 import { useElementHeight } from '@/hooks/useElementHeight'
 import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
@@ -262,11 +265,46 @@ export default function PlayTable() {
   )
 }
 
+function ExitConfirm({
+  tournament, hands, netBB, onStay, onLeave,
+}: { tournament: boolean; hands: number; netBB: number; onStay: () => void; onLeave: () => void }) {
+  useEscapeKey(onStay)
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sair da mesa"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-6"
+      onClick={onStay}
+    >
+      <div
+        style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+        className="w-full max-w-sm rounded-2xl p-5 border border-border-default space-y-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm font-display font-bold text-text-primary">
+          {tournament ? 'Sair do torneio em andamento?' : 'Encerrar a sessão?'}
+        </p>
+        <p className="text-xs text-text-secondary">
+          {tournament
+            ? 'Você abandona o torneio agora: a colocação e o prêmio não serão registrados e não dá para retomar depois.'
+            : `Você jogou ${hands} ${hands === 1 ? 'mão' : 'mãos'} (${netBB >= 0 ? '+' : ''}${netBB.toFixed(1)} bb). A sessão fica salva no seu histórico.`}
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="primary" onClick={onStay}>Continuar jogando</Button>
+          <Button variant="danger" onClick={onLeave}>{tournament ? 'Abandonar' : 'Encerrar'}</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TableGame({
   config, onExit, onRestart,
 }: { config: Config; onExit: (s: Summary) => void; onRestart: () => void }) {
   const [unit, setUnit] = useState<'bb' | 'chips'>('bb')
   const [logOpen, setLogOpen] = useState(false)
+  const [confirmExit, setConfirmExit] = useState(false)
 
   const options: TableOptions = useMemo(() => {
     const base = {
@@ -328,6 +366,62 @@ function TableGame({
   const prize = tour && place ? prizeInBuyIns(tour.config, place) : 0
   const tourText = tour && place ? `${place}º de ${tour.config.fieldSize}, prêmio ${prize.toFixed(2)} buy-ins` : undefined
 
+  // ---- sair da mesa: registra a sessao e, com algo em jogo, pede confirmacao antes
+  const tournamentLive = !!tour && !tour.done
+  // so pergunta quando ha o que perder: torneio em andamento ou sessao com mãos jogadas
+  const needsConfirm = tournamentLive || session.hands > 0
+
+  const summaryNow = (): Summary => ({
+    label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText,
+  })
+
+  const sessionRecord = () => {
+    const s: PlaySession = {
+      id: `play_${Date.now()}`,
+      endedAt: Date.now(),
+      modeId: config.mode.id,
+      label: config.mode.label,
+      hands: session.hands,
+      netBB: tour ? undefined : Math.round(netBB * 10) / 10,
+      place: tour && place ? place : undefined,
+      field: tour && place ? tour.config.fieldSize : undefined,
+      prizeBuyIns: tour && place ? Math.round(prize * 100) / 100 : undefined,
+      decisions: session.decisions,
+      correct: session.correct,
+      leaks: session.leaks,
+    }
+    return s
+  }
+
+  // grava a sessao UMA vez, no botao Sair ou ao sair da tela (ex.: menu inferior)
+  const recordedRef = useRef(false)
+  const liveRef = useRef({ record: sessionRecord, hands: session.hands })
+  liveRef.current = { record: sessionRecord, hands: session.hands }
+  const recordOnce = () => {
+    if (recordedRef.current || liveRef.current.hands === 0) return
+    recordedRef.current = true
+    usePlayStore.getState().recordSession(liveRef.current.record())
+  }
+  useEffect(() => () => recordOnce(), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const doExit = () => {
+    recordOnce()
+    onExit(summaryNow())
+  }
+  const requestExit = () => (needsConfirm ? setConfirmExit(true) : doExit())
+
+  // botao Voltar do Android: com algo em jogo, pergunta em vez de largar a mesa
+  const guardRef = useRef(needsConfirm)
+  guardRef.current = needsConfirm
+  useEffect(
+    () => setBackGuard(() => {
+      if (!guardRef.current) return false
+      setConfirmExit(true)
+      return true
+    }),
+    [],
+  )
+
   // A mesa ocupa o espaco que sobra entre o cabecalho e a barra de acoes (fixa na base).
   const areaRef = useRef<HTMLDivElement>(null)
   const areaH = useElementHeight(areaRef)
@@ -360,9 +454,7 @@ function TableGame({
             </button>
             <button
               aria-label="Sair da mesa"
-              onClick={() =>
-                onExit({ label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText })
-              }
+              onClick={requestExit}
               className="h-8 w-8 flex items-center justify-center rounded-lg border border-border-default text-text-secondary"
             >
               <LogOut size={14} />
@@ -488,9 +580,7 @@ function TableGame({
                   <Button variant="primary" onClick={onRestart}>
                     <RotateCcw size={14} /> Jogar de novo
                   </Button>
-                  <Button
-                    onClick={() => onExit({ label: config.mode.label, hands: session.hands, result: tourText })}
-                  >
+                  <Button onClick={doExit}>
                     Sair
                   </Button>
                 </div>
@@ -515,6 +605,15 @@ function TableGame({
       </div>
       </div>
 
+      {confirmExit && (
+        <ExitConfirm
+          tournament={tournamentLive}
+          hands={session.hands}
+          netBB={netBB}
+          onStay={() => setConfirmExit(false)}
+          onLeave={doExit}
+        />
+      )}
       {logOpen && <HandLog games={logGames} unit={unit} onClose={() => setLogOpen(false)} />}
       {openReview && (
         <HandReviewSheet

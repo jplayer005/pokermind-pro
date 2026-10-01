@@ -15,7 +15,8 @@ import { playSfx } from '@/lib/sfx'
 import { runoutDurationMs } from '@/hooks/useRunoutBoard'
 import { pickProfiles } from '@/engine/bots/profiles'
 import { advanceAfterHand, icmPressure, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
-import { useHandsStore, useLeakStore } from '@/store'
+import { useHandsStore, useLeakStore, usePlayStore } from '@/store'
+import { isCorrectGrade } from '@/engine/progress'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
 export type Speed = 'slow' | 'normal' | 'fast'
@@ -50,6 +51,10 @@ export interface Session {
   /** Ganho/perda do heroi em fichas, ja descontadas as recompras. */
   net: number
   rebuys: number
+  /** Decisoes avaliadas pelo coach na sessao, acertos (otima/boa) e vazamentos. */
+  decisions: number
+  correct: number
+  leaks: number
 }
 
 export interface Review {
@@ -72,7 +77,7 @@ function icmPayoutsOf(t: TournamentState | null): number[] | undefined {
 export function useTableEngine(opts: TableOptions) {
   const [game, setGame] = useState<GameState>(() => createGame(opts.players, opts.cfg, 0))
   const [archive, setArchive] = useState<GameState[]>([])
-  const [session, setSession] = useState<Session>({ hands: 0, net: 0, rebuys: 0 })
+  const [session, setSession] = useState<Session>({ hands: 0, net: 0, rebuys: 0, decisions: 0, correct: 0, leaks: 0 })
   const [reviews, setReviews] = useState<Review[]>([])
   const [lastGrade, setLastGrade] = useState<LastGrade | null>(null)
   const [hud, setHud] = useState<Record<number, HudStats>>({})
@@ -150,12 +155,20 @@ export function useTableEngine(opts: TableOptions) {
     counted.current = game.handNumber
     const o = optsRef.current
     const net = heroId >= 0 ? game.result.net[heroId] : 0
-    setSession((x) => ({ ...x, hands: x.hands + 1, net: x.net + net }))
-    setArchive((a) => [game, ...a].slice(0, 8))
-    setHud((h) => updateHud(h, game))
-
     const decisions = decisionsRef.current
     decisionsRef.current = []
+    setSession((x) => ({
+      ...x,
+      hands: x.hands + 1,
+      net: x.net + net,
+      decisions: x.decisions + decisions.length,
+      correct: x.correct + decisions.filter((d) => isCorrectGrade(d.grade)).length,
+      leaks: x.leaks + decisions.filter((d) => isLeak(d.grade)).length,
+    }))
+    setArchive((a) => [game, ...a].slice(0, 8))
+    setHud((h) => updateHud(h, game))
+    // jogar com o coach ligado conta como treino: XP (com teto diario), acertos, sequencia e meta diaria
+    if (o.coach !== 'off' && decisions.length > 0) usePlayStore.getState().creditHand(decisions.map((d) => d.grade))
     let savedId: string | null = null
     if (o.coach !== 'off' && decisions.length > 0) {
       const heroSeat = game.seats[heroId]

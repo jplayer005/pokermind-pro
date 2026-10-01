@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
 import { App as CapApp } from '@capacitor/app'
 import { useSyncTrigger } from '@/hooks/useSyncTrigger'
+import { backHandledByScreen } from '@/lib/backGuard'
 
 // desktopOnly: a barra inferior mobile já está cheia; esses itens ficam só no menu lateral
 // e são alcançados no celular pelos atalhos do Dashboard.
@@ -40,6 +41,8 @@ export default function AppLayout() {
 
   useEffect(() => {
     const handler = CapApp.addListener('backButton', () => {
+      // a tela atual pode segurar o Voltar (ex.: mesa com torneio em andamento pede confirmacao)
+      if (backHandledByScreen()) return
       const isRoot = location.pathname === '/dashboard'
       if (!isRoot) { navigate(-1); return }
       if (backPressedOnce.current) { CapApp.exitApp(); return }
