@@ -16,6 +16,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Assinatura de release: chave de upload FORA do repositorio (~/.pokermind-signing).
+    // Sem o arquivo, o release sai sem assinatura (debug e CI nao sao afetados).
+    def signingFile = new File(System.getProperty('user.home'), '.pokermind-signing/signing.properties')
+    if (signingFile.exists()) {
+        def sp = new Properties()
+        signingFile.withInputStream { sp.load(it) }
+        signingConfigs {
+            release {
+                storeFile file(sp['storeFile'])
+                storePassword sp['storePassword']
+                keyAlias sp['keyAlias']
+                keyPassword sp['keyPassword']
+            }
+        }
+    }
     buildTypes {
         debug {
             // Canal de teste: convive com o app da loja (com.pokermind.pro) no mesmo aparelho.
@@ -23,6 +38,7 @@ android {
             versionNameSuffix "-debug"
         }
         release {
+            if (signingFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
