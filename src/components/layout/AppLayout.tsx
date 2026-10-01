@@ -168,7 +168,7 @@ export default function AppLayout() {
 
         {/* Bottom Nav — mobile only */}
         <nav className="lg:hidden glass-strong border-t border-border-subtle flex-shrink-0 z-20 bottom-nav-safe">
-          <div className="flex items-center justify-around px-1 pt-2 pb-1">
+          <div className="flex items-center justify-around px-0.5 pt-2 pb-1">
             {NAV_ITEMS.filter((n) => !n.desktopOnly).map(({ path, icon: Icon, label, short }) => {
               const isActive = location.pathname === path ||
                 (path !== '/dashboard' && location.pathname.startsWith(path))
@@ -177,7 +177,7 @@ export default function AppLayout() {
                   key={path}
                   onClick={() => navigate(path)}
                   className={cn(
-                    'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all duration-200 min-w-0 flex-1',
+                    'flex flex-col items-center gap-0.5 px-0.5 py-1.5 rounded-xl transition-all duration-200 min-w-0 flex-1',
                     'active:scale-95',
                     isActive ? 'text-accent-gold' : 'text-text-muted hover:text-text-secondary'
                   )}
