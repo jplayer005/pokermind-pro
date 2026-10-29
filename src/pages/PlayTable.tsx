@@ -11,6 +11,7 @@ import ActionBar from '@/components/table/ActionBar'
 import HandLog from '@/components/table/HandLog'
 import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
+import ReadRangeSheet from '@/components/table/ReadRangeSheet'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import { useUIStore, usePlayStore } from '@/store'
@@ -22,6 +23,7 @@ import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
+import type { QuizFreq } from '@/engine/coach/readQuiz'
 import {
   mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
 } from '@/engine/game/tournament'
@@ -59,9 +61,16 @@ const SPEEDS: { id: Speed; label: string }[] = [
 ]
 
 const COACH_MODES: { id: CoachMode; label: string; hint: string }[] = [
+  { id: 'quiz', label: 'Leia o vilão', hint: 'A mesa pausa diante de aposta grande: você lê o range e estima a equity antes de agir' },
   { id: 'live', label: 'Ao vivo', hint: 'Aviso rápido após cada jogada, sem interromper' },
   { id: 'after', label: 'Só revisão', hint: 'Sem avisos; você revisa a mão quando quiser' },
   { id: 'off', label: 'Desligado', hint: 'Jogo livre, sem notas' },
+]
+
+const QUIZ_FREQS: { id: QuizFreq; label: string }[] = [
+  { id: 'all', label: 'Toda aposta grande' },
+  { id: 'half', label: 'Metade' },
+  { id: 'river', label: 'Só river e all-in' },
 ]
 
 interface Config {
@@ -71,6 +80,7 @@ interface Config {
   autoNext: boolean
   showProfiles: boolean
   coach: CoachMode
+  quizFreq: QuizFreq
   showHud: boolean
   /** Segundos para agir; 0 = sem limite. */
   timebank: number
@@ -129,6 +139,7 @@ export default function PlayTable() {
   const [autoNext, setAutoNext] = useState(saved?.autoNext ?? true)
   const [showProfiles, setShowProfiles] = useState(saved?.showProfiles ?? true)
   const [coach, setCoach] = useState<CoachMode>(COACH_MODES.some((c) => c.id === saved?.coach) ? (saved?.coach as CoachMode) : 'live')
+  const [quizFreq, setQuizFreq] = useState<QuizFreq>(QUIZ_FREQS.some((f) => f.id === saved?.quizFreq) ? (saved?.quizFreq as QuizFreq) : 'all')
   const [showHud, setShowHud] = useState(saved?.showHud ?? true)
   const [timebank, setTimebank] = useState([0, 15, 30].includes(saved?.timebank ?? -1) ? (saved?.timebank as number) : 0)
 
@@ -156,8 +167,8 @@ export default function PlayTable() {
           size="lg"
           className="w-full"
           onClick={() => {
-            useUIStore.getState().setPlayPrefs({ modeId, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })
-            setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, showHud, timebank })
+            useUIStore.getState().setPlayPrefs({ modeId, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, showHud, timebank })
+            setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, showHud, timebank })
           }}
         >
           <Play size={16} /> Sentar na mesa
@@ -246,6 +257,16 @@ export default function PlayTable() {
             ))}
           </div>
           <p className="text-[11px] text-text-muted mt-1.5">{COACH_MODES.find((c) => c.id === coach)?.hint}</p>
+          {coach === 'quiz' && (
+            <div className="mt-2.5">
+              <p className="text-xs text-text-muted mb-1.5 font-body">Quando pausar</p>
+              <div className="flex flex-wrap gap-2">
+                {QUIZ_FREQS.map((f) => (
+                  <Chip key={f.id} active={f.id === quizFreq} onClick={() => setQuizFreq(f.id)}>{f.label}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -312,6 +333,7 @@ function TableGame({
       autoNext: config.autoNext,
       timebankSec: config.timebank,
       coach: config.coach,
+      quizFreq: config.quizFreq,
       modeId: config.mode.id,
       modeLabel: config.mode.label,
     }
@@ -342,7 +364,7 @@ function TableGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft } =
+  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz } =
     useTableEngine(options)
   // numero da mao aberta na revisao (null = fechada)
   const [reviewHand, setReviewHand] = useState<number | null>(null)
@@ -504,7 +526,7 @@ function TableGame({
           revealDone={runout.done}
         />
         {/* aviso do coach flutuando no topo da mesa: nao reserva altura entre a mesa e os botoes */}
-        {config.coach === 'live' && (
+        {(config.coach === 'live' || config.coach === 'quiz') && (
           <CoachToast
             overlay
             last={lastGrade}
@@ -621,6 +643,10 @@ function TableGame({
           onClose={() => setReviewHand(null)}
           onSave={(flag) => saveReview(openReview.game.handNumber, flag)}
         />
+      )}
+      {/* modo quiz: a mesa pausa na vez do heroi diante de aposta grande */}
+      {quiz && heroTurn && !openReview && (
+        <ReadRangeSheet game={game} quiz={quiz} onAnswer={answerQuiz} onClose={closeQuiz} />
       )}
     </div>
   )

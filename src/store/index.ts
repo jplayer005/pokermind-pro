@@ -481,6 +481,8 @@ export interface PlayPrefs {
   coach: string
   showHud: boolean
   timebank: number
+  /** Frequencia das pausas do modo quiz; ausente nas preferencias salvas antes dele. */
+  quizFreq?: string
 }
 
 interface UIStore {

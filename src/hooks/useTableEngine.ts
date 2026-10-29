@@ -8,6 +8,7 @@ import { decideBot } from '@/engine/bots/policy'
 import { updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
+import { buildQuiz, isQuizSpot, scoreQuiz, type Band, type QuizFreq, type QuizResult, type ReadQuiz } from '@/engine/coach/readQuiz'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
 import { loadEquity169 } from '@/engine/equity169'
@@ -20,8 +21,11 @@ import { isCorrectGrade } from '@/engine/progress'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
 export type Speed = 'slow' | 'normal' | 'fast'
-/** off: sem coach. after: so a revisao depois da mao. live: aviso rapido apos cada jogada + revisao. */
-export type CoachMode = 'off' | 'after' | 'live'
+/**
+ * off: sem coach. after: so a revisao depois da mao. live: aviso rapido apos cada jogada + revisao.
+ * quiz: igual ao live, e a mesa pausa diante de aposta grande para voce ler o range e estimar a equity.
+ */
+export type CoachMode = 'off' | 'after' | 'live' | 'quiz'
 
 const BOT_DELAY: Record<Speed, [number, number]> = {
   slow: [1100, 1900],
@@ -40,6 +44,8 @@ export interface TableOptions {
   /** Tempo para o heroi agir, em segundos. 0 = sem limite. Ao estourar: check se der, senao fold. */
   timebankSec: number
   coach: CoachMode
+  /** Frequencia das pausas do modo quiz (padrao: toda aposta grande). */
+  quizFreq?: QuizFreq
   modeId: string
   modeLabel: string
   /** Torneio (SNG/MTT): sem recompra, blinds sobem por nivel e ha eliminacoes. */
@@ -67,6 +73,12 @@ export interface Review {
 export interface LastGrade {
   d: GradedDecision
   key: number
+}
+
+/** Pausa "leia o range": o quiz da decisao atual e, depois de responder, a nota. */
+export interface QuizState {
+  q: ReadQuiz
+  result: QuizResult | null
 }
 
 /** Premios para o ICM do coach: so quando todos os jogadores vivos estao na mesa (SNG, mesa final). */
@@ -229,12 +241,47 @@ export function useTableEngine(opts: TableOptions) {
 
   const heroTurn = !game.over && game.toAct >= 0 && game.seats[game.toAct]?.isHero
 
+  // Modo quiz: antes da decisao do heroi diante de aposta grande, a mesa pausa e pede a leitura do range.
+  // Uma pausa por decisao (mao + numero de acoes): fechar o painel nao o reabre.
+  const [quiz, setQuiz] = useState<QuizState | null>(null)
+  const quizKey = useRef('')
+  useEffect(() => {
+    const o = optsRef.current
+    if (o.coach !== 'quiz' || !heroTurn) {
+      setQuiz(null)
+      return
+    }
+    const key = `${game.handNumber}:${game.history.length}`
+    if (quizKey.current === key) return
+    quizKey.current = key
+    const q = isQuizSpot(game, o.quizFreq ?? 'all') ? buildQuiz(game) : null
+    setQuiz(q ? { q, result: null } : null)
+  }, [heroTurn, game])
+
+  const quizRef = useRef(quiz)
+  quizRef.current = quiz
+  const answerQuiz = useCallback((picked: Band, guess: number) => {
+    const cur = quizRef.current
+    if (!cur || cur.result) return
+    const result: QuizResult = scoreQuiz(cur.q, picked, guess)
+    // o palpite conta como uma decisao: XP (com o teto diario) e taxa de erro por contexto
+    usePlayStore.getState().creditHand([result.grade])
+    useLeakStore.getState().record({
+      ctx: `QUIZ_EQ_${cur.q.street.toUpperCase()}`, tag: result.tag, grade: result.grade, evLossBB: null,
+    })
+    setQuiz({ ...cur, result })
+  }, [])
+
+  const closeQuiz = useCallback(() => setQuiz(null), [])
+
   // Timebank (opcional): contagem regressiva a cada decisao do heroi; ao estourar, age sozinho
   // (check se possivel, senao fold) e essa jogada NAO e avaliada pelo coach.
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  // A pausa do modo quiz para o relogio: ler o range leva tempo e o tempo recomeca ao fechar o painel.
+  const quizOpen = quiz !== null
   useEffect(() => {
     const sec = opts.timebankSec
-    if (!heroTurn || !sec) {
+    if (!heroTurn || !sec || quizOpen) {
       setTimeLeft(null)
       return
     }
@@ -254,7 +301,7 @@ export function useTableEngine(opts: TableOptions) {
     return () => clearInterval(iv)
     // reinicia a cada nova decisao do heroi (mesma mao, nova rua/aumento)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heroTurn, game.history.length, game.handNumber, opts.timebankSec])
+  }, [heroTurn, game.history.length, game.handNumber, opts.timebankSec, quizOpen])
 
   // sons/vibracao (so tocam se a opcao Som estiver ligada nas configuracoes)
   useEffect(() => {
@@ -270,7 +317,7 @@ export function useTableEngine(opts: TableOptions) {
     else if (n < 0) playSfx('lose')
   }, [game.over, game.handNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft }
+  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz }
 }
 
 /** Formata fichas como bb (ou fichas) para exibir. */

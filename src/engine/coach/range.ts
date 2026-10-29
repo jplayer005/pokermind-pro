@@ -28,7 +28,7 @@ const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x
 
 
 /** Flush draw (4 do mesmo naipe com uma carta da mao) ou straight draw (4 de 5 ranks seguidos). */
-function hasDraw(combo: Combo, board: readonly number[]): boolean {
+export function hasDraw(combo: Combo, board: readonly number[]): boolean {
   if (board.length >= 5) return false
   const cards = [...combo, ...board]
   const bySuit = [0, 0, 0, 0]

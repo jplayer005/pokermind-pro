@@ -121,6 +121,8 @@ export function labelFor(ctx: string): string {
   if (m) return m[1] === 'BB' ? 'Defender o BB contra aumento' : `Responder a aumento no ${m[1]}`
   m = ctx.match(/^PF_VS3BET_(.+)$/)
   if (m) return `Responder a 3-bet no ${m[1]}`
+  m = ctx.match(/^QUIZ_EQ_([A-Z]+)$/)
+  if (m) return `Estimar a equity no ${STREET_PT[m[1]] ?? m[1].toLowerCase()} (leitura de range)`
   m = ctx.match(/^POST_([A-Z]+)_(FACING|OPEN)$/)
   if (m) {
     const st = STREET_PT[m[1]] ?? m[1].toLowerCase()
@@ -156,5 +158,7 @@ export function drillTarget(ctx: string): DrillTarget {
     }
   }
   if (/^PF_VS3BET_/.test(ctx)) return { path: '/preflop', state: { scenario: '4bet', mode: 'drill', autoStart: true } }
+  // a leitura de range treina na mesa, no modo quiz
+  if (/^QUIZ_EQ_/.test(ctx)) return { path: '/play', state: null }
   return { path: '/postflop', state: null }
 }
