@@ -6,7 +6,7 @@ import { evaluate, describe } from '../evaluator'
 import type { Rng } from '../cards'
 import { buildPots, awardPots } from './pots'
 import type {
-  Action, GameConfig, GameState, HandEvent, LegalActions, PlayerInit, Seat, Street,
+  Action, DealPreset, GameConfig, GameState, HandEvent, LegalActions, PlayerInit, Seat, Street,
 } from './types'
 
 const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river']
@@ -110,7 +110,7 @@ function post(s: GameState, idx: number, amount: number, asBlind: boolean, type:
  * Inicia uma nova mao: gira o botao, posta ante e blinds e da as cartas.
  * Assentos sem fichas ficam fora. Com menos de 2 jogadores, marca gameOver.
  */
-export function startHand(prev: GameState, rng: Rng = Math.random): GameState {
+export function startHand(prev: GameState, rng: Rng = Math.random, preset?: DealPreset): GameState {
   const s = cloneState(prev)
   s.seats.forEach((seat) => {
     seat.bet = 0
@@ -152,9 +152,23 @@ export function startHand(prev: GameState, rng: Rng = Math.random): GameState {
   const bbIdx = nextSeat(s.seats, sbIdx, alive)
 
   s.deck = shuffledDeck(rng)
-  for (const seat of s.seats) {
-    if (!seat.out) seat.cards = [s.deck.pop() as number, s.deck.pop() as number]
+  // preset: as cartas fixas saem do baralho antes de distribuir; o board fixo volta ao fim dele,
+  // de onde sai na ordem (flop, turn, river). Sem preset, nada muda.
+  const fixedBoard = preset?.board ?? []
+  if (preset) {
+    const fixed = [...Object.values(preset.holes ?? {}).flat(), ...fixedBoard]
+    if (new Set(fixed).size !== fixed.length) throw new Error('preset com cartas repetidas')
+    if (fixed.length > 0) {
+      const fixedSet = new Set(fixed)
+      s.deck = s.deck.filter((c) => !fixedSet.has(c))
+    }
   }
+  for (const seat of s.seats) {
+    if (seat.out) continue
+    const hole = preset?.holes?.[seat.id]
+    seat.cards = hole ? [hole[0], hole[1]] : [s.deck.pop() as number, s.deck.pop() as number]
+  }
+  if (fixedBoard.length > 0) s.deck.push(...[...fixedBoard].reverse())
 
   const { sb, bb, ante } = s.cfg
   if (ante > 0) for (const seat of s.seats) if (!seat.out) post(s, seat.id, ante, false, 'ante')

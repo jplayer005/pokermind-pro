@@ -8,7 +8,7 @@
 // ============================================================
 import { rankOf, suitOf } from '../cards'
 import type { Combo } from '../equity'
-import { evaluate } from '../evaluator'
+import { categoryOf, evaluate, HAND_CATEGORY } from '../evaluator'
 import type { GameState, HandEvent, Street } from '../game/types'
 import { preflopRangeFor } from './preflopRange'
 
@@ -53,6 +53,27 @@ export function hasDraw(combo: Combo, board: readonly number[]): boolean {
 function raisedLater(state: GameState, vid: number, st: Street): boolean {
   return state.history.some(
     (e) => e.seat === vid && e.type === 'raise' && e.street !== 'preflop' && streetIdx(e.street) > streetIdx(st),
+  )
+}
+
+/**
+ * Aumento sobre uma aposta (check-raise, raise contra aposta de iniciativa): muito mais forte que
+ * apostar na frente, porque quem aumenta arrisca o que ja pagou. O range que sobra e bem menor.
+ */
+const RAISE_OVER_BET = 0.4
+/** Dos pares e draws que passam o corte, so 1 em cada 3 combos aumenta: o resto paga ou larga. */
+const THIN_EVERY = 3
+const isRaiseOverBet = (e: HandEvent) => e.type === 'raise' && e.toCall > 0
+
+/**
+ * Range de quem aumenta sobre uma aposta: TODA mao feita forte (dois pares ou mais) mais uma
+ * fracao dos melhores pares e dos draws. Nao e so "o topo da forca": num board seco quase nao ha
+ * mao forte no range, e o resto do topo seriam pares medios que na pratica nao aumentam.
+ */
+function raiseOverBetRange(sc: Scored[], cut: number, withDraws: boolean): Scored[] {
+  return sc.filter(
+    (x, i) =>
+      categoryOf(x.score) >= HAND_CATEGORY.TWO_PAIR || ((x.score >= cut || (x.draw && withDraws)) && i % THIN_EVERY === 0),
   )
 }
 
@@ -109,10 +130,15 @@ export function buildVillainRange(state: GameState): VillainRange | null {
     if (last.type === 'raise') {
       const f = betFraction(last, bb)
       // aposta pequena: range largo; grande: polarizado/forte. Draws seguem como semi-blefe.
-      const keep = clamp(0.72 - 0.3 * Math.min(1.5, f), 0.22, 0.72)
+      const over = isRaiseOverBet(last)
+      const keep = over
+        ? clamp((0.72 - 0.3 * Math.min(1.5, f)) * RAISE_OVER_BET, 0.1, 0.3)
+        : clamp(0.72 - 0.3 * Math.min(1.5, f), 0.22, 0.72)
       const cut = order[Math.max(0, Math.ceil(order.length * keep) - 1)].score
-      kept = sc.filter((x) => x.score >= cut || (x.draw && st !== 'river'))
-      steps.push(`apostou ${Math.round(f * 100)}% do pote no ${name}`)
+      kept = over
+        ? raiseOverBetRange(sc, cut, st !== 'river')
+        : sc.filter((x) => x.score >= cut || (x.draw && st !== 'river'))
+      steps.push(over ? `aumentou sobre a aposta no ${name} (${Math.round(f * 100)}% do pote)` : `apostou ${Math.round(f * 100)}% do pote no ${name}`)
     } else if (last.type === 'call') {
       const top = order[Math.floor(order.length * 0.1)].score
       const bottom = order[Math.min(order.length - 1, Math.floor(order.length * 0.7))].score
@@ -145,11 +171,16 @@ export function buildVillainRange(state: GameState): VillainRange | null {
         // quem so pagou nas ruas anteriores e agora aposta/aumenta tem, em geral, mao bem mais forte
         const earlier = state.history.filter((e) => e.seat === vid && e.street !== 'preflop' && e.street !== state.street)
         const passive = earlier.some((e) => e.type === 'call') && !earlier.some((e) => e.type === 'raise')
-        const keep = clamp((0.7 - 0.3 * Math.min(1.5, f)) * (passive ? 0.7 : 1), 0.14, 0.7)
+        const over = isRaiseOverBet(last)
+        const base = (0.7 - 0.3 * Math.min(1.5, f)) * (passive ? 0.7 : 1)
+        const keep = over ? clamp(base * RAISE_OVER_BET, 0.08, 0.3) : clamp(base, 0.14, 0.7)
         const cut = order[Math.max(0, Math.ceil(order.length * keep) - 1)].score
-        const kept = sc.filter((x) => x.score >= cut || (x.draw && board.length < 5))
+        const kept = over
+          ? raiseOverBetRange(sc, cut, board.length < 5)
+          : sc.filter((x) => x.score >= cut || (x.draw && board.length < 5))
         if (kept.length >= 8) combos = kept.map((x) => x.combo)
-        steps.push(`apostou ${Math.round(f * 100)}% do pote agora${passive ? ' depois de só pagar antes' : ''}`)
+        const what = over ? `aumentou sobre a aposta (${Math.round(f * 100)}% do pote)` : `apostou ${Math.round(f * 100)}% do pote agora`
+        steps.push(`${what}${passive ? ' depois de só pagar antes' : ''}`)
       }
     }
   }

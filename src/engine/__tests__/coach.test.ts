@@ -348,6 +348,34 @@ describe('coach: range do vilao por acoes (pos-flop)', () => {
     expect(r.steps.join(' ')).toMatch(/depois de só pagar/)
   })
 
+  it('aumentar sobre uma aposta (check-raise) e muito mais forte que apostar na frente', async () => {
+    const { buildQuiz } = await import('../coach/readQuiz')
+    // HU: heroi abre e o vilao (BB) paga; flop K72 com o heroi de top par (K J)
+    const flop = () => {
+      let g = startHand(createGame(mk(2), cfg, 0), mulberry32(31))
+      const hero = g.toAct
+      g = rig(g, { [hero]: 'Kc Jd', [1 - hero]: '9s 8s' }, 'Kh 7d 2s 3c 4h')
+      g.seats[hero].isHero = true
+      g = applyAction(g, raise(5))
+      g = applyAction(g, { type: 'call' })
+      return g
+    }
+    // vilao aposta na frente (6 num pote de 10)
+    const lead = applyAction(flop(), raise(6))
+    // vilao checa, heroi aposta 4, vilao aumenta para 16 (check-raise)
+    let cr = applyAction(flop(), { type: 'check' })
+    cr = applyAction(cr, raise(4))
+    cr = applyAction(cr, raise(16))
+    const qLead = buildQuiz(lead, mulberry32(3))!
+    const qCr = buildQuiz(cr, mulberry32(3))!
+    expect(qLead && qCr).toBeTruthy()
+    // o check-raise tira o top par de vantagem: equity bem menor e muito mais mao feita no range
+    expect(qCr.equity).toBeLessThan(qLead.equity - 0.1)
+    expect(qCr.equity).toBeLessThan(0.6)
+    expect(qCr.bands.strong).toBeGreaterThan(0.2)
+    expect(qCr.steps.join(' ')).toMatch(/aumentou sobre a aposta/)
+  })
+
   it('a explicacao cita como o range foi montado', () => {
     const { g } = flopFacing(6, 'limp')
     const d = gradeDecision(g, { type: 'call' }, mulberry32(5))

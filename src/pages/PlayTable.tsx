@@ -12,6 +12,7 @@ import HandLog from '@/components/table/HandLog'
 import CoachToast from '@/components/table/CoachToast'
 import HandReviewSheet from '@/components/table/HandReviewSheet'
 import ReadRangeSheet from '@/components/table/ReadRangeSheet'
+import { ScenarioPicker, ScenarioIntroSheet } from '@/components/table/ScenarioCards'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import { useUIStore, usePlayStore } from '@/store'
@@ -24,6 +25,7 @@ import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions
 import { pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
+import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
 import {
   mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
 } from '@/engine/game/tournament'
@@ -84,6 +86,8 @@ interface Config {
   showHud: boolean
   /** Segundos para agir; 0 = sem limite. */
   timebank: number
+  /** Laboratorio: mesa montada a partir de um cenario (cada mao e uma variacao dele). */
+  scenario?: Scenario
 }
 
 interface Summary {
@@ -190,6 +194,24 @@ export default function PlayTable() {
           )}
         </Card>
       )}
+
+      <ScenarioPicker
+        onPick={(sc) =>
+          setConfig({
+            mode: { id: `lab-${sc.id}`, label: sc.title, sub: sc.summary, seats: sc.stacks.short ? 3 : 2 },
+            buyInBB: 100,
+            speed: 'normal',
+            autoNext: false,
+            showProfiles: true,
+            // o laboratorio existe para a leitura do vilao: pausa sempre, em toda aposta grande
+            coach: 'quiz',
+            quizFreq: 'all',
+            showHud: false,
+            timebank: 0,
+            scenario: sc,
+          })
+        }
+      />
 
       <Card className="p-4 space-y-4">
         <div className="space-y-2">
@@ -326,6 +348,8 @@ function TableGame({
   const [unit, setUnit] = useState<'bb' | 'chips'>('bb')
   const [logOpen, setLogOpen] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
+  // cenario: a folha com o contexto e o que observar abre ao sentar e volta tocando no nome
+  const [introOpen, setIntroOpen] = useState(!!config.scenario)
 
   const options: TableOptions = useMemo(() => {
     const base = {
@@ -336,6 +360,9 @@ function TableGame({
       quizFreq: config.quizFreq,
       modeId: config.mode.id,
       modeLabel: config.mode.label,
+    }
+    if (config.scenario) {
+      return { ...base, players: scenarioPlayers(config.scenario), cfg: SCENARIO_CFG, buyIn: 0, scenario: config.scenario }
     }
     if (config.mode.tournament) {
       const start = startTournament(config.mode.tournament, 'Você', () => pickProfiles(1)[0])
@@ -455,9 +482,20 @@ function TableGame({
           Linha 2: informacoes em etiquetas que QUEBRAM de linha em vez de se sobrepor. */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2 min-w-0">
-          <span className="min-w-0 truncate text-[11px] font-mono font-bold text-accent-gold bg-accent-gold/15 border border-accent-gold/30 rounded-full px-2.5 py-0.5">
-            {config.mode.label}
-          </span>
+          {config.scenario ? (
+            <button
+              type="button"
+              aria-label="Ver o contexto do cenário"
+              onClick={() => setIntroOpen(true)}
+              className="min-w-0 truncate text-[11px] font-mono font-bold text-accent-gold bg-accent-gold/15 border border-accent-gold/30 rounded-full px-2.5 py-0.5"
+            >
+              {config.mode.label}
+            </button>
+          ) : (
+            <span className="min-w-0 truncate text-[11px] font-mono font-bold text-accent-gold bg-accent-gold/15 border border-accent-gold/30 rounded-full px-2.5 py-0.5">
+              {config.mode.label}
+            </span>
+          )}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* area de toque de 44px sem aumentar o visual: o ::before estende o alvo ao redor do botao */}
             <button
@@ -611,7 +649,7 @@ function TableGame({
               <p className="text-xs text-center text-text-muted">Mesa encerrada.</p>
             ) : (
               <Button variant="primary" size="lg" className="w-full" onClick={nextHand}>
-                Próxima mão
+                {config.scenario ? 'Outra variação do cenário' : 'Próxima mão'}
               </Button>
             )}
           </div>
@@ -644,8 +682,9 @@ function TableGame({
           onSave={(flag) => saveReview(openReview.game.handNumber, flag)}
         />
       )}
-      {/* modo quiz: a mesa pausa na vez do heroi diante de aposta grande */}
-      {quiz && heroTurn && !openReview && (
+      {config.scenario && introOpen && <ScenarioIntroSheet scenario={config.scenario} onClose={() => setIntroOpen(false)} />}
+      {/* modo quiz: a mesa pausa na vez do heroi diante de aposta grande (depois da folha do cenario) */}
+      {quiz && heroTurn && !openReview && !introOpen && (
         <ReadRangeSheet game={game} quiz={quiz} onAnswer={answerQuiz} onClose={closeQuiz} />
       )}
     </div>

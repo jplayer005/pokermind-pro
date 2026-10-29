@@ -66,6 +66,17 @@ export interface HandResult {
   refund: { seat: number; amount: number } | null
 }
 
+/**
+ * Cartas fixas para montar uma situacao de treino (cenarios). Tudo o que nao for fixado
+ * continua saindo do baralho embaralhado. Cartas sao inteiros 0..51 (ver engine/cards).
+ */
+export interface DealPreset {
+  /** Cartas de mao por assento; os assentos nao citados recebem do baralho. */
+  holes?: Record<number, readonly [number, number]>
+  /** Board fixo, na ordem em que sai (flop, turn, river). Pode ter de 3 a 5 cartas. */
+  board?: readonly number[]
+}
+
 export interface GameConfig {
   sb: number
   bb: number

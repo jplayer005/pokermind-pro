@@ -9,6 +9,7 @@ import { updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { buildQuiz, isQuizSpot, scoreQuiz, type Band, type QuizFreq, type QuizResult, type ReadQuiz } from '@/engine/coach/readQuiz'
+import { buildScenarioHand, type Scenario } from '@/engine/lab/scenarios'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
 import { loadEquity169 } from '@/engine/equity169'
@@ -50,6 +51,8 @@ export interface TableOptions {
   modeLabel: string
   /** Torneio (SNG/MTT): sem recompra, blinds sobem por nivel e ha eliminacoes. */
   tournament?: { config: TournamentConfig; initial: TournamentState }
+  /** Laboratorio: cada "proxima mao" e uma nova variacao do cenario, ja na decisao do heroi. */
+  scenario?: Scenario
 }
 
 export interface Session {
@@ -119,6 +122,12 @@ export function useTableEngine(opts: TableOptions) {
     const cur = gameRef.current
     if (!cur.over) return
     const o = optsRef.current
+    // cenario: fichas e cartas do tema a cada repeticao, sem recompra
+    if (o.scenario) {
+      decisionsRef.current = []
+      setGame(buildScenarioHand(o.scenario, Math.random, cur.handNumber + 1))
+      return
+    }
     // torneio: sem recompra; ao terminar, nao ha proxima mao
     if (tourRef.current) {
       if (tourRef.current.done) return
