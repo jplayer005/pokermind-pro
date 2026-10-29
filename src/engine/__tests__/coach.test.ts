@@ -325,6 +325,29 @@ describe('coach: range do vilao por acoes (pos-flop)', () => {
     expect(limp!.combos.length).toBeGreaterThan(0)
   })
 
+  it('quem so pagou o flop e aumenta no turn pode ter trinca (slowplay): o topo volta ao range', async () => {
+    const { buildVillainRange } = await import('../coach/range')
+    const { canonical169 } = await import('../cards')
+    // HU: heroi abre, vilao (BB) paga; flop: vilao checa, heroi aposta, vilao paga; turn: vilao aposta
+    let g = startHand(createGame(mk(2), cfg, 0), mulberry32(31))
+    const hero = g.toAct
+    g = rig(g, { [hero]: 'Ac Kh', [1 - hero]: 'Kd Qd' }, '2c 7d 9h Js 3c')
+    g.seats[hero].isHero = true
+    g = applyAction(g, raise(5))
+    g = applyAction(g, { type: 'call' })
+    g = applyAction(g, { type: 'check' }) // vilao checa o flop
+    g = applyAction(g, raise(4)) // heroi aposta
+    g = applyAction(g, { type: 'call' }) // vilao paga
+    g = applyAction(g, raise(10)) // vilao aposta no turn
+    expect(g.street).toBe('turn')
+    expect(g.toAct).toBe(hero)
+    const r = buildVillainRange(g)!
+    const hands = new Set(r.combos.map((c) => canonical169(c[0], c[1])))
+    expect(hands.has('99')).toBe(true) // trinca de 9 (9h no board)
+    expect(r.steps.join(' ')).toMatch(/slowplay/)
+    expect(r.steps.join(' ')).toMatch(/depois de só pagar/)
+  })
+
   it('a explicacao cita como o range foi montado', () => {
     const { g } = flopFacing(6, 'limp')
     const d = gradeDecision(g, { type: 'call' }, mulberry32(5))

@@ -6,12 +6,11 @@
 //     check tira o topo (checar mao muito forte e raro) e mantem o resto.
 // E uma estimativa de treino, nao um solver: o coach marca o resultado como aproximado.
 // ============================================================
-import { canonical169, rankOf, suitOf } from '../cards'
+import { rankOf, suitOf } from '../cards'
 import type { Combo } from '../equity'
 import { evaluate } from '../evaluator'
-import { handPercentile } from '../bots/policy'
-import { profileOf } from '../bots/profiles'
 import type { GameState, HandEvent, Street } from '../game/types'
+import { preflopRangeFor } from './preflopRange'
 
 export interface VillainRange {
   combos: Combo[]
@@ -50,6 +49,13 @@ function hasDraw(combo: Combo, board: readonly number[]): boolean {
   return false
 }
 
+/** O vilao aumentou numa rua pos-flop posterior a `st`? (pagou antes e voltou agressivo) */
+function raisedLater(state: GameState, vid: number, st: Street): boolean {
+  return state.history.some(
+    (e) => e.seat === vid && e.type === 'raise' && e.street !== 'preflop' && streetIdx(e.street) > streetIdx(st),
+  )
+}
+
 /** Aposta relativa ao pote que ela enfrentava (pote + o que havia para pagar). */
 function betFraction(e: HandEvent, bb: number): number {
   return clamp(e.amount / Math.max(e.potBefore + e.toCall, bb), 0, 3)
@@ -63,19 +69,6 @@ function score(combos: Combo[], board: readonly number[]): Scored[] {
     score: evaluate([...combo, ...board]),
     draw: hasDraw(combo, board),
   }))
-}
-
-/** Combos abertos pela largura pre-flop (percentil de Chen ajustado pelo perfil). */
-function preflopCombos(cap: number, dead: ReadonlySet<number>): Combo[] {
-  const out: Combo[] = []
-  for (let a = 0; a < 52; a++) {
-    if (dead.has(a)) continue
-    for (let b = a + 1; b < 52; b++) {
-      if (dead.has(b)) continue
-      if (handPercentile(canonical169(a, b)) <= cap) out.push([a, b])
-    }
-  }
-  return out
 }
 
 /** Quem e o vilao principal: agressor mais recente; sem agressao, o que mais colocou no pote. */
@@ -92,33 +85,14 @@ export function buildVillainRange(state: GameState): VillainRange | null {
   const hero = state.toAct
   const vid = pickVillain(state, hero)
   if (vid === null) return null
-  const villain = state.seats[vid]
   const bb = state.cfg.bb
-  const loose = profileOf(villain.profile).looseness
   const dead = new Set<number>([...(state.seats[hero].cards as number[]), ...state.board])
   const steps: string[] = []
 
   // ---- pre-flop
-  const pre = state.history.filter((e) => e.street === 'preflop')
-  const raisesTotal = pre.filter((e) => e.type === 'raise').length
-  const vPre = pre.filter((e) => e.seat === vid && (e.type === 'raise' || e.type === 'call' || e.type === 'check'))
-  const vRaises = vPre.filter((e) => e.type === 'raise').length
-  const vCalledRaise = vPre.some((e) => e.type === 'call' && e.toCall > bb)
-  let cap: number
-  if (vRaises >= 2) { cap = 0.07; steps.push('deu 4-bet ou mais no pré-flop') }
-  else if (vRaises === 1 && raisesTotal >= 2) { cap = 0.11; steps.push('deu 3-bet no pré-flop') }
-  else if (vRaises === 1) { cap = 0.24; steps.push('abriu o pote no pré-flop') }
-  else if (vCalledRaise) { cap = 0.3; steps.push('pagou um aumento no pré-flop') }
-  else { cap = 0.6; steps.push('só viu o flop sem aumento') }
-  cap = clamp(cap * loose, 0.03, 0.9)
-
-  let combos = preflopCombos(cap, dead)
-  if (vCalledRaise && vRaises === 0) {
-    // pagou o aumento: as maos mais fortes teriam feito 3-bet (parte delas, nao todas)
-    const strongCut = 0.35 * cap
-    const trimmed = combos.filter((c) => handPercentile(canonical169(c[0], c[1])) > strongCut * 0.6)
-    if (trimmed.length >= 20) combos = trimmed
-  }
+  const pf = preflopRangeFor(state, vid, dead)
+  steps.push(pf.step)
+  let combos = pf.combos
 
   // ---- ruas pos-flop ate agora
   for (const st of ['flop', 'turn', 'river'] as Street[]) {
@@ -142,8 +116,14 @@ export function buildVillainRange(state: GameState): VillainRange | null {
     } else if (last.type === 'call') {
       const top = order[Math.floor(order.length * 0.1)].score
       const bottom = order[Math.min(order.length - 1, Math.floor(order.length * 0.7))].score
-      kept = sc.filter((x) => (x.score <= top && x.score >= bottom) || x.draw)
-      steps.push(`pagou uma aposta no ${name}`)
+      if (raisedLater(state, vid, st)) {
+        // pagou e depois voltou aumentando: o topo que "teria aumentado" volta (slowplay)
+        kept = sc.filter((x) => x.score >= bottom || x.draw)
+        steps.push(`só pagou no ${name} e depois aumentou (pode ser slowplay)`)
+      } else {
+        kept = sc.filter((x) => (x.score <= top && x.score >= bottom) || x.draw)
+        steps.push(`pagou uma aposta no ${name}`)
+      }
     } else {
       const top = order[Math.floor(order.length * 0.08)].score
       kept = sc.filter((x) => x.score <= top)
@@ -162,11 +142,14 @@ export function buildVillainRange(state: GameState): VillainRange | null {
       if (sc.length >= 12) {
         const f = betFraction(last, bb)
         const order = [...sc].sort((a, b) => b.score - a.score)
-        const keep = clamp(0.7 - 0.3 * Math.min(1.5, f), 0.2, 0.7)
+        // quem so pagou nas ruas anteriores e agora aposta/aumenta tem, em geral, mao bem mais forte
+        const earlier = state.history.filter((e) => e.seat === vid && e.street !== 'preflop' && e.street !== state.street)
+        const passive = earlier.some((e) => e.type === 'call') && !earlier.some((e) => e.type === 'raise')
+        const keep = clamp((0.7 - 0.3 * Math.min(1.5, f)) * (passive ? 0.7 : 1), 0.14, 0.7)
         const cut = order[Math.max(0, Math.ceil(order.length * keep) - 1)].score
         const kept = sc.filter((x) => x.score >= cut || (x.draw && board.length < 5))
         if (kept.length >= 8) combos = kept.map((x) => x.combo)
-        steps.push(`apostou ${Math.round(f * 100)}% do pote agora`)
+        steps.push(`apostou ${Math.round(f * 100)}% do pote agora${passive ? ' depois de só pagar antes' : ''}`)
       }
     }
   }
