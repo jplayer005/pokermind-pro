@@ -105,6 +105,7 @@ export function dueLeaks(stats: Record<string, LeakStat>, today: string): LeakSt
 // ---------------------------------------------------------------- texto e destino
 
 const STREET_PT: Record<string, string> = { FLOP: 'flop', TURN: 'turn', RIVER: 'river' }
+const ODDS_LABEL: Record<string, string> = { OUTS: 'contar outs', RULE: 'regra do 2 e 4', POTODDS: 'pot odds', DECISION: 'pagar ou largar' }
 
 export function labelFor(ctx: string): string {
   let m = ctx.match(/^PF_(PUSH|CALLSHOVE)_([^_]+)_(.+)_(\d+)BB$/)
@@ -121,6 +122,8 @@ export function labelFor(ctx: string): string {
   if (m) return m[1] === 'BB' ? 'Defender o BB contra aumento' : `Responder a aumento no ${m[1]}`
   m = ctx.match(/^PF_VS3BET_(.+)$/)
   if (m) return `Responder a 3-bet no ${m[1]}`
+  m = ctx.match(/^ODDS_([A-Z]+)$/)
+  if (m) return `Odds rápidas: ${ODDS_LABEL[m[1]] ?? m[1].toLowerCase()}`
   m = ctx.match(/^QUIZ_EQ_([A-Z]+)$/)
   if (m) return `Estimar a equity no ${STREET_PT[m[1]] ?? m[1].toLowerCase()} (leitura de range)`
   m = ctx.match(/^POST_([A-Z]+)_(FACING|OPEN)$/)
@@ -158,6 +161,7 @@ export function drillTarget(ctx: string): DrillTarget {
     }
   }
   if (/^PF_VS3BET_/.test(ctx)) return { path: '/preflop', state: { scenario: '4bet', mode: 'drill', autoStart: true } }
+  if (/^ODDS_/.test(ctx)) return { path: '/odds', state: null }
   // a leitura de range treina na mesa, no modo quiz
   if (/^QUIZ_EQ_/.test(ctx)) return { path: '/play', state: null }
   return { path: '/postflop', state: null }

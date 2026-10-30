@@ -951,3 +951,40 @@ export const usePlayStore = create<PlayStore>()(
     }
   )
 )
+
+// ------- STORE DO ODDS RUSH (melhor placar por modo e nivel adaptativo por tipo) -------
+interface OddsStore {
+  /** Melhor placar (acertos em 60 s) por modo: 'mixed' ou o id do tipo de pergunta. */
+  best: Record<string, number>
+  /** Nivel (1 a 3) em que cada tipo recomeca; sobe com acertos seguidos e desce com erro. */
+  levels: Record<string, number>
+  rounds: number
+  finishRound: (mode: string, score: number, levels: Record<string, number>) => boolean
+  reset: () => void
+}
+
+export const useOddsStore = create<OddsStore>()(
+  persist(
+    (set, get) => ({
+      best: {},
+      levels: {},
+      rounds: 0,
+      /** Devolve true quando o placar e um novo recorde do modo. */
+      finishRound: (mode, score, levels) => {
+        const prev = get().best[mode] ?? 0
+        set({
+          best: score > prev ? { ...get().best, [mode]: score } : get().best,
+          levels: { ...get().levels, ...levels },
+          rounds: get().rounds + 1,
+        })
+        return score > prev
+      },
+      reset: () => set({ best: {}, levels: {}, rounds: 0 }),
+    }),
+    {
+      name: 'pokermind-odds',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)

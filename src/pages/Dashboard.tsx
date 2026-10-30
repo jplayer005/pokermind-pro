@@ -239,6 +239,12 @@ const QUICK_LINKS = [
     spanFull: true,
   },
   {
+    icon: '⏱️', label: 'Odds Rush', sub: 'Outs e pot odds em 60 segundos',
+    path: '/odds', navState: null,
+    color: 'from-pink-500/10 to-pink-600/5', border: 'border-pink-500/20',
+    spanFull: true,
+  },
+  {
     icon: '📐', label: 'Calculadoras', sub: 'Pot odds, EV',
     path: '/calculators', navState: null,
     color: 'from-emerald-500/10 to-emerald-600/5', border: 'border-emerald-500/20',

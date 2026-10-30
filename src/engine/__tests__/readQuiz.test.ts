@@ -117,6 +117,8 @@ describe('readQuiz: montagem e nota', () => {
     const { labelFor, drillTarget } = await import('../coach/leaks')
     expect(labelFor('QUIZ_EQ_TURN')).toMatch(/turn/)
     expect(drillTarget('QUIZ_EQ_RIVER').path).toBe('/play')
+    expect(labelFor('ODDS_POTODDS')).toMatch(/pot odds/)
+    expect(drillTarget('ODDS_OUTS').path).toBe('/odds')
   })
 
   it('acerta a faixa quando escolhe a mais provavel (ou perto dela)', () => {

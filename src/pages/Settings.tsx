@@ -4,7 +4,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUserStore, useTrainingStore, useUIStore, useLeakStore, useSpacedRepetitionStore, usePostflopReviewStore, usePlayStore } from '@/store'
+import { useUserStore, useTrainingStore, useUIStore, useLeakStore, useSpacedRepetitionStore, usePostflopReviewStore, usePlayStore, useOddsStore } from '@/store'
 import { clearUserCloudData } from '@/firebase/sync'
 import { useAuthStore } from '@/store/authStore'
 import { signInWithGoogle, signOut } from '@/firebase/auth'
@@ -246,6 +246,7 @@ export default function Settings() {
       useSpacedRepetitionStore.getState().resetSR()
       usePostflopReviewStore.getState().resetReview()
       usePlayStore.getState().reset()
+      useOddsStore.getState().reset()
       setShowResetConfirm(false)
       flashSaved()
     } finally {
