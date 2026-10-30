@@ -42,6 +42,8 @@ export interface Scenario {
   context: string[]
   /** Stacks em bb. `short` e um stack curto que entra e sempre folda (3 assentos). */
   stacks: { hero: number; villain: number; short?: number }
+  /** Premios do torneio (fracoes, 1o primeiro) com todos os jogadores na mesa: liga o ICM do coach e do quiz. */
+  payouts?: number[]
   villainProfile: string
   decisionStreet: Street
   deal: (rng: Rng) => ScenarioDeal
@@ -101,15 +103,16 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'bolha-top-par',
     title: 'Chip leader na bolha: top par contra check-raise',
-    summary: 'Você tem o maior stack, bate um top par e o adversário dá check-raise grande.',
+    summary: 'Você tem o maior stack, bate um top par e o adversário dá check-raise all-in.',
     lesson:
-      'Um check-raise grande tem muito mais mão feita no range (trinca, dois pares) do que uma aposta comum de iniciativa. Leia o range dele antes de pagar e pese o risco: o pote já é grande e o stack dele pode te ameaçar.',
+      'Um check-raise all-in tem muito mais mão feita no range (trinca, dois pares) do que uma aposta comum de iniciativa. Leia o range dele e compare a sua equity com a necessária em ICM: mesmo cobrindo ele, perder o pote custa mais prêmio do que ganhar rende.',
     context: [
-      'Contexto: perto da bolha. Você é o chip leader com 90 bb e ele tem 60% do seu stack (54 bb).',
-      'O stack curto da BB (12 bb) está fora da mão.',
-      'Você abriu da BTN, ele pagou do SB, o flop saiu seco. Você apostou e ele deu check-raise.',
+      'Contexto: bolha de 3 jogadores, só os 2 primeiros recebem (65% e 35% do prêmio). Você é o chip leader com 90 bb e ele tem 60% do seu stack (54 bb).',
+      'O stack curto da BB (12 bb) está fora da mão e torce para vocês dois se enfrentarem.',
+      'Você abriu da BTN, ele pagou do SB, o flop saiu seco. Você apostou e ele deu check-raise all-in.',
     ],
     stacks: { hero: 90, villain: 54, short: 12 },
+    payouts: [0.65, 0.35, 0],
     villainProfile: 'tag',
     decisionStreet: 'flop',
     deal: dealTopPair,
@@ -119,7 +122,57 @@ export const SCENARIOS: Scenario[] = [
       { who: 'short', type: 'fold' },
       { who: 'villain', type: 'check' },
       { who: 'hero', type: 'raise', pot: 0.4 },
-      { who: 'villain', type: 'raise', pot: 1 },
+      { who: 'villain', type: 'raise', allIn: true },
+    ],
+  },
+  {
+    id: 'bolha-stack-medio',
+    title: 'Stack médio na bolha: top par contra o chip leader',
+    summary: 'Mesma mão, papéis trocados: quem dá o check-raise tem mais fichas que você.',
+    lesson:
+      'Aqui quem te ameaça te cobre: se você paga e perde, está fora na bolha e não leva nada. O número que importa é a equity necessária em ICM, bem acima da de fichas. Compare os dois antes de pagar.',
+    context: [
+      'Contexto: bolha de 3 jogadores, só os 2 primeiros recebem (65% e 35%). Você tem 54 bb e o chip leader tem 90 bb.',
+      'O stack curto da BB (12 bb) está fora da mão.',
+      'Você abriu da BTN, ele pagou do SB, o flop saiu seco. Você apostou e ele deu check-raise all-in.',
+    ],
+    stacks: { hero: 54, villain: 90, short: 12 },
+    payouts: [0.65, 0.35, 0],
+    villainProfile: 'tag',
+    decisionStreet: 'flop',
+    deal: dealTopPair,
+    script: [
+      { who: 'hero', type: 'raise', bb: 2.5 },
+      { who: 'villain', type: 'call' },
+      { who: 'short', type: 'fold' },
+      { who: 'villain', type: 'check' },
+      { who: 'hero', type: 'raise', pot: 0.4 },
+      { who: 'villain', type: 'raise', allIn: true },
+    ],
+  },
+  {
+    id: 'longe-da-bolha',
+    title: 'Longe da bolha: a mesma mão do chip leader',
+    summary: 'Os mesmos stacks do primeiro cenário, mas todos recebem prêmio: não há bolha.',
+    lesson:
+      'Compare com o cenário da bolha: com os 3 pagos, perder um pote grande custa menos prêmio, então a equity necessária em ICM fica bem mais perto da de fichas. O que mudou foi o prêmio, não a mão.',
+    context: [
+      'Contexto: 3 jogadores e os 3 recebem prêmio (50%, 30% e 20%): não há bolha. Você é o chip leader com 90 bb; ele tem 54 bb.',
+      'O stack curto da BB (12 bb) está fora da mão.',
+      'Você abriu da BTN, ele pagou do SB, o flop saiu seco. Você apostou e ele deu check-raise all-in.',
+    ],
+    stacks: { hero: 90, villain: 54, short: 12 },
+    payouts: [0.5, 0.3, 0.2],
+    villainProfile: 'tag',
+    decisionStreet: 'flop',
+    deal: dealTopPair,
+    script: [
+      { who: 'hero', type: 'raise', bb: 2.5 },
+      { who: 'villain', type: 'call' },
+      { who: 'short', type: 'fold' },
+      { who: 'villain', type: 'check' },
+      { who: 'hero', type: 'raise', pot: 0.4 },
+      { who: 'villain', type: 'raise', allIn: true },
     ],
   },
   {

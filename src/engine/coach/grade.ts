@@ -17,6 +17,7 @@ import { peekEquity169 } from '../equity169'
 import { evLoss, huPushFoldEV, mwCallEV, mwPushEV, type MwEV, type MwPlayer } from './ev'
 import { formatoPorId, nearestStack, type SpotRef } from '../spotCatalog'
 import { gradePushFold, explainPushFold } from './pushfold'
+import { icmCallInfo } from './icmCall'
 import { isLeak, type Grade, type GradedDecision, type Kind } from './types'
 
 const round1 = (n: number) => Math.round(n * 10) / 10
@@ -60,7 +61,7 @@ export function gradeDecision(
   }
   return state.street === 'preflop'
     ? gradePreflop(state, action, la, base, ctx)
-    : gradePostflop(state, action, la, base, rng)
+    : gradePostflop(state, action, la, base, rng, ctx)
 }
 
 type Base = Pick<GradedDecision, 'handNumber' | 'street' | 'took' | 'potBefore' | 'toCall' | 'hole' | 'board'>
@@ -285,7 +286,7 @@ export function estimateVillainWidth(state: GameState, facing: boolean, toCall: 
 }
 
 function gradePostflop(
-  state: GameState, action: Action, la: LegalActions, base: Base, rng: Rng,
+  state: GameState, action: Action, la: LegalActions, base: Base, rng: Rng, gctx: GradeContext,
 ): GradedDecision {
   const seat = state.seats[state.toAct]
   const bb = state.cfg.bb
@@ -301,7 +302,10 @@ function gradePostflop(
   const combos = vr ? vr.combos : combosUpToPercentile(width, [...base.hole, ...state.board])
   const raw = equityVsCombos(base.hole, combos, state.board, 700, rng).equity
   const eq = Math.pow(raw, 1 + 0.7 * (foes - 1))
-  const needed = facing ? toCall / (pot + toCall) : 0
+  // torneio com todos na mesa e pote heads-up: perder o pote custa mais prêmio do que ganhar rende,
+  // então a equity necessária é a de ICM (maior que a de fichas)
+  const icm = facing ? icmCallInfo(state, gctx.icmPayouts) : null
+  const needed = icm ? icm.icmNeeded : facing ? toCall / (pot + toCall) : 0
   const bbs = (c: number) => `${round1(c / bb)} bb`
 
   const deadN = base.hole.length + state.board.length
@@ -317,8 +321,14 @@ function gradePostflop(
   const why: string[] = []
 
   if (facing) {
-    const evCall = eq * (pot + toCall) - toCall
+    // sem ICM isto e exatamente eq * (pote + pagar) - pagar; com ICM, o mesmo EV em fichas equivalentes
+    const evCall = (eq - needed) * (pot + toCall)
     ctx.push(`Para pagar você arrisca ${bbs(toCall)} para ganhar ${bbs(pot)}: precisa de ${pct(needed)} de equity.`)
+    if (icm) {
+      ctx.push(
+        `Em ICM a equity necessária sobe de ${pct(icm.chipNeeded)} (só fichas) para ${pct(icm.icmNeeded)}: perder o pote custa mais prêmio do que ganhar rende${icm.villainCoversHero ? ', e ele te cobre' : ''}.`,
+      )
+    }
     best = eq >= 0.72 && la.canRaise ? 'raise' : evCall > 0 ? 'call' : 'fold'
     if (took === 'fold') {
       loss = Math.max(0, evCall)

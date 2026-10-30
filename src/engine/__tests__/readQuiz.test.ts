@@ -113,6 +113,17 @@ describe('readQuiz: montagem e nota', () => {
     expect(low.eqHit).toBe(false)
   })
 
+  it('sem premios o quiz nao traz ICM; com premios traz a equity necessaria em ICM', async () => {
+    const { scenarioById, buildScenarioHand } = await import('../lab/scenarios')
+    const sc = scenarioById('bolha-stack-medio')!
+    const g = buildScenarioHand(sc, mulberry32(2), 1)
+    expect(buildQuiz(g, mulberry32(5))!.icm).toBeNull()
+    const q = buildQuiz(g, mulberry32(5), sc.payouts)!
+    expect(q.icm).toBeTruthy()
+    expect(q.icm!.icmNeeded).toBeGreaterThan(q.needed)
+    expect(q.icm!.villainCoversHero).toBe(true)
+  })
+
   it('o vazamento da leitura aparece com nome legivel e leva para a mesa', async () => {
     const { labelFor, drillTarget } = await import('../coach/leaks')
     expect(labelFor('QUIZ_EQ_TURN')).toMatch(/turn/)

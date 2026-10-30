@@ -230,6 +230,13 @@ export function calculateICM(stacks: number[], payouts: number[]): number[] {
 
     const payout = remainingPayouts[0]
     const chipsLeft = remainingPlayers.reduce((a, i) => a + stacks[i], 0)
+    // so sobraram jogadores sem fichas (eliminados): terminam nas ultimas colocacoes e dividem
+    // os premios que restam; sem isso a divisao 0/0 contaminava o valor com NaN
+    if (chipsLeft <= 0) {
+      const share = remainingPayouts.reduce((a, b) => a + b, 0) / remainingPlayers.length
+      for (const i of remainingPlayers) icmValues[i] += probability * share
+      return
+    }
 
     for (const playerIdx of remainingPlayers) {
       const prob = probability * (stacks[playerIdx] / chipsLeft)

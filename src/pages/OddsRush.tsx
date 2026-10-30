@@ -35,6 +35,8 @@ const MODES: { id: Mode; label: string }[] = [
 ]
 
 const CORRECT_FLASH_MS = 450
+/** Moldura das telas: coluna centralizada com margem, como as outras paginas do app. */
+const PAGE = 'max-w-2xl mx-auto w-full px-4 pt-4 pb-6 space-y-4'
 
 type Phase = 'menu' | 'play' | 'done'
 
@@ -142,7 +144,7 @@ export default function OddsRush() {
   // ---------------- menu ----------------
   if (phase === 'menu') {
     return (
-      <div className="space-y-4 pb-6">
+      <div className={PAGE}>
         <SectionHeader title="Odds Rush" subtitle="60 segundos de odds de cabeça. Mais rápido a cada rodada, com a conta explicada quando você erra." />
         <Card className="p-4 space-y-4">
           <div>
@@ -189,7 +191,7 @@ export default function OddsRush() {
   if (phase === 'done') {
     const sum = summarize(answers)
     return (
-      <div className="space-y-4 pb-6">
+      <div className={PAGE}>
         <SectionHeader title="Fim da rodada" subtitle={MODES.find((m) => m.id === mode)?.label} />
         <Card className="p-4 space-y-4 text-center">
           <div>
@@ -238,7 +240,7 @@ export default function OddsRush() {
   const score = answers.filter((a) => a.correct).length
   const secs = Math.ceil(remainingMs / 1000)
   return (
-    <div className="space-y-3 pb-6">
+    <div className={cn(PAGE, 'space-y-3')}>
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-1.5 font-mono text-sm font-bold text-text-primary">
           <Timer size={15} className={secs <= 10 ? 'text-accent-crimson' : 'text-accent-gold'} /> {secs}s

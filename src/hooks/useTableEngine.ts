@@ -89,6 +89,11 @@ function icmPayoutsOf(t: TournamentState | null): number[] | undefined {
   return t && t.offTable === 0 && !t.done ? t.config.payouts : undefined
 }
 
+/** Premios do cenario (bolha de 3 jogadores, por exemplo) ou, em torneio de mesa completa, os do torneio. */
+function payoutsFor(o: TableOptions, t: TournamentState | null): number[] | undefined {
+  return o.scenario?.payouts ?? icmPayoutsOf(t)
+}
+
 export function useTableEngine(opts: TableOptions) {
   const [game, setGame] = useState<GameState>(() => createGame(opts.players, opts.cfg, 0))
   const [archive, setArchive] = useState<GameState[]>([])
@@ -226,7 +231,7 @@ export function useTableEngine(opts: TableOptions) {
     if (g.over || g.toAct < 0 || !g.seats[g.toAct].isHero) return
     if (optsRef.current.coach !== 'off' && !auto) {
       // a nota e calculada com o estado ANTES da jogada
-      const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng', icmPayouts: icmPayoutsOf(tourRef.current) })
+      const d = gradeDecision(g, action, Math.random, { sng: optsRef.current.tournament?.config.kind === 'sng', icmPayouts: payoutsFor(optsRef.current, tourRef.current) })
       decisionsRef.current.push(d)
       setLastGrade({ d, key: Date.now() })
       useLeakStore.getState().record({ ctx: d.ctx, tag: d.tag, grade: d.grade, evLossBB: d.evLossBB })
@@ -263,7 +268,7 @@ export function useTableEngine(opts: TableOptions) {
     const key = `${game.handNumber}:${game.history.length}`
     if (quizKey.current === key) return
     quizKey.current = key
-    const q = isQuizSpot(game, o.quizFreq ?? 'all') ? buildQuiz(game) : null
+    const q = isQuizSpot(game, o.quizFreq ?? 'all') ? buildQuiz(game, Math.random, payoutsFor(o, tourRef.current)) : null
     setQuiz(q ? { q, result: null } : null)
   }, [heroTurn, game])
 

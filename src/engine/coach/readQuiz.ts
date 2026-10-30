@@ -11,6 +11,7 @@ import { legalActions, potTotal } from '../game/reducer'
 import type { GameState } from '../game/types'
 import type { Grade } from './types'
 import { buildVillainRange, hasDraw } from './range'
+import { icmCallInfo, type IcmCall } from './icmCall'
 
 export type QuizFreq = 'all' | 'half' | 'river'
 export type Band = 'strong' | 'pair' | 'draw' | 'air'
@@ -44,6 +45,8 @@ export interface ReadQuiz {
   steps: string[]
   /** Combos do range, para mostrar quantos sao e permitir o replay. */
   combos: number
+  /** ICM do call (torneio com todos na mesa e pote heads-up); null fora disso. */
+  icm: IcmCall | null
 }
 
 /** Pausa diante de aposta grande no pos-flop, conforme a frequencia escolhida. */
@@ -81,7 +84,8 @@ export function bandsOf(combos: readonly Combo[], board: readonly number[]): Ban
   return out
 }
 
-export function buildQuiz(state: GameState, rng: Rng = Math.random): ReadQuiz | null {
+/** `payouts`: premios do torneio (fracoes) quando todos os jogadores vivos estao na mesa. */
+export function buildQuiz(state: GameState, rng: Rng = Math.random, payouts?: number[]): ReadQuiz | null {
   if (!isQuizSpot(state, 'all')) return null
   const hero = state.seats[state.toAct]
   const vr = buildVillainRange(state)
@@ -101,6 +105,7 @@ export function buildQuiz(state: GameState, rng: Rng = Math.random): ReadQuiz | 
     pot,
     steps: vr.steps,
     combos: vr.combos.length,
+    icm: icmCallInfo(state, payouts),
   }
 }
 

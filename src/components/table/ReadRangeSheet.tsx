@@ -147,7 +147,9 @@ function Reveal({ quiz, onClose }: { quiz: QuizState; onClose: () => void }) {
     : result.error > 0
       ? `Você foi otimista: ${diff} pontos acima do real.`
       : `Você foi pessimista: ${diff} pontos abaixo do real.`
-  const profitable = q.equity >= q.needed
+  // com ICM, o que decide e a equity necessaria em ICM, nao a de fichas
+  const needed = q.icm ? q.icm.icmNeeded : q.needed
+  const profitable = q.equity >= needed
 
   return (
     <>
@@ -184,10 +186,27 @@ function Reveal({ quiz, onClose }: { quiz: QuizState; onClose: () => void }) {
 
       <div className="rounded-xl border border-border-default bg-bg-base p-3 space-y-1">
         <p className="text-[11px] text-text-secondary">
-          Para pagar você precisa de <b className="text-text-primary">{pct(q.needed)}</b> de equity e tem{' '}
+          Para pagar você precisa de <b className="text-text-primary">{pct(needed)}</b> de equity{q.icm ? ' (em ICM)' : ''} e tem{' '}
           <b className="text-text-primary">{pct(q.equity)}</b>:{' '}
-          {profitable ? 'pagar tem EV positivo, em teoria.' : 'pagar perde fichas em média.'}
+          {profitable
+            ? q.icm ? 'pagar compensa, mesmo com o risco de ICM.' : 'pagar tem EV positivo, em teoria.'
+            : q.icm ? 'pagar perde prêmio em média: o risco de ICM pesa mais que as fichas.' : 'pagar perde fichas em média.'}
         </p>
+        {q.icm && (
+          <div className="rounded-lg border border-accent-gold/35 bg-accent-gold/10 p-2 space-y-1">
+            <p className="text-[11px] font-display font-bold text-accent-gold">Pressão de ICM</p>
+            <p className="text-[11px] text-text-secondary">
+              Só em fichas você precisaria de {pct(q.icm.chipNeeded)}; em ICM precisa de {pct(q.icm.icmNeeded)}, um prêmio de risco de{' '}
+              {Math.round(q.icm.premium * 100)} pontos.{' '}
+              {q.icm.villainCoversHero
+                ? 'Ele te cobre: se você perder, está eliminado.'
+                : 'Você cobre ele: perder não te elimina, mas o prêmio que você arrisca pesa mais do que o que ganha.'}
+            </p>
+            <p className="text-[11px] text-text-muted">
+              Seu prêmio esperado: largar {q.icm.fold.toFixed(1)}%, ganhar {q.icm.win.toFixed(1)}%, perder {q.icm.lose.toFixed(1)}% do total.
+            </p>
+          </div>
+        )}
         <p className="text-[11px] text-text-muted">
           Como o range foi montado: ele {q.steps.join(', ')}. {q.combos} combos. Estimativa de treino, não solver.
         </p>
