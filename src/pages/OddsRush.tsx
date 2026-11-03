@@ -11,7 +11,9 @@ import { cn } from '@/lib/utils'
 import { Button, Card, SectionHeader } from '@/components/ui'
 import { RANK_CHARS } from '@/engine/cards'
 import { QUESTION_TYPES, makeQuestion, type Level, type QType, type Question } from '@/engine/odds/questions'
-import { ROUND_SECONDS, adapt, pickType, summarize, type Answer, type Mode } from '@/engine/odds/round'
+import { ROUND_SECONDS, adapt, pickType, summarize, type Answer, type Mode, type RoundSummary } from '@/engine/odds/round'
+import ShareButton from '@/components/share/ShareButton'
+import { SHARE_COLORS, SHARE_FONT_MONO } from '@/components/share/ShareCard'
 import { useLeakStore, useOddsStore, usePlayStore } from '@/store'
 import type { Grade } from '@/engine/coach/types'
 
@@ -39,6 +41,37 @@ const CORRECT_FLASH_MS = 450
 const PAGE = 'max-w-2xl mx-auto w-full px-4 pt-4 pb-6 space-y-4'
 
 type Phase = 'menu' | 'play' | 'done'
+
+/** Conteudo do cartao de compartilhar do resultado (estilos fixos: a imagem independe do tema). */
+function OddsShareBody({ sum }: { sum: RoundSummary }) {
+  const box = { flex: 1, border: `1px solid ${SHARE_COLORS.border}`, borderRadius: 12, padding: '10px 14px' } as const
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
+        <span style={{ fontSize: 72, fontWeight: 800, lineHeight: 1 }}>{sum.right}</span>
+        <span style={{ fontSize: 16, color: SHARE_COLORS.muted }}>acertos em {ROUND_SECONDS} segundos</span>
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+        <div style={box}>
+          <div style={{ fontSize: 12, color: SHARE_COLORS.muted }}>Precisão</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: SHARE_FONT_MONO }}>{Math.round(sum.accuracy * 100)}%</div>
+        </div>
+        <div style={box}>
+          <div style={{ fontSize: 12, color: SHARE_COLORS.muted }}>Tempo por pergunta</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: SHARE_FONT_MONO }}>{(sum.avgMs / 1000).toFixed(1)}s</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        {QUESTION_TYPES.filter((t) => sum.byType[t.id].n > 0).map((t) => (
+          <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, padding: '5px 0', color: SHARE_COLORS.text }}>
+            <span style={{ color: SHARE_COLORS.muted }}>{t.label}</span>
+            <span style={{ fontFamily: SHARE_FONT_MONO, fontWeight: 700 }}>{sum.byType[t.id].right}/{sum.byType[t.id].n}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function OddsRush() {
   const navigate = useNavigate()
@@ -226,6 +259,16 @@ export default function OddsRush() {
             <Button variant="primary" onClick={start}>Jogar de novo</Button>
             <Button onClick={() => setPhase('menu')}>Voltar</Button>
           </div>
+          <ShareButton
+            className="w-full"
+            label="Compartilhar resultado"
+            title={`Odds Rush: ${sum.right} acertos em ${ROUND_SECONDS}s`}
+            subtitle={`Modo ${MODES.find((m) => m.id === mode)?.label ?? ''}${isRecord ? ', novo recorde' : ''}`}
+            text={`Fiz ${sum.right} acertos em ${ROUND_SECONDS}s no Odds Rush do PokerMind Pro.`}
+            width={640}
+          >
+            <OddsShareBody sum={sum} />
+          </ShareButton>
           {sum.total - sum.right > 0 && (
             <button type="button" onClick={() => navigate('/profile')} className="text-[11px] text-text-muted underline">
               Os erros entraram nos seus vazamentos (Perfil)

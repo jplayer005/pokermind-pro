@@ -192,3 +192,46 @@ export function RangeSummary({ range, label }: { range: Record<string, Action>; 
     </div>
   )
 }
+
+// ------- GRID ESTATICO PARA IMAGEM (cartao de compartilhar) -------
+// Sem animacao, sem tooltip e com cores fixas: a captura sai igual em qualquer tema e aparelho.
+const FONT_MONO = "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+
+export function RangeGridStatic({ range, cell = 44 }: { range: Record<string, Action | 'mixed'>; cell?: number }) {
+  const inRange = Object.values(range).filter((a) => a !== 'fold').length
+  const used = [...new Set(Object.values(range).filter((a) => a !== 'fold'))]
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(13, ${cell}px)`, gap: 2 }}>
+        {GRID.flat().map((hand) => {
+          const action = range[hand]
+          const style = !action || action === 'fold' ? ACTION_COLORS.fold : ACTION_COLORS[action] ?? ACTION_COLORS.default
+          return (
+            <div
+              key={hand}
+              style={{
+                width: cell, height: cell, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: style.bg, color: style.text, borderRadius: 4,
+                fontFamily: FONT_MONO, fontWeight: 700, fontSize: Math.round(cell * 0.28),
+                opacity: action && action !== 'fold' ? 1 : 0.75,
+              }}
+            >
+              {hand}
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 14, alignItems: 'center' }}>
+        {used.map((a) => (
+          <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#aab3c7' }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: (ACTION_COLORS[a] ?? ACTION_COLORS.default).bg }} />
+            {(ACTION_COLORS[a] ?? ACTION_COLORS.default).label}
+          </span>
+        ))}
+        <span style={{ marginLeft: 'auto', fontSize: 13, color: '#aab3c7', fontFamily: FONT_MONO }}>
+          {((inRange / 169) * 100).toFixed(1)}% das mãos
+        </span>
+      </div>
+    </div>
+  )
+}

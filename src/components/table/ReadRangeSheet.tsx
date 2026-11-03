@@ -15,6 +15,8 @@ import type { GameState } from '@/engine/game/types'
 import type { QuizState } from '@/hooks/useTableEngine'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { GRADE_UI } from './CoachToast'
+import ShareButton from '@/components/share/ShareButton'
+import { SHARE_COLORS, SHARE_FONT_MONO } from '@/components/share/ShareCard'
 
 const SUITS = ['♠', '♥', '♦', '♣']
 const RED = new Set([1, 2])
@@ -129,7 +131,7 @@ export default function ReadRangeSheet({ game, quiz, onAnswer, onClose }: Props)
             </div>
           </>
         ) : (
-          <Reveal quiz={quiz} onClose={onClose} />
+          <Reveal quiz={quiz} game={game} onClose={onClose} />
         )}
       </div>
     </div>,
@@ -137,7 +139,70 @@ export default function ReadRangeSheet({ game, quiz, onAnswer, onClose }: Props)
   )
 }
 
-function Reveal({ quiz, onClose }: { quiz: QuizState; onClose: () => void }) {
+const SHARE_RED = new Set([1, 2])
+function ShareCards({ cards }: { cards: readonly number[] }) {
+  return (
+    <>
+      {cards.map((c) => (
+        <span key={c} style={{ fontFamily: SHARE_FONT_MONO, fontWeight: 700, marginRight: 8, color: SHARE_RED.has(c & 3) ? '#ff6b6b' : SHARE_COLORS.text }}>
+          {RANK_CHARS[c >> 2]}{SUITS[c & 3]}
+        </span>
+      ))}
+    </>
+  )
+}
+
+/** Conteudo do cartao da leitura do vilao (estilos fixos: a imagem independe do tema). */
+function QuizShareBody({ quiz, game }: { quiz: QuizState; game: GameState }) {
+  const { q, result } = quiz
+  const hero = game.seats.find((s) => s.isHero)
+  const needed = q.icm ? q.icm.icmNeeded : q.needed
+  if (!result) return null
+  return (
+    <div style={{ fontSize: 15 }}>
+      <div style={{ fontSize: 18 }}>
+        {hero?.cards && (<><span style={{ color: SHARE_COLORS.muted, fontSize: 13 }}>Você </span><ShareCards cards={hero.cards} /></>)}
+        {game.board.length > 0 && (<><span style={{ color: SHARE_COLORS.muted, fontSize: 13, marginLeft: 12 }}>Board </span><ShareCards cards={game.board} /></>)}
+      </div>
+      <div style={{ color: SHARE_COLORS.muted, fontSize: 13, marginTop: 6 }}>
+        Aposta de {fmtBB(q.toCall, game.cfg.bb)} bb para pagar, pote de {fmtBB(q.pot, game.cfg.bb)} bb.
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 13, color: SHARE_COLORS.muted, marginBottom: 6 }}>Range estimado do vilão</div>
+        {BAND_INFO.map((b) => (
+          <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '5px 0' }}>
+            <span style={{ width: 96, fontSize: 13, color: b.id === result.top ? SHARE_COLORS.text : SHARE_COLORS.muted, fontWeight: b.id === result.top ? 700 : 400 }}>{b.label}</span>
+            <span style={{ flex: 1, height: 8, borderRadius: 4, background: '#1b2133', overflow: 'hidden', display: 'block' }}>
+              <span style={{ display: 'block', height: 8, width: `${Math.max(2, Math.round(q.bands[b.id] * 100))}%`, background: b.id === result.top ? SHARE_COLORS.gold : '#6f7a94' }} />
+            </span>
+            <span style={{ width: 40, textAlign: 'right', fontFamily: SHARE_FONT_MONO, fontSize: 13 }}>{pct(q.bands[b.id])}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+        {[
+          ['Sua equity', pct(q.equity)],
+          [q.icm ? 'Necessária em ICM' : 'Necessária', pct(needed)],
+          ...(q.icm ? [['Necessária em fichas', pct(q.icm.chipNeeded)]] : []),
+        ].map(([label, value]) => (
+          <div key={label} style={{ flex: 1, border: `1px solid ${SHARE_COLORS.border}`, borderRadius: 12, padding: '8px 12px' }}>
+            <div style={{ fontSize: 11, color: SHARE_COLORS.muted }}>{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: SHARE_FONT_MONO }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      {q.icm && (
+        <div style={{ marginTop: 12, fontSize: 13, color: SHARE_COLORS.muted }}>
+          Prêmio de risco de {Math.round(q.icm.premium * 100)} pontos.{' '}
+          {q.icm.villainCoversHero ? 'Ele te cobre: perder elimina você.' : 'Você cobre ele.'}
+        </div>
+      )}
+      <div style={{ marginTop: 10, fontSize: 12, color: SHARE_COLORS.faint }}>Estimativa de treino, não solver.</div>
+    </div>
+  )
+}
+
+function Reveal({ quiz, game, onClose }: { quiz: QuizState; game: GameState; onClose: () => void }) {
   const { q, result } = quiz
   if (!result) return null
   const ui = GRADE_UI[result.grade]
@@ -212,9 +277,21 @@ function Reveal({ quiz, onClose }: { quiz: QuizState; onClose: () => void }) {
         </p>
       </div>
 
-      <button type="button" onClick={onClose} className="w-full rounded-xl bg-accent-gold py-2.5 text-xs font-display font-bold text-black">
-        Continuar e decidir
-      </button>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-accent-gold py-2.5 text-xs font-display font-bold text-black">
+          Continuar e decidir
+        </button>
+        <ShareButton
+          iconOnly
+          label="Compartilhar leitura"
+          title={`Leitura do vilão: ${pct(q.equity)} de equity`}
+          subtitle={`${game.seats[q.seat]?.name ?? 'Vilão'} aposta ${fmtBB(q.toCall, game.cfg.bb)} bb no ${q.street === 'flop' ? 'flop' : q.street === 'turn' ? 'turn' : 'river'}`}
+          text="Leitura de range no PokerMind Pro."
+          width={640}
+        >
+          <QuizShareBody quiz={quiz} game={game} />
+        </ShareButton>
+      </div>
     </>
   )
 }

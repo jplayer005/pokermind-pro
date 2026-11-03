@@ -6,7 +6,8 @@
 
 import { useState, useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import RangeGrid from './RangeGrid'
+import RangeGrid, { RangeGridStatic } from './RangeGrid'
+import ShareButton from '@/components/share/ShareButton'
 import {
   THREE_BET_RANGES,
   FOUR_BET_RANGES,
@@ -145,6 +146,11 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
     () => buildRangeMap(scenario, effectiveHeroPos, villainPos, stackIsShort, heroStack, tableFormat),
     [scenario, effectiveHeroPos, villainPos, stackIsShort, heroStack, tableFormat],
   )
+
+  // titulo do cartao de compartilhar: o que esta na tela agora (cenario, posicao, adversario, stack)
+  const shownPos = scenario === 'bb_defense' ? 'BB' : scenario === 'sb_vs_bb' ? 'SB' : effectiveHeroPos
+  const shareTitle = `${SCENARIO_LABELS[scenario]}: ${shownPos}${showVillain ? ` vs ${villainPos}` : scenario === 'sb_vs_bb' ? ' vs BB' : ''}`
+  const shareSubtitle = `${showPushFoldStack ? (stackIsShort ? 'Até 12 bb' : '13 a 20 bb') : `${heroStack} bb`}, mesa ${tableFormat}`
 
   function handleScenarioChange(s: RefScenario) {
     setScenario(s)
@@ -285,6 +291,13 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
 
   return (
     <>
+      <div className="mb-2 flex justify-end">
+        <ShareButton title={shareTitle} subtitle={shareSubtitle} text={`${shareTitle}, ${shareSubtitle}. Range do PokerMind Pro.`}>
+          {/* 13 celulas de 49 px + 12 vaos de 2 px = 661 px, a largura util do cartao de 720 px */}
+          <RangeGridStatic range={rangeMap} cell={49} />
+        </ShareButton>
+      </div>
+
       {/* Mobile (<md): grid em cima, filtros embaixo */}
       <div className="md:hidden flex flex-col gap-4">
         <RangeGrid range={rangeMap} cellSize="xs" showLegend={true} />
