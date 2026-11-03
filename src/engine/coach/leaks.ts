@@ -4,6 +4,7 @@
 // espacada e o destino do treino direcionado. Puro: o store so guarda o estado.
 // ============================================================
 import { formatoPorId, posDisplay } from '../spotCatalog'
+import { allSpots } from '../ranges/painter'
 import { isLeak, type Grade } from './types'
 
 export interface LeakStat {
@@ -122,6 +123,8 @@ export function labelFor(ctx: string): string {
   if (m) return m[1] === 'BB' ? 'Defender o BB contra aumento' : `Responder a aumento no ${m[1]}`
   m = ctx.match(/^PF_VS3BET_(.+)$/)
   if (m) return `Responder a 3-bet no ${m[1]}`
+  m = ctx.match(/^RANGE_(.+)$/)
+  if (m) return `Pintar o range: ${allSpots().find((s) => s.id === m![1])?.title ?? m[1]}`
   m = ctx.match(/^ODDS_([A-Z]+)$/)
   if (m) return `Odds rápidas: ${ODDS_LABEL[m[1]] ?? m[1].toLowerCase()}`
   m = ctx.match(/^QUIZ_EQ_([A-Z]+)$/)
@@ -162,6 +165,8 @@ export function drillTarget(ctx: string): DrillTarget {
   }
   if (/^PF_VS3BET_/.test(ctx)) return { path: '/preflop', state: { scenario: '4bet', mode: 'drill', autoStart: true } }
   if (/^ODDS_/.test(ctx)) return { path: '/odds', state: null }
+  const range = ctx.match(/^RANGE_(.+)$/)
+  if (range) return { path: '/ranges', state: { spotId: range[1] } }
   // a leitura de range treina na mesa, no modo quiz
   if (/^QUIZ_EQ_/.test(ctx)) return { path: '/play', state: null }
   return { path: '/postflop', state: null }

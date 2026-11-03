@@ -239,6 +239,12 @@ const QUICK_LINKS = [
     spanFull: true,
   },
   {
+    icon: '🎨', label: 'Pinte o range', sub: 'Pinte de memória e veja o que faltou',
+    path: '/ranges', navState: null,
+    color: 'from-yellow-500/10 to-yellow-600/5', border: 'border-yellow-500/20',
+    spanFull: true,
+  },
+  {
     icon: '⏱️', label: 'Odds Rush', sub: 'Outs e pot odds em 60 segundos',
     path: '/odds', navState: null,
     color: 'from-pink-500/10 to-pink-600/5', border: 'border-pink-500/20',

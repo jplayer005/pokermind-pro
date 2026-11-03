@@ -10,6 +10,7 @@ import PushFoldTrainer from '@/pages/PushFoldTrainer'
 import PlayTable from '@/pages/PlayTable'
 import HandReplayer from '@/pages/HandReplayer'
 import OddsRush from '@/pages/OddsRush'
+import RangePainter from '@/pages/RangePainter'
 import Calculators from '@/pages/Calculators'
 import Study from '@/pages/Study'
 import Profile from '@/pages/Profile'
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="play" element={<PlayTable />} />
             <Route path="replayer" element={<HandReplayer />} />
             <Route path="odds" element={<OddsRush />} />
+            <Route path="ranges" element={<RangePainter />} />
             <Route path="calculators" element={<Calculators />} />
             <Route path="study" element={<Study />} />
             <Route path="profile" element={<Profile />} />
