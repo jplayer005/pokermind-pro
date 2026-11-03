@@ -188,7 +188,8 @@ describe('bolha mao a mao (MTT)', () => {
 
   it('no campo real o torneio chega a bolha e a mesa final: colocacoes unicas e contiguas', () => {
     let reachedFinalTable = 0
-    for (const seed of [4, 5, 12]) {
+    // procura sementes em que o heroi (apertado) chega a mesa final; as invariantes valem para todo torneio jogado
+    for (let seed = 1; seed <= 16 && reachedFinalTable < 3; seed++) {
       const rng = mulberry32(seed)
       const begin = startTournament(mttConfig(27), 'Herói', () => 'tag', rng)
       let tour: TournamentState = begin.tour

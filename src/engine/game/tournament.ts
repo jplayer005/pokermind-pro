@@ -227,7 +227,8 @@ export function advanceAfterHand(
       players: field.players.map((p) => (p.alive && stackOf.has(p.name) ? { ...p, stack: stackOf.get(p.name) as number } : p)),
     }
     const avg = t.totalChips / Math.max(1, t.remaining)
-    const sim = simulateTables(field, levelAt(t.levelIdx), rng, (stack) => icmPressure(t, stack, avg))
+    const level = levelAt(t.levelIdx)
+    const sim = simulateTables(field, level, rng, (stack) => icmPressure(t, stack, avg), avg / level.bb)
     field = sim.field
     busted.push(...sim.busted)
   }

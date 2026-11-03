@@ -4,7 +4,7 @@
 // ============================================================
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { applyAction, createGame, legalActions, startHand } from '@/engine/game/reducer'
-import { decideBot } from '@/engine/bots/policy'
+import { decideBot, EQUITY_ITERS } from '@/engine/bots/policy'
 import { updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
@@ -101,6 +101,8 @@ export function useTableEngine(opts: TableOptions) {
   const [reviews, setReviews] = useState<Review[]>([])
   const [lastGrade, setLastGrade] = useState<LastGrade | null>(null)
   const [hud, setHud] = useState<Record<string, HudStats>>({})
+  const hudRef = useRef(hud)
+  hudRef.current = hud
   const [tour, setTour] = useState<TournamentState | null>(() => opts.tournament?.initial ?? null)
   const tourRef = useRef(tour)
   tourRef.current = tour
@@ -170,7 +172,12 @@ export function useTableEngine(opts: TableOptions) {
       const live = g.seats.filter((x) => !x.out)
       const avg = live.length ? live.reduce((a, x) => a + x.stack + x.bet, 0) / live.length : 0
       const pressure = t ? icmPressure(t, seat.stack + seat.bet, avg) : 0
-      setGame(applyAction(g, decideBot(g, Math.random, pressure)))
+      // bots adaptativos leem o HUD do heroi (o que viram dele ate agora) e a marcha da situacao
+      const heroName = g.seats.find((x) => x.isHero)?.name
+      // chip leader e stack curto sao medidos contra o torneio inteiro (a mesa so, no cash)
+      const avgAll = t ? t.totalChips / Math.max(1, t.remaining) : avg
+      const adapt = { hero: heroName ? hudRef.current[heroName] : undefined, avgStackBB: g.cfg.bb > 0 ? avgAll / g.cfg.bb : undefined }
+      setGame(applyAction(g, decideBot(g, Math.random, pressure, EQUITY_ITERS, adapt)))
     }, lo + Math.random() * (hi - lo))
     return () => clearTimeout(t)
   }, [game, opts.speed])

@@ -24,7 +24,7 @@ import type { PlaySession } from '@/engine/progress'
 import { useElementHeight } from '@/hooks/useElementHeight'
 import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
-import { fieldProfile, pickProfiles, profileOf } from '@/engine/bots/profiles'
+import { fieldProfile, pickProfiles, profileOf, withSkill } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
 import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
@@ -243,7 +243,7 @@ export default function PlayTable() {
         )}
         {selected.tournament && (
           <p className="text-[11px] text-text-muted">
-            Todos começam com 1.500 fichas (75 bb). Buy-in = 1; prêmios em buy-ins. Cada bot tem estilo próprio, mais ou menos agressivo.
+            Todos começam com 1.500 fichas (75 bb). Buy-in = 1; prêmios em buy-ins. Cada bot tem estilo próprio, mais ou menos agressivo. Alguns se adaptam ao seu jogo (poucos profissionais, uns regulares): se você aperta demais eles roubam mais, se você não larga eles blefam menos.
             {selected.tournament.kind === 'mtt'
               ? ' No MTT todas as mesas são jogadas de verdade: os bots se enfrentam, as mesas quebram e a mesa final se forma. Toque em Campo na mesa para ver o ranking, os líderes e os estilos.'
               : ''}
@@ -383,7 +383,8 @@ function TableGame({
     }
     const buyIn = config.buyInBB * BB_CHIPS
     const bots = config.mode.seats - 1
-    const profiles = pickProfiles(bots)
+    // alguns bots do cash se adaptam a voce (poucos profissionais, alguns regulares), como numa mesa real
+    const profiles = pickProfiles(bots).map((p) => withSkill(p))
     const names = [...NAMES].sort(() => Math.random() - 0.5)
     // o heroi senta em um lugar sorteado; os bots preenchem o resto
     const heroSeat = Math.floor(Math.random() * config.mode.seats)

@@ -12,10 +12,13 @@ export interface HudStats {
   showdowns: number
   aggr: number // apostas e aumentos pos-flop
   calls: number // calls pos-flop
+  /** Vezes que enfrentou uma aposta pos-flop e quantas dessas largou (fold para aposta). */
+  facedBet: number
+  foldToBet: number
 }
 
 export const emptyHud = (): HudStats => ({
-  hands: 0, vpip: 0, pfr: 0, threeBet: 0, sawFlop: 0, showdowns: 0, aggr: 0, calls: 0,
+  hands: 0, vpip: 0, pfr: 0, threeBet: 0, sawFlop: 0, showdowns: 0, aggr: 0, calls: 0, facedBet: 0, foldToBet: 0,
 })
 
 /**
@@ -50,6 +53,11 @@ export function updateHud(prev: Record<string, HudStats>, game: GameState): Reco
     } else {
       if (e.type === 'raise') st.aggr++
       else if (e.type === 'call') st.calls++
+      // enfrentou uma aposta (havia algo a pagar): pagou, aumentou ou largou
+      if (e.toCall > 0 && (e.type === 'call' || e.type === 'raise' || e.type === 'fold')) {
+        st.facedBet++
+        if (e.type === 'fold') st.foldToBet++
+      }
     }
   }
   vpip.forEach((n) => next[n] && next[n].vpip++)

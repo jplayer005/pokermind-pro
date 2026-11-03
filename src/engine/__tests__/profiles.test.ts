@@ -44,7 +44,7 @@ describe('fieldProfile: sorteio do campo', () => {
 
   it('devolve ids validos, ja com tracos individuais', () => {
     for (const id of draw(200)) {
-      expect(id).toMatch(/^[a-z]+~\d\.\d\d~\d\.\d\d$/)
+      expect(id).toMatch(/^[a-z]+~\d\.\d\d~\d\.\d\d~[012]$/)
       expect(profileOf(id).id).toBe(id) // o id foi entendido (nao caiu no TAG padrao)
     }
   })

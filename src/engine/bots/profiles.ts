@@ -16,14 +16,19 @@ export interface BotProfile {
   bluff: number
   /** Soma na tolerancia de pagar: positivo paga com menos equity. */
   stickiness: number
+  /**
+   * Quanto o bot se adapta a quem esta na mao com ele (ver bots/adapt): 0 = nunca, estilo fixo
+   * (recreativo); 1 = regular, ajusta pouco e demora; 2 = profissional, ajusta rapido e forte.
+   */
+  adapt: 0 | 1 | 2
 }
 
 export const BOT_PROFILES: Record<string, BotProfile> = {
-  tag: { id: 'tag', label: 'TAG', blurb: 'Sólido: poucas mãos, agressivo', looseness: 1, aggression: 1, bluff: 0.18, stickiness: 0 },
-  nit: { id: 'nit', label: 'Nit', blurb: 'Só joga mãos fortes, foga fácil', looseness: 0.6, aggression: 0.7, bluff: 0.05, stickiness: -0.06 },
-  lag: { id: 'lag', label: 'LAG', blurb: 'Joga muitas mãos e pressiona', looseness: 1.4, aggression: 1.4, bluff: 0.32, stickiness: 0.02 },
-  maniac: { id: 'maniac', label: 'Maníaco', blurb: 'Aposta e aumenta quase sempre', looseness: 2, aggression: 2, bluff: 0.5, stickiness: 0.05 },
-  station: { id: 'station', label: 'Calling Station', blurb: 'Paga tudo, raramente aumenta', looseness: 1.6, aggression: 0.35, bluff: 0.04, stickiness: 0.14 },
+  tag: { id: 'tag', label: 'TAG', blurb: 'Sólido: poucas mãos, agressivo', looseness: 1, aggression: 1, bluff: 0.18, stickiness: 0, adapt: 0 },
+  nit: { id: 'nit', label: 'Nit', blurb: 'Só joga mãos fortes, foga fácil', looseness: 0.6, aggression: 0.7, bluff: 0.05, stickiness: -0.06, adapt: 0 },
+  lag: { id: 'lag', label: 'LAG', blurb: 'Joga muitas mãos e pressiona', looseness: 1.4, aggression: 1.4, bluff: 0.32, stickiness: 0.02, adapt: 0 },
+  maniac: { id: 'maniac', label: 'Maníaco', blurb: 'Aposta e aumenta quase sempre', looseness: 2, aggression: 2, bluff: 0.5, stickiness: 0.05, adapt: 0 },
+  station: { id: 'station', label: 'Calling Station', blurb: 'Paga tudo, raramente aumenta', looseness: 1.6, aggression: 0.35, bluff: 0.04, stickiness: 0.14, adapt: 0 },
 }
 
 export const PROFILE_IDS = Object.keys(BOT_PROFILES)
@@ -41,11 +46,12 @@ export function profileOf(id: string): BotProfile {
   if (base) return base
   const hit = derived.get(id)
   if (hit) return hit
-  const m = /^([a-z]+)~(\d+(?:\.\d+)?)~(\d+(?:\.\d+)?)$/.exec(id)
+  const m = /^([a-z]+)~(\d+(?:\.\d+)?)~(\d+(?:\.\d+)?)(?:~([012]))?$/.exec(id)
   const root = m ? BOT_PROFILES[m[1]] : undefined
   if (!m || !root) return BOT_PROFILES.tag
   const loose = clamp(Number(m[2]), 0.5, 1.5)
   const aggr = clamp(Number(m[3]), 0.5, 1.5)
+  const adapt = (m[4] ? Number(m[4]) : 0) as 0 | 1 | 2
   // + e - no rotulo mostram a tendencia individual (ASCII: o rotulo vai para a mesa e o HUD)
   const mark = aggr >= 1.12 ? '+' : aggr <= 0.88 ? '-' : ''
   const p: BotProfile = {
@@ -55,9 +61,20 @@ export function profileOf(id: string): BotProfile {
     blurb: mark === '+' ? `${root.blurb} (mais agressivo que o normal)` : mark === '-' ? `${root.blurb} (mais passivo que o normal)` : root.blurb,
     looseness: root.looseness * loose,
     aggression: root.aggression * aggr,
+    adapt,
   }
   derived.set(id, p)
   return p
+}
+
+/**
+ * Dá nivel de adaptacao a um perfil base (mesas de cash): 10% profissionais, 25% regulares e o resto
+ * fixo, como em fieldProfile. Sem tracos individuais: o estilo e o do perfil base.
+ */
+export function withSkill(id: string, rng: () => number = Math.random): string {
+  const roll = rng()
+  const skill = roll < 0.1 ? 2 : roll < 0.35 ? 1 : 0
+  return skill === 0 ? id : `${id}~1.00~1.00~${skill}`
 }
 
 /** Peso de cada estilo no campo de um torneio: muitos TAGs e pagadores, poucos maniacos. */
@@ -73,7 +90,11 @@ export function fieldProfile(rng: () => number = Math.random): string {
   }
   const loose = 0.8 + rng() * 0.45 // 0,80 a 1,25
   const aggr = 0.7 + rng() * 0.65 // 0,70 a 1,35
-  return `${base}~${loose.toFixed(2)}~${aggr.toFixed(2)}`
+  // como num torneio de verdade: poucos profissionais (10%) e alguns regulares (25%) ajustam o jogo
+  // ao adversario; a maioria (65%) joga o proprio estilo do inicio ao fim
+  const roll = rng()
+  const skill = roll < 0.1 ? 2 : roll < 0.35 ? 1 : 0
+  return `${base}~${loose.toFixed(2)}~${aggr.toFixed(2)}~${skill}`
 }
 
 /** Sorteia perfis para uma mesa: sempre pelo menos um TAG, mistura o resto. */

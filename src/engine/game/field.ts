@@ -96,7 +96,7 @@ export function createField(config: TournamentConfig, heroName: string, rng: Rng
  * `pressure`: pressao de ICM sentida por um bot com esse stack (0 longe do dinheiro).
  */
 export function simulateTables(
-  field: Field, level: BlindLevel, rng: Rng, pressure: (stack: number) => number,
+  field: Field, level: BlindLevel, rng: Rng, pressure: (stack: number) => number, avgStackBB?: number,
 ): { field: Field; busted: Bust[] } {
   const players = field.players.map((p) => ({ ...p }))
   const buttons = { ...field.buttons }
@@ -117,7 +117,8 @@ export function simulateTables(
     let guard = 0
     while (!g.over) {
       const seat = g.seats[g.toAct]
-      g = applyAction(g, decideBot(g, rng, pressure(seat.stack + seat.bet), FIELD_EQUITY_ITERS))
+      // nas outras mesas nao ha heroi: os bots adaptativos so trocam de marcha pela situacao (stack, chip leader)
+      g = applyAction(g, decideBot(g, rng, pressure(seat.stack + seat.bet), FIELD_EQUITY_ITERS, { avgStackBB }))
       if (++guard > 400) throw new Error('mao simulada nao termina')
     }
     g.seats.forEach((s, i) => {

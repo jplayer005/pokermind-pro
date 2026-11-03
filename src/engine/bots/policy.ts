@@ -8,6 +8,7 @@ import { equityVsCombos, type Combo } from '../equity'
 import { legalActions, positionsBySeat, potTotal } from '../game/reducer'
 import type { Action, GameState, LegalActions } from '../game/types'
 import { profileOf, type BotProfile } from './profiles'
+import { adaptProfile, type AdaptContext } from './adapt'
 import { getOpenRaiseRange, THREE_BET_RANGES, FOUR_BET_RANGES } from '@/data/ranges'
 import type { Position, TableFormat } from '@/types'
 
@@ -82,10 +83,14 @@ function formatFor(n: number): TableFormat {
 // ---------- decisao ----------
 
 /** `icm`: pressao de ICM do torneio (ver tournament.icmPressure); 0 fora de torneio ou longe do dinheiro. */
-export function decideBot(state: GameState, rng: Rng = Math.random, icm = 0, equityIters = EQUITY_ITERS): Action {
+export function decideBot(
+  state: GameState, rng: Rng = Math.random, icm = 0, equityIters = EQUITY_ITERS, adapt: AdaptContext = {},
+): Action {
   const seat = state.seats[state.toAct]
   const la = legalActions(state)
-  const profile = profileOf(seat.profile)
+  // bots profissionais/regulares ajustam o estilo ao heroi (se ele ainda esta na mao) e a situacao
+  const heroActive = state.seats.some((s) => s.isHero && !s.out && !s.folded && s.id !== seat.id)
+  const profile = adaptProfile(profileOf(seat.profile), adapt, { stackBB: (seat.stack + seat.bet) / state.cfg.bb }, heroActive)
   if (!seat.cards) return checkOrFold(la)
   return state.street === 'preflop'
     ? decidePreflop(state, la, profile, rng, icm)
