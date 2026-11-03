@@ -4,7 +4,7 @@ import { decideBot } from '../bots/policy'
 import { pickProfiles } from '../bots/profiles'
 import { mulberry32 } from '../cards'
 import {
-  levelAt, mttPayouts, sngConfig, mttConfig, startTournament, advanceAfterHand, bustProbability,
+  levelAt, mttPayouts, sngConfig, mttConfig, startTournament, advanceAfterHand,
   inTheMoney, isBubble, isHandForHand, prizeInBuyIns, paidPlaces, type TournamentState, type TournamentConfig,
 } from '../game/tournament'
 import type { GameState } from '../game/types'
@@ -38,11 +38,6 @@ describe('estrutura de blinds e premios', () => {
     expect(prizeInBuyIns(sngConfig(6), 3)).toBe(0)
   })
 
-  it('a probabilidade de eliminacao cresce quando o stack medio encolhe', () => {
-    expect(bustProbability(5)).toBeGreaterThan(bustProbability(20))
-    expect(bustProbability(20)).toBeGreaterThan(bustProbability(70))
-  })
-
   it('bolha e dinheiro dependem so de quantos premios ha', () => {
     const t = { config: sngConfig(6), remaining: 3 } as TournamentState
     expect(isBubble(t)).toBe(true)
@@ -62,11 +57,23 @@ describe('inicio de torneio', () => {
     expect(s.players.every((p) => p.stack === 1500)).toBe(true)
   })
 
-  it('MTT: so 9 sentam, o resto fica simulado', () => {
+  it('MTT: so 9 sentam na tela, o resto do campo existe de verdade nas outras mesas', () => {
     const s = startTournament(mttConfig(54), 'Você', () => 'tag', mulberry32(2))
     expect(s.players).toHaveLength(9)
     expect(s.tour.offTable).toBe(45)
     expect(s.tour.totalChips).toBe(54 * 1500)
+    const field = s.tour.field!
+    expect(field.players).toHaveLength(54)
+    // os 9 da tela sao os jogadores da mesa 0, com os mesmos nomes e estilos
+    const table0 = field.players.filter((p) => p.table === 0)
+    expect(new Set(s.players.map((p) => p.name))).toEqual(new Set(table0.map((p) => p.name)))
+    expect(s.players.filter((p) => p.isHero)).toHaveLength(1)
+    // os bots tem estilos individuais (id com tracos), nao so o nome do perfil
+    expect(s.players.filter((p) => !p.isHero).every((p) => p.profile.includes('~'))).toBe(true)
+  })
+
+  it('SNG nao tem campo separado', () => {
+    expect(startTournament(sngConfig(6), 'Você', () => 'tag', mulberry32(2)).tour.field).toBeNull()
   })
 })
 
@@ -77,17 +84,18 @@ interface Outcome {
 }
 
 /** Joga um torneio inteiro com todos os assentos controlados por bots (o heroi tambem). */
-function simulate(config: TournamentConfig, seed: number): Outcome {
+function simulate(config: TournamentConfig, seed: number, heroProfile = 'tag'): Outcome {
   const rng = mulberry32(seed)
   const start = startTournament(config, 'Herói', () => pickProfiles(1, rng)[0], rng)
   let tour: TournamentState = start.tour
-  let g: GameState = createGame(start.players, start.cfg, 0)
+  // o heroi tambem e um bot nestes testes; um perfil apertado o faz sobreviver ate as fases finais
+  let g: GameState = createGame(start.players.map((p) => (p.isHero ? { ...p, profile: heroProfile } : p)), start.cfg, 0)
   let hands = 0
   while (!tour.done && hands < 2500) {
     g = startHand(g, rng)
     let guard = 0
     while (!g.over) {
-      g = applyAction(g, decideBot(g, rng))
+      g = applyAction(g, decideBot(g, rng, 0, 40))
       if (++guard > 300) throw new Error('mao nao termina')
     }
     hands++
@@ -99,6 +107,27 @@ function simulate(config: TournamentConfig, seed: number): Outcome {
     // com o campo todo na mesa, as fichas conferem EXATAMENTE (antes, blinds e antes inclusos)
     if (tour.offTable === 0) expect(onTable).toBe(tour.totalChips)
     expect(onTable).toBeLessThanOrEqual(tour.totalChips)
+
+    // MTT: o campo real e consistente a cada mao
+    const field = tour.field
+    if (field && !tour.done) {
+      const alive = field.players.filter((p) => p.alive)
+      // as fichas do campo inteiro se conservam e a contagem bate com o torneio
+      expect(alive.reduce((a, p) => a + p.stack, 0)).toBe(tour.totalChips)
+      expect(alive.length).toBe(tour.remaining)
+      expect(alive.filter((p) => p.table !== 0).length).toBe(tour.offTable)
+      // a mesa da tela mostra exatamente os jogadores da mesa 0, com as mesmas fichas
+      const seated = g.seats.filter((s) => !s.out && s.stack > 0)
+      const table0 = alive.filter((p) => p.table === 0)
+      expect(new Set(seated.map((s) => s.name))).toEqual(new Set(table0.map((p) => p.name)))
+      for (const s of seated) expect(table0.find((p) => p.name === s.name)!.stack).toBe(s.stack)
+      // mesas: no maximo 9 por mesa, com diferenca de no maximo 1 entre elas
+      const sizes = new Map<number, number>()
+      for (const p of alive) sizes.set(p.table, (sizes.get(p.table) ?? 0) + 1)
+      expect(Math.max(...sizes.values())).toBeLessThanOrEqual(9)
+      expect(Math.max(...sizes.values()) - Math.min(...sizes.values())).toBeLessThanOrEqual(1)
+      expect(sizes.size).toBe(Math.ceil(alive.length / 9))
+    }
   }
   return { tour, hands, maxLevel: tour.levelIdx }
 }
@@ -126,9 +155,9 @@ describe('torneios simulados ponta a ponta', () => {
   }, 120_000)
 
   it('MTT de 27: campo simulado quebra, mesa final se forma e as fichas conferem', () => {
-    // sementes em que o heroi sobrevive por muito tempo, para exercitar balanceamento e mesa final
-    for (const seed of [1, 3, 5]) {
-      const { tour, hands } = simulate(mttConfig(27), seed)
+    // sementes em que o heroi (apertado) sobrevive ate a mesa final, para exercitar quebra de mesas
+    for (const seed of [4, 5, 12]) {
+      const { tour, hands } = simulate(mttConfig(27), seed, 'nit')
       expect(tour.done).toBe(true)
       expect(hands).toBeGreaterThan(50) // sobreviveu ate o campo encolher
       expect(tour.remaining).toBeLessThan(27)
@@ -157,22 +186,40 @@ describe('bolha mao a mao (MTT)', () => {
     expect(isHandForHand({ ...bubbleT, config: sngConfig(6) })).toBe(false)
   })
 
-  it('no maximo uma eliminacao por mao no campo; ninguem perde duas maos sem quebrar', () => {
-    const { s, game } = start()
-    const rng = mulberry32(99)
-    let tour: TournamentState = { ...s.tour, remaining: paidPlaces(s.tour) + 1 }
-    let drops = 0
-    for (let i = 0; i < 400 && isHandForHand(tour); i++) {
-      const before = tour.remaining
-      const r = advanceAfterHand(tour, { ...game, seats: game.seats.map((x) => ({ ...x })) }, rng)
-      expect(before - r.tour.remaining).toBeLessThanOrEqual(1)
-      if (r.tour.remaining < before) drops++
-      tour = r.tour
+  it('no campo real o torneio chega a bolha e a mesa final: colocacoes unicas e contiguas', () => {
+    let reachedFinalTable = 0
+    for (const seed of [4, 5, 12]) {
+      const rng = mulberry32(seed)
+      const begin = startTournament(mttConfig(27), 'Herói', () => 'tag', rng)
+      let tour: TournamentState = begin.tour
+      let g: GameState = createGame(begin.players.map((p) => (p.isHero ? { ...p, profile: 'nit' } : p)), begin.cfg, 0)
+      let hands = 0
+      let final = false
+      while (!tour.done && hands < 2500) {
+        g = startHand(g, rng)
+        let guard = 0
+        while (!g.over) {
+          g = applyAction(g, decideBot(g, rng, 0, 40))
+          if (++guard > 300) throw new Error('mao nao termina')
+        }
+        hands++
+        if (tour.remaining <= 9) {
+          final = true
+          // mesa final: todos os vivos ja estao sentados na mesa do heroi
+          expect(tour.offTable).toBe(0)
+        }
+        const out = advanceAfterHand(tour, g, rng)
+        tour = out.tour
+        g = out.game
+      }
+      if (final) reachedFinalTable++
+      // cada colocacao aparece uma vez e vai de 27 para baixo sem buracos
+      const places = tour.finishes.map((f) => f.place).sort((a, b) => b - a)
+      expect(new Set(places).size).toBe(places.length)
+      places.forEach((p, i) => expect(p).toBe(27 - i))
     }
-    expect(drops).toBeGreaterThan(0)
-    expect(isBubble(tour)).toBe(false)
-    expect(new Set(tour.finishes.map((f) => f.place)).size).toBe(tour.finishes.length)
-  })
+    expect(reachedFinalTable).toBe(3)
+  }, 400_000)
 })
 
 describe('ICM dos bots perto do dinheiro', () => {

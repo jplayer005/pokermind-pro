@@ -82,15 +82,18 @@ function formatFor(n: number): TableFormat {
 // ---------- decisao ----------
 
 /** `icm`: pressao de ICM do torneio (ver tournament.icmPressure); 0 fora de torneio ou longe do dinheiro. */
-export function decideBot(state: GameState, rng: Rng = Math.random, icm = 0): Action {
+export function decideBot(state: GameState, rng: Rng = Math.random, icm = 0, equityIters = EQUITY_ITERS): Action {
   const seat = state.seats[state.toAct]
   const la = legalActions(state)
   const profile = profileOf(seat.profile)
   if (!seat.cards) return checkOrFold(la)
   return state.street === 'preflop'
     ? decidePreflop(state, la, profile, rng, icm)
-    : decidePostflop(state, la, profile, rng, icm)
+    : decidePostflop(state, la, profile, rng, icm, equityIters)
 }
+
+/** Amostras de equity do bot no pos-flop. Mesas simuladas ao fundo usam menos (ver engine/game/field). */
+export const EQUITY_ITERS = 220
 
 function decidePreflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number): Action {
   const seat = state.seats[state.toAct]
@@ -234,13 +237,13 @@ export function combosUpToPercentile(maxPct: number, dead: readonly number[]): C
   return out
 }
 
-function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number): Action {
+function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number, equityIters: number): Action {
   const seat = state.seats[state.toAct]
   const cards = seat.cards as [number, number]
   const pot = potTotal(state)
   const foes = Math.max(1, state.seats.filter((x) => !x.out && !x.folded).length - 1)
 
-  const raw = equityVsCombos(cards, ALL_COMBOS, state.board, 220, rng).equity
+  const raw = equityVsCombos(cards, ALL_COMBOS, state.board, equityIters, rng).equity
   // contra varios oponentes a equity individual encolhe
   const multi = Math.pow(raw, 1 + 0.7 * (foes - 1))
   const facing = la.canCall

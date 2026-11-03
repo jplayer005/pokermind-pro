@@ -19,7 +19,8 @@ interface Props {
   unit: 'bb' | 'chips'
   showProfiles: boolean
   /** Estatisticas acumuladas por assento; mostradas quando showHud e ha amostra minima. */
-  hud?: Record<number, HudStats>
+  /** Estatisticas por jogador (nome): acompanham o jogador entre mesas. */
+  hud?: Record<string, HudStats>
   showHud?: boolean
   /**
    * Altura (px) medida do espaco que sobra para a mesa (entre o cabecalho e a barra de acoes).
@@ -192,7 +193,7 @@ export default function PokerTableView({
               handName={win?.handName}
               showProfile={showProfiles}
               hero={seat.id === heroId}
-              hudText={showHud && seat.id !== heroId ? hudLine(hud?.[seat.id]) : ""}
+              hudText={showHud && seat.id !== heroId ? hudLine(hud?.[seat.name]) : ""}
               bottomAnchor={portrait && k === 0}
               compact={portrait && n >= 7 && seat.id !== heroId}
               heroSmall={portrait && n >= 7}

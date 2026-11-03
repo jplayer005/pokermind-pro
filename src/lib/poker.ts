@@ -252,6 +252,17 @@ export function calculateICM(stacks: number[], payouts: number[]): number[] {
   return icmValues
 }
 
+/**
+ * Custo da conta de ICM: numero de colocacoes distintas que `calculateICM` percorre, n x (n-1) x ...
+ * ate o numero de premios. 9 jogadores com 8 premios (mesa final de MTT) = 362.880, cerca de 30 ms;
+ * 10 com 8 = 1,8 milhao, cerca de 100 ms. Quem chama decide o teto conforme quantas contas faz.
+ */
+export function icmWorkload(players: number, payouts: number): number {
+  let w = 1
+  for (let i = 0; i < Math.min(players, payouts); i++) w *= players - i
+  return w
+}
+
 // ------- OUTS E EQUITY COM OUTS -------
 export function outsToEquity(outs: number, street: 'flop' | 'turn'): number {
   // Regra dos 4 e dos 2

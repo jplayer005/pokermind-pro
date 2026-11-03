@@ -100,7 +100,7 @@ export function useTableEngine(opts: TableOptions) {
   const [session, setSession] = useState<Session>({ hands: 0, net: 0, rebuys: 0, decisions: 0, correct: 0, leaks: 0 })
   const [reviews, setReviews] = useState<Review[]>([])
   const [lastGrade, setLastGrade] = useState<LastGrade | null>(null)
-  const [hud, setHud] = useState<Record<number, HudStats>>({})
+  const [hud, setHud] = useState<Record<string, HudStats>>({})
   const [tour, setTour] = useState<TournamentState | null>(() => opts.tournament?.initial ?? null)
   const tourRef = useRef(tour)
   tourRef.current = tour

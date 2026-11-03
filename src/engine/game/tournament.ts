@@ -4,6 +4,7 @@
 // do campo e simulado (eliminacoes por probabilidade) e reabastece a mesa (balanceamento).
 // ============================================================
 import type { Rng } from '../cards'
+import { assignPlaces, createField, rebalance, simulateTables, type Bust, type Field } from './field'
 import type { GameState, PlayerInit } from './types'
 
 export interface BlindLevel {
@@ -39,10 +40,11 @@ export interface TournamentState {
   /** Jogadores vivos fora da mesa do heroi (so MTT). */
   offTable: number
   totalChips: number
-  nextId: number
   finishes: Finish[]
   heroPlace: number | null
   done: boolean
+  /** O campo do MTT: cada jogador com nome, estilo, fichas e mesa. null no Sit&Go (a mesa e o torneio). */
+  field: Field | null
 }
 
 const BASE_LEVELS: BlindLevel[] = [
@@ -137,6 +139,33 @@ export function startTournament(
   pickProfile: (i: number) => string,
   rng: Rng = Math.random,
 ): TournamentStart {
+  // MTT: o campo inteiro existe (nomes, estilos, fichas, mesas); a mesa do heroi e a mesa 0
+  if (config.kind === 'mtt') {
+    const field = createField(config, heroName, rng)
+    const seated = field.players.filter((p) => p.table === 0)
+    for (let i = seated.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1))
+      ;[seated[i], seated[j]] = [seated[j], seated[i]]
+    }
+    const lvl0 = levelAt(0)
+    return {
+      players: seated.map((p) => ({ name: p.name, isHero: p.isHero, profile: p.profile, stack: p.stack })),
+      cfg: { sb: lvl0.sb, bb: lvl0.bb, ante: lvl0.ante },
+      tour: {
+        config,
+        levelIdx: 0,
+        handsInLevel: 0,
+        remaining: config.fieldSize,
+        offTable: config.fieldSize - seated.length,
+        totalChips: config.fieldSize * config.startStack,
+        finishes: [],
+        heroPlace: null,
+        done: false,
+        field,
+      },
+    }
+  }
+
   const seats = Math.min(config.tableSeats, config.fieldSize)
   const heroSeat = Math.floor(rng() * seats)
   const order = [...NAMES].sort(() => rng() - 0.5)
@@ -157,140 +186,106 @@ export function startTournament(
       remaining: config.fieldSize,
       offTable: config.fieldSize - seats,
       totalChips: config.fieldSize * config.startStack,
-      nextId: 1,
       finishes: [],
       heroPlace: null,
       done: false,
+      field: null,
     },
   }
 }
 
 // ---------------------------------------------------------------- avanco apos cada mao
 
-/** Probabilidade de um jogador do campo simulado ser eliminado numa mao da mesa do heroi. */
-export function bustProbability(avgStackBB: number): number {
-  return 0.06 * Math.exp(-avgStackBB / 12)
-}
-
 /**
- * Chamada quando uma mao termina: registra eliminacoes (colocacao), simula o campo,
- * sobe o nivel de blinds e reabastece a mesa. Devolve o torneio e o jogo atualizados.
+ * Chamada quando uma mao da mesa do heroi termina: registra as eliminacoes (colocacao); no MTT joga
+ * uma mao em cada outra mesa, quebra e equilibra as mesas e reabastece a mesa do heroi com jogadores
+ * reais do campo; sobe o nivel de blinds. Devolve o torneio e o jogo atualizados.
+ * (`_pickProfile` ficou so por compatibilidade: os jogadores do campo ja nascem com estilo proprio.)
  */
 export function advanceAfterHand(
   t: TournamentState,
   game: GameState,
   rng: Rng = Math.random,
-  pickProfile: () => string = () => 'tag',
+  _pickProfile: () => string = () => 'tag',
 ): { tour: TournamentState; game: GameState } {
   const seats = game.seats.map((s) => ({ ...s }))
   const finishes = [...t.finishes]
   let remaining = t.remaining
-  let offTable = t.offTable
-  let nextId = t.nextId
   let heroPlace = t.heroPlace
+  let field = t.field
 
-  // 1) eliminados na mesa: menor stack inicial fica com a pior colocacao
-  const busted = seats.filter((s) => !s.out && s.stack <= 0).sort((a, b) => a.startStack - b.startStack)
-  // Mao a mao (bolha do MTT): no maximo UMA eliminacao no campo por mao, e ela concorre com as da
-  // mesa do heroi pela pior colocacao: quem tinha menos fichas cai primeiro (o campo simulado
-  // usa a metade do stack medio fora da mesa como proxy, ja que quem quebra costuma ser curto).
-  const hfh = isHandForHand(t)
-  let hfhOffBust = false
-  if (hfh) {
-    const chipsAtTable = seats.reduce((a, s) => a + s.stack, 0)
-    const avgOff = (t.totalChips - chipsAtTable) / t.offTable
-    const p = bustProbability(avgOff / game.cfg.bb)
-    for (let i = 0; i < t.offTable && !hfhOffBust; i++) if (rng() < p) hfhOffBust = true
-    hfhOffBust = hfhOffBust && t.offTable > 1
-    if (hfhOffBust) {
-      const proxy = avgOff / 2
-      const worse = busted.filter((b) => b.startStack < proxy)
-      const better = busted.filter((b) => b.startStack >= proxy)
-      const takeOut = (s: (typeof busted)[number]) => {
-        finishes.push({ name: s.name, place: remaining, isHero: s.isHero })
-        if (s.isHero) heroPlace = remaining
-        remaining--
-        s.out = true
-      }
-      worse.forEach(takeOut)
-      finishes.push({ name: `Jogador ${nextId++}`, place: remaining, isHero: false })
-      remaining--
-      offTable--
-      better.forEach(takeOut)
-      busted.length = 0
+  // 1) eliminados na mesa do heroi
+  const busted: Bust[] = seats
+    .filter((s) => !s.out && s.stack <= 0)
+    .map((s) => ({ name: s.name, startStack: s.startStack, isHero: s.isHero }))
+
+  // 2) MTT: as fichas da mesa do heroi vao para o campo e cada outra mesa joga uma mao
+  if (field) {
+    const stackOf = new Map(seats.filter((s) => !s.out).map((s) => [s.name, s.stack]))
+    field = {
+      ...field,
+      players: field.players.map((p) => (p.alive && stackOf.has(p.name) ? { ...p, stack: stackOf.get(p.name) as number } : p)),
     }
-  }
-  for (const s of busted) {
-    finishes.push({ name: s.name, place: remaining, isHero: s.isHero })
-    if (s.isHero) heroPlace = remaining
-    remaining--
-    s.out = true
+    const avg = t.totalChips / Math.max(1, t.remaining)
+    const sim = simulateTables(field, levelAt(t.levelIdx), rng, (stack) => icmPressure(t, stack, avg))
+    field = sim.field
+    busted.push(...sim.busted)
   }
 
-  const tableChips = seats.reduce((a, s) => a + s.stack, 0)
+  // 3) colocacoes: quem comecou a mao com menos fichas fica na pior (na bolha, o maior stack se salva)
+  const placed = assignPlaces(busted, remaining)
+  for (const p of placed) {
+    finishes.push({ name: p.name, place: p.place, isHero: p.isHero })
+    if (p.isHero) heroPlace = p.place
+    remaining--
+  }
+  const out = new Set(placed.map((p) => p.name))
+  for (const s of seats) if (out.has(s.name)) s.out = true
+  if (field) {
+    field = { ...field, players: field.players.map((p) => (out.has(p.name) ? { ...p, alive: false, stack: 0 } : p)) }
+  }
+
   const nextLevelIdx = t.handsInLevel + 1 >= t.config.handsPerLevel ? t.levelIdx + 1 : t.levelIdx
   const lvl = levelAt(nextLevelIdx)
 
-  // 2) campo simulado (so MTT): eliminacoes fora da mesa
-  if (t.config.kind === 'mtt' && offTable > 0 && heroPlace === null && !hfh) {
-    const avgOff = (t.totalChips - tableChips) / offTable
-    const p = bustProbability(avgOff / game.cfg.bb)
-    let k = 0
-    for (let i = 0; i < offTable; i++) if (rng() < p) k++
-    // o campo simulado nunca fica vazio enquanto ha fichas nele: as fichas de quem quebra vao
-    // para quem sobra. O ultimo so sai sentando na mesa (mesa final), senao as fichas sumiriam.
-    k = Math.min(k, offTable - 1)
-    for (let j = 0; j < k; j++) {
-      finishes.push({ name: `Jogador ${nextId++}`, place: remaining, isHero: false })
-      remaining--
-      offTable--
+  // 4) MTT: quebra de mesas, mesa final e reabastecimento da mesa do heroi com jogadores reais
+  if (field && heroPlace === null) {
+    const rb = rebalance(field, t.config.tableSeats, rng)
+    field = rb.field
+    for (const name of rb.fromHeroTable) {
+      const s = seats.find((x) => x.name === name && !x.out)
+      if (s) { s.out = true; s.stack = 0 } // as fichas dele seguem com ele no campo
+    }
+    for (const p of rb.toHeroTable) {
+      const s = seats.find((x) => x.out || x.stack <= 0)
+      if (!s) continue
+      s.name = p.name
+      s.profile = p.profile
+      s.stack = p.stack
+      s.startStack = p.stack
+      s.out = false
+      s.folded = false
+      s.cards = null
     }
   }
 
-  // 3) balanceamento: reabastece a mesa quando ela encolhe, ou forma a mesa final
-  if (t.config.kind === 'mtt' && offTable > 0 && heroPlace === null) {
-    const vacancies = seats.filter((s) => s.stack <= 0)
-    const active = seats.length - vacancies.length
-    const finalTable = remaining <= t.config.tableSeats
-    if (finalTable || active <= t.config.tableSeats - 3) {
-      let chipsRem = t.totalChips - tableChips
-      const n = Math.min(vacancies.length, offTable)
-      for (let i = 0; i < n; i++) {
-        // o ultimo jogador do campo recebe exatamente o que sobra: as fichas se conservam
-        const stack = offTable === 1 ? chipsRem : Math.round(chipsRem / offTable)
-        chipsRem -= stack
-        offTable--
-        const seat = vacancies[i]
-        seat.name = `Jogador ${nextId++}`
-        seat.profile = pickProfile()
-        seat.stack = stack
-        seat.startStack = stack
-        seat.out = false
-        seat.folded = false
-        seat.cards = null
-      }
-    }
-  }
-
-  // 4) campeao
-  const heroAlive = heroPlace === null
-  if (heroAlive && remaining === 1) {
+  // 5) campeao
+  if (heroPlace === null && remaining === 1) {
     heroPlace = 1
     const hero = seats.find((s) => s.isHero)
     if (hero) finishes.push({ name: hero.name, place: 1, isHero: true })
   }
 
-  const done = heroPlace !== null
   const tour: TournamentState = {
     ...t,
     levelIdx: nextLevelIdx,
     handsInLevel: nextLevelIdx === t.levelIdx ? t.handsInLevel + 1 : 0,
     remaining,
-    offTable,
-    nextId,
+    offTable: field ? field.players.filter((p) => p.alive && p.table !== 0).length : 0,
     finishes,
     heroPlace,
-    done,
+    done: heroPlace !== null,
+    field,
   }
   return {
     tour,

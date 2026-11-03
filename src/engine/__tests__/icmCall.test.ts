@@ -97,6 +97,42 @@ describe('coach pos-flop com ICM', () => {
   })
 })
 
+describe('icmCallInfo: mesa final de MTT (9 jogadores, 8 premios)', () => {
+  it('calcula o ICM do campo inteiro, rapido, e o premio de risco e positivo', async () => {
+    const { mttPayouts } = await import('../game/tournament')
+    // heroi no BB; o UTG abre e todos os outros foldam: pote heads-up com 9 jogadores vivos no torneio
+    const names = ['P0', 'P1', 'H', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8']
+    const stacks = [1800, 2600, 3400, 5200, 2100, 900, 3000, 1500, 2500]
+    let g = startHand(createGame(
+      names.map((name, i) => ({ name, isHero: name === 'H', profile: 'tag', stack: stacks[i] })),
+      { sb: 100, bb: 200, ante: 0 }, 0,
+    ), mulberry32(3))
+    g = applyAction(g, { type: 'raise', to: 600 }) // P3 (UTG)
+    for (let i = 0; i < 6; i++) g = applyAction(g, { type: 'fold' }) // P4..P8 e o botao P0
+    g = applyAction(g, { type: 'fold' }) // SB
+    expect(g.seats[g.toAct].isHero).toBe(true)
+    const pay = mttPayouts(54)
+    expect(pay).toHaveLength(8)
+    const t0 = performance.now()
+    const info = icmCallInfo(g, pay)
+    expect(info).toBeTruthy()
+    expect(performance.now() - t0).toBeLessThan(1500)
+    expect(info!.premium).toBeGreaterThan(0)
+  })
+
+  it('com jogadores demais para a conta (10 com 8 premios) nao calcula, so em fichas', async () => {
+    const { mttPayouts } = await import('../game/tournament')
+    const n = 10
+    let g = startHand(createGame(
+      Array.from({ length: n }, (_, i) => ({ name: `P${i}`, isHero: i === 2, profile: 'tag', stack: 2000 })),
+      { sb: 100, bb: 200, ante: 0 }, 0,
+    ), mulberry32(3))
+    g = applyAction(g, { type: 'raise', to: 600 })
+    while (!g.seats[g.toAct].isHero) g = applyAction(g, { type: 'fold' })
+    expect(icmCallInfo(g, mttPayouts(54))).toBeNull()
+  })
+})
+
 describe('icmCallInfo: quando nao se aplica', () => {
   it('sem premios, sem aposta para pagar ou em pote multiway devolve null', () => {
     const g = hand('bolha-top-par')

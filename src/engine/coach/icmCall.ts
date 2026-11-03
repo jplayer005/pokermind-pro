@@ -4,9 +4,12 @@
 // estao na mesa (SNG, mesa final, cenarios de bolha). Em fichas, perder 1 e ganhar 1 pesam o
 // mesmo; em ICM perder pesa mais, e a diferenca e o "premio de risco".
 // ============================================================
-import { calculateICM } from '@/lib/poker'
+import { calculateICM, icmWorkload } from '@/lib/poker'
 import { legalActions, potTotal } from '../game/reducer'
 import type { GameState } from '../game/types'
+
+/** Teto de custo do ICM aqui: 3 contas por decisao, entao 9 jogadores com 8 premios (~30 ms cada) cabe. */
+const ICM_MAX_WORKLOAD = 1_000_000
 
 export interface IcmCall {
   /** Equity necessaria em fichas (0..1): pagar / (pote + pagar). */
@@ -39,8 +42,8 @@ export function icmCallInfo(state: GameState, payouts: number[] | undefined): Ic
   const villain = live.find((s) => s.id !== hero.id)
   const players = state.seats.filter((s) => !s.out)
   if (!villain || players.length < 2) return null
-  // a recursao do ICM cresce com jogadores x premios: acima disso so em fichas
-  if (players.length > 7 && payouts.length > 3) return null
+  // a conta cresce com jogadores x premios: acima do teto so em fichas (9 com 8 premios cabe; 10 com 8 nao)
+  if (icmWorkload(players.length, payouts.length) > ICM_MAX_WORKLOAD) return null
 
   const pot = potTotal(state)
   const call = la.callAmount

@@ -28,8 +28,52 @@ export const BOT_PROFILES: Record<string, BotProfile> = {
 
 export const PROFILE_IDS = Object.keys(BOT_PROFILES)
 
+const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
+const derived = new Map<string, BotProfile>()
+
+/**
+ * Perfil por id. Alem dos ids base, aceita "base~frouxidao~agressividade" (ex.: "lag~1.10~0.85"):
+ * o perfil base com os dois multiplicadores, para cada jogador do campo ter estilo proprio.
+ * Id desconhecido ou quebrado cai no TAG.
+ */
 export function profileOf(id: string): BotProfile {
-  return BOT_PROFILES[id] ?? BOT_PROFILES.tag
+  const base = BOT_PROFILES[id]
+  if (base) return base
+  const hit = derived.get(id)
+  if (hit) return hit
+  const m = /^([a-z]+)~(\d+(?:\.\d+)?)~(\d+(?:\.\d+)?)$/.exec(id)
+  const root = m ? BOT_PROFILES[m[1]] : undefined
+  if (!m || !root) return BOT_PROFILES.tag
+  const loose = clamp(Number(m[2]), 0.5, 1.5)
+  const aggr = clamp(Number(m[3]), 0.5, 1.5)
+  // + e - no rotulo mostram a tendencia individual (ASCII: o rotulo vai para a mesa e o HUD)
+  const mark = aggr >= 1.12 ? '+' : aggr <= 0.88 ? '-' : ''
+  const p: BotProfile = {
+    ...root,
+    id,
+    label: `${root.label}${mark}`,
+    blurb: mark === '+' ? `${root.blurb} (mais agressivo que o normal)` : mark === '-' ? `${root.blurb} (mais passivo que o normal)` : root.blurb,
+    looseness: root.looseness * loose,
+    aggression: root.aggression * aggr,
+  }
+  derived.set(id, p)
+  return p
+}
+
+/** Peso de cada estilo no campo de um torneio: muitos TAGs e pagadores, poucos maniacos. */
+const FIELD_WEIGHTS: [string, number][] = [['tag', 32], ['station', 20], ['lag', 20], ['nit', 14], ['maniac', 8]]
+
+/** Perfil de um jogador do campo: estilo sorteado por peso, com frouxidao e agressividade proprias. */
+export function fieldProfile(rng: () => number = Math.random): string {
+  const total = FIELD_WEIGHTS.reduce((a, [, w]) => a + w, 0)
+  let r = rng() * total
+  let base = FIELD_WEIGHTS[0][0]
+  for (const [id, w] of FIELD_WEIGHTS) {
+    if ((r -= w) < 0) { base = id; break }
+  }
+  const loose = 0.8 + rng() * 0.45 // 0,80 a 1,25
+  const aggr = 0.7 + rng() * 0.65 // 0,70 a 1,35
+  return `${base}~${loose.toFixed(2)}~${aggr.toFixed(2)}`
 }
 
 /** Sorteia perfis para uma mesa: sempre pelo menos um TAG, mistura o resto. */

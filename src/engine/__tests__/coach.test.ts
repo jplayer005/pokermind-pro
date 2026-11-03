@@ -233,7 +233,7 @@ describe('HUD e perfis', () => {
       name: `B${i}`, profile: p, stack: 200,
     }))
     let g = createGame(players, cfg, 0)
-    let hud: Record<number, HudStats> = {}
+    let hud: Record<string, HudStats> = {}
     for (let h = 0; h < 200; h++) {
       g = { ...g, seats: g.seats.map((s) => ({ ...s, stack: s.stack < 2 ? 200 : s.stack })) }
       g = startHand(g, rng)
@@ -244,12 +244,33 @@ describe('HUD e perfis', () => {
       }
       hud = updateHud(hud, g)
     }
-    const avg = (ids: number[]) =>
-      ids.reduce((a, i) => a + pctOf(hud[i].vpip, hud[i].hands), 0) / ids.length
-    expect(avg([3, 4, 5])).toBeGreaterThan(avg([0, 1, 2]) + 8)
-    expect(hudLine(hud[0])).toMatch(/^V\d+ P\d+ AF/)
+    const avg = (names: string[]) =>
+      names.reduce((a, n) => a + pctOf(hud[n].vpip, hud[n].hands), 0) / names.length
+    expect(avg(['B3', 'B4', 'B5'])).toBeGreaterThan(avg(['B0', 'B1', 'B2']) + 8)
+    expect(hudLine(hud.B0)).toMatch(/^V\d+ P\d+ AF/)
     expect(hudLine(emptyHud())).toBe('')
   }, 120_000)
+
+  it('as estatisticas acompanham o jogador quando ele troca de assento', () => {
+    const rng = mulberry32(5)
+    const mkGame = (names: string[]) =>
+      createGame(names.map((name) => ({ name, profile: 'tag', stack: 200 })), cfg, 0)
+    const play = (names: string[], hud: Record<string, HudStats>) => {
+      let g = startHand(mkGame(names), rng)
+      let guard = 0
+      while (!g.over) {
+        g = applyAction(g, decideBot(g, rng, 0, 40))
+        if (++guard > 200) throw new Error('mao nao termina')
+      }
+      return updateHud(hud, g)
+    }
+    let hud = play(['Ana', 'Beto', 'Caio'], {})
+    // a mesma Ana senta em outro assento (e outra mesa): continua acumulando na mesma conta
+    hud = play(['Dani', 'Ana', 'Edu'], hud)
+    expect(hud.Ana.hands).toBe(2)
+    expect(hud.Beto.hands).toBe(1)
+    expect(hud.Dani.hands).toBe(1)
+  })
 })
 
 describe('replay: mao jogada vira SavedHand', () => {

@@ -4,6 +4,8 @@
 // Layout defensivo: o que pode crescer (blinds) trunca; o que e curto nao encolhe;
 // as etiquetas quebram de linha em vez de se sobrepor (testado de 320 a 390 px).
 // ============================================================
+import { useMemo } from 'react'
+import { Users } from 'lucide-react'
 import { Badge } from '@/components/ui'
 import { calculateICM } from '@/lib/poker'
 import {
@@ -15,6 +17,8 @@ interface Props {
   tour: TournamentState
   game: GameState
   heroId: number
+  /** Abre o painel do campo (so MTT, que tem o campo de verdade). */
+  onOpenField?: () => void
 }
 
 const n = (v: number) => v.toLocaleString('pt-BR')
@@ -30,13 +34,16 @@ function heroIcmPct(tour: TournamentState, game: GameState, heroId: number): num
   return values[idx]
 }
 
-export default function TournamentHeader({ tour, game, heroId }: Props) {
+export default function TournamentHeader({ tour, game, heroId, onOpenField }: Props) {
   const lvl = currentLevel(tour)
   const left = Math.max(0, tour.config.handsPerLevel - tour.handsInLevel)
   const bubble = isBubble(tour)
   const handForHand = isHandForHand(tour)
   const money = inTheMoney(tour)
-  const icm = heroIcmPct(tour, game, heroId)
+  // a conta de ICM so muda quando os stacks mudam (9 jogadores com 8 premios custa ~30 ms)
+  const stacksKey = game.seats.map((s) => s.stack).join(',')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const icm = useMemo(() => heroIcmPct(tour, game, heroId), [tour.offTable, tour.config, stacksKey, heroId])
 
   return (
     <div className="rounded-xl border border-border-default bg-bg-elevated/70 px-3 py-2 space-y-1.5">
@@ -65,9 +72,21 @@ export default function TournamentHeader({ tour, game, heroId }: Props) {
           {bubble && <Badge variant="crimson">{handForHand ? "Bolha, mão a mão" : "Bolha"}</Badge>}
           {money && !tour.done && <Badge variant="emerald">No dinheiro</Badge>}
         </div>
-        {icm !== null && (
-          <span className="shrink-0 whitespace-nowrap text-[11px] text-text-secondary font-mono">ICM {icm.toFixed(1)}%</span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {icm !== null && (
+            <span className="whitespace-nowrap text-[11px] text-text-secondary font-mono">ICM {icm.toFixed(1)}%</span>
+          )}
+          {onOpenField && tour.field && (
+            <button
+              type="button"
+              onClick={onOpenField}
+              aria-label="Ver o campo do torneio"
+              className="relative inline-flex h-6 items-center gap-1 rounded-md border border-border-default px-2 text-[10px] font-body font-medium text-text-secondary hover:border-accent-gold/60 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold before:absolute before:-inset-1.5 before:content-['']"
+            >
+              <Users size={11} aria-hidden /> Campo
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

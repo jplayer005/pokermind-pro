@@ -14,6 +14,8 @@ import HandReviewSheet from '@/components/table/HandReviewSheet'
 import ReadRangeSheet from '@/components/table/ReadRangeSheet'
 import { ScenarioPicker, ScenarioIntroSheet } from '@/components/table/ScenarioCards'
 import TournamentHeader from '@/components/table/TournamentHeader'
+import FieldSheet from '@/components/table/FieldSheet'
+import { fieldSummary } from '@/engine/game/field'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import { useUIStore, usePlayStore } from '@/store'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
@@ -22,7 +24,7 @@ import type { PlaySession } from '@/engine/progress'
 import { useElementHeight } from '@/hooks/useElementHeight'
 import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
-import { pickProfiles, profileOf } from '@/engine/bots/profiles'
+import { fieldProfile, pickProfiles, profileOf } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
 import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
@@ -241,8 +243,10 @@ export default function PlayTable() {
         )}
         {selected.tournament && (
           <p className="text-[11px] text-text-muted">
-            Todos começam com 1.500 fichas (75 bb). Buy-in = 1; prêmios em buy-ins. No MTT só a sua mesa é jogada: o resto do campo
-            é simulado e a mesa se reabastece.
+            Todos começam com 1.500 fichas (75 bb). Buy-in = 1; prêmios em buy-ins. Cada bot tem estilo próprio, mais ou menos agressivo.
+            {selected.tournament.kind === 'mtt'
+              ? ' No MTT todas as mesas são jogadas de verdade: os bots se enfrentam, as mesas quebram e a mesa final se forma. Toque em Campo na mesa para ver o ranking, os líderes e os estilos.'
+              : ''}
           </p>
         )}
 
@@ -350,6 +354,8 @@ function TableGame({
   const [confirmExit, setConfirmExit] = useState(false)
   // cenario: a folha com o contexto e o que observar abre ao sentar e volta tocando no nome
   const [introOpen, setIntroOpen] = useState(!!config.scenario)
+  // painel do campo do torneio (ranking, lideres, mesas)
+  const [fieldOpen, setFieldOpen] = useState(false)
 
   const options: TableOptions = useMemo(() => {
     const base = {
@@ -365,7 +371,8 @@ function TableGame({
       return { ...base, players: scenarioPlayers(config.scenario), cfg: SCENARIO_CFG, buyIn: 0, scenario: config.scenario }
     }
     if (config.mode.tournament) {
-      const start = startTournament(config.mode.tournament, 'Você', () => pickProfiles(1)[0])
+      // cada bot do torneio tem estilo e tracos proprios (agressividade e frouxidao individuais)
+      const start = startTournament(config.mode.tournament, 'Você', () => fieldProfile())
       return {
         ...base,
         players: start.players,
@@ -547,7 +554,7 @@ function TableGame({
         </div>
       </div>
 
-      {tour && <TournamentHeader tour={tour} game={game} heroId={heroId} />}
+      {tour && <TournamentHeader tour={tour} game={game} heroId={heroId} onOpenField={() => setFieldOpen(true)} />}
       </div>
 
       {/* espaco flexivel: a mesa se ajusta ao que sobra (28px = folga dos assentos do topo) */}
@@ -683,6 +690,10 @@ function TableGame({
         />
       )}
       {config.scenario && introOpen && <ScenarioIntroSheet scenario={config.scenario} onClose={() => setIntroOpen(false)} />}
+      {fieldOpen && tour && (() => {
+        const summary = fieldSummary(tour, game.cfg.bb)
+        return summary ? <FieldSheet summary={summary} hud={hud} onClose={() => setFieldOpen(false)} /> : null
+      })()}
       {/* modo quiz: a mesa pausa na vez do heroi diante de aposta grande (depois da folha do cenario) */}
       {quiz && heroTurn && !openReview && !introOpen && (
         <ReadRangeSheet game={game} quiz={quiz} onAnswer={answerQuiz} onClose={closeQuiz} />

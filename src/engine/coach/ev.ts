@@ -99,7 +99,7 @@ export function huPushFoldEV(
 // fichas e exato dentro desse modelo. Em torneio com a mesa toda conhecida (SNG, mesa final) o
 // resultado final de cada ramo vira valor ICM (modelo Malmuth-Harville) em % do premio.
 
-import { calculateICM } from '@/lib/poker'
+import { calculateICM, icmWorkload } from '@/lib/poker'
 
 export interface MwPlayer {
   /** Nome da posicao no banco de spots (UTG, UTG1, MP, LJ, HJ, CO, BTN, SB, BB). */
@@ -158,8 +158,8 @@ function icmExpect(players: MwPlayer[], hero: number, branches: Branch[], payout
 
 function icmUsable(players: MwPlayer[], payouts?: number[]): payouts is number[] {
   if (!payouts || payouts.length === 0 || players.length < 2) return false
-  // recursao N! : acima de 7 jogadores com muitos premios fica caro; nesse caso so em fichas
-  return players.length <= 7 || payouts.length <= 3
+  // a conta cresce com jogadores x premios e aqui ha varias por decisao: teto menor (9 com 8 premios cabe)
+  return icmWorkload(players.length, payouts.length) <= 400_000
 }
 
 function finish(players: MwPlayer[], hero: number, agg: Branch[], payouts?: number[]): MwEV {
