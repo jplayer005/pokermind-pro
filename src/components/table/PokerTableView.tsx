@@ -12,6 +12,7 @@ import { profileOf } from '@/engine/bots/profiles'
 import type { GameState, Seat } from '@/engine/game/types'
 import { fmtChips } from '@/hooks/useTableEngine'
 import { hudLine, type HudStats } from '@/engine/bots/hud'
+import { coverOf, type Cover } from '@/engine/game/cover'
 
 interface Props {
   game: GameState
@@ -22,6 +23,8 @@ interface Props {
   /** Estatisticas por jogador (nome): acompanham o jogador entre mesas. */
   hud?: Record<string, HudStats>
   showHud?: boolean
+  /** Torneio: mostra em cada assento se voce cobre o stack dele ou se ele cobre o seu. */
+  showCover?: boolean
   /**
    * Altura (px) medida do espaco que sobra para a mesa (entre o cabecalho e a barra de acoes).
    * A largura da mesa e limitada por ela, mantendo a proporcao, para a mesa inteira (com a mao
@@ -83,7 +86,7 @@ const PROFILE_TONE: Record<string, string> = {
 }
 
 export default function PokerTableView({
-  game, heroId, unit, showProfiles, hud, showHud, availableHeight = 0, board, revealDone = true,
+  game, heroId, unit, showProfiles, hud, showHud, showCover, availableHeight = 0, board, revealDone = true,
 }: Props) {
   const shownBoard = board ?? game.board
   const n = game.seats.length
@@ -151,6 +154,8 @@ export default function PokerTableView({
         const toward = (f: number) => ({ left: `${x + (50 - x) * f}%`, top: `${y + (50 - y) * f}%` })
         const isTurn = game.toAct === seat.id && !game.over
         const win = winners.get(seat.id)
+        const heroSeat = game.seats.find((s) => s.id === heroId)
+        const cover = showCover && heroSeat ? coverOf(heroSeat, seat) : null
         return (
           <div key={seat.id}>
             {/* aposta da rua */}
@@ -194,6 +199,7 @@ export default function PokerTableView({
               showProfile={showProfiles}
               hero={seat.id === heroId}
               hudText={showHud && seat.id !== heroId ? hudLine(hud?.[seat.name]) : ""}
+              cover={cover}
               bottomAnchor={portrait && k === 0}
               compact={portrait && n >= 7 && seat.id !== heroId}
               heroSmall={portrait && n >= 7}
@@ -225,9 +231,11 @@ interface SeatProps {
   compact: boolean
   /** Cartas do heroi menores (mesa cheia na vertical): cabem na largura da placa. */
   heroSmall: boolean
+  /** Torneio: 'hero' = voce cobre este assento; 'villain' = ele cobre voce. */
+  cover?: Cover | null
 }
 
-function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero, hudText, bottomAnchor, compact, heroSmall }: SeatProps) {
+function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, showProfile, hero, hudText, bottomAnchor, compact, heroSmall, cover }: SeatProps) {
   const profile = profileOf(seat.profile)
   const faded = seat.out || seat.folded
   const cards = seat.cards
@@ -268,6 +276,18 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
           win && 'ring-2 ring-accent-emerald shadow-[0_0_16px_rgba(52,211,153,0.6)]',
         )}
       >
+        {cover && (
+          <span
+            aria-label={cover === 'hero' ? 'Você cobre este jogador' : 'Este jogador cobre você'}
+            className={cn(
+              'absolute -top-1.5 -right-1.5 z-20 rounded-full border font-mono font-bold leading-none',
+              compact ? 'h-2.5 w-2.5' : 'px-1 py-0.5 text-[7px]',
+              cover === 'hero' ? 'bg-accent-emerald border-emerald-200/60 text-black' : 'bg-accent-crimson border-red-200/60 text-white',
+            )}
+          >
+            {compact ? '' : cover === 'hero' ? 'cobre' : 'te cobre'}
+          </span>
+        )}
         <div className="flex items-center justify-center gap-0.5">
           <span className={cn('font-body font-semibold text-text-primary truncate', compact ? 'text-[9px] max-w-[34px]' : 'text-[10px] max-w-[52px]')}>
             {hero ? 'Você' : seat.name}

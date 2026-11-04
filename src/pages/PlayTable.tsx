@@ -613,6 +613,7 @@ function TableGame({
           showProfiles={config.showProfiles}
           hud={hud}
           showHud={config.showHud}
+          showCover={!!tour}
           availableHeight={Math.max(0, areaH - 28)}
           board={runout.board}
           revealDone={runout.done}
