@@ -443,6 +443,7 @@ function TableGame({
   const hero = game.seats[heroId]
   const heroName = hero?.name ?? null
   const heroStats = heroName ? hud[heroName] : undefined
+  const heroHudTotal = usePlayStore((s) => s.heroHud)
   const waitingFor = game.toAct >= 0 ? game.seats[game.toAct] : null
   const runout = useRunoutBoard(game)
   // durante o runout (all-in) o resultado espera o board terminar de sair
@@ -749,6 +750,8 @@ function TableGame({
         <StatsSheet
           hud={hud}
           heroName={heroName}
+          heroTotal={heroHudTotal}
+          onResetTotal={() => usePlayStore.getState().setHeroHud(null)}
           styleOf={(name) => {
             const prof = game.seats.find((s) => s.name === name)?.profile ?? tour?.field?.players.find((p) => p.name === name)?.profile
             return prof ? profileOf(prof).label : ''

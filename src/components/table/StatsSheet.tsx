@@ -2,6 +2,7 @@
 // Estatisticas dos jogadores (folha inferior, aberta pelo selo VPIP/PFR do cabecalho): as suas e as de
 // cada bot que voce ja enfrentou. A faixa de 20% a 25% e a media das aberturas dos ranges, nao uma meta para o seu PFR medido.
 // ============================================================
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BarChart3, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -14,14 +15,25 @@ interface Props {
   heroName: string | null
   /** Rotulo de estilo de quem esta no torneio ou na mesa (TAG, LAG+...); vazio para quem nao se conhece. */
   styleOf: (name: string) => string
+  /** Seus numeros somados entre sessoes (guardados no aparelho); null ate a primeira mao. */
+  heroTotal?: HudStats | null
+  onResetTotal?: () => void
   onClose: () => void
 }
 
-export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
+type Scope = 'session' | 'total'
+
+export default function StatsSheet({ hud, heroName, styleOf, heroTotal, onResetTotal, onClose }: Props) {
   useEscapeKey(onClose)
+  const hasTotal = !!heroTotal && heroTotal.hands > 0
+  const [scope, setScope] = useState<Scope>(hasTotal ? 'total' : 'session')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const useTotal = scope === 'total' && hasTotal
+  // as linhas dos adversarios sao sempre da sessao; a sua segue o recorte escolhido
   const rows = statRows(hud, heroName)
-  const hero = rows.find((r) => r.isHero)
-  const openTables = heroName && hud[heroName] ? heroOpenTables(hud[heroName].open) : []
+  const heroStats = useTotal ? heroTotal! : heroName ? hud[heroName] : undefined
+  const hero = useTotal ? statRows({ Eu: heroTotal! }, 'Eu')[0] : rows.find((r) => r.isHero)
+  const openTables = heroStats ? heroOpenTables(heroStats.open) : []
 
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Estatísticas dos jogadores" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
@@ -39,9 +51,37 @@ export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
           </button>
         </div>
 
+        {hasTotal && (
+          <div className="flex items-center justify-between gap-2">
+            <div role="group" aria-label="Recorte das suas estatísticas" className="inline-flex rounded-lg border border-border-default p-0.5 text-[11px]">
+              {([['session', 'Esta sessão'], ['total', 'Acumulado']] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  aria-pressed={scope === id}
+                  onClick={() => setScope(id)}
+                  className={cn('px-2.5 py-1 rounded-md', scope === id ? 'bg-accent-gold/15 text-accent-gold' : 'text-text-muted')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {onResetTotal && useTotal && (
+              confirmReset ? (
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-text-secondary">Apagar o acumulado?</span>
+                  <button onClick={() => { onResetTotal(); setConfirmReset(false); setScope('session') }} className="rounded-md border border-accent-crimson/40 px-2 py-0.5 text-accent-crimson">Apagar</button>
+                  <button onClick={() => setConfirmReset(false)} className="rounded-md border border-border-default px-2 py-0.5 text-text-muted">Cancelar</button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmReset(true)} className="text-[11px] text-text-muted hover:text-text-primary">Zerar acumulado</button>
+              )
+            )}
+          </div>
+        )}
+
         {hero && (
           <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
-            <p className="text-[11px] text-text-muted">Você em {hero.hands} {hero.hands === 1 ? 'mão' : 'mãos'}</p>
+            <p className="text-[11px] text-text-muted">Você em {hero.hands} {hero.hands === 1 ? 'mão' : 'mãos'}{useTotal ? ', somando as sessões' : ' desta sessão'}</p>
             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono">
               <span className="text-sm text-text-primary">VPIP <b className="text-lg">{hero.vpip}%</b></span>
               <span className="text-sm text-text-primary">PFR <b className="text-lg">{hero.pfr}%</b></span>

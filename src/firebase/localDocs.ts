@@ -38,7 +38,7 @@ export function getLocalDoc(name: string): Obj | null {
     }
     case 'play': {
       const s = usePlayStore.getState()
-      return { sessions: s.sessions, xpDay: s.xpDay, xpToday: s.xpToday }
+      return { sessions: s.sessions, xpDay: s.xpDay, xpToday: s.xpToday, ...(s.heroHud ? { heroHud: s.heroHud } : {}) }
     }
     default: return null
   }
@@ -59,7 +59,7 @@ export function applyMergedDoc(name: string, merged: Obj): boolean {
     case 'hands': useHandsStore.setState({ savedHands: m.savedHands ?? [], deleted: m.deleted ?? {} }); break
     case 'leaks': useLeakStore.setState({ stats: m.stats ?? {}, decisions: m.decisions ?? 0 }); break
     case 'notes': useNotesStore.setState({ notes: m.notes ?? [], deleted: m.deleted ?? {} }); break
-    case 'play': usePlayStore.setState({ sessions: m.sessions ?? [], xpDay: m.xpDay ?? '', xpToday: m.xpToday ?? 0 }); break
+    case 'play': usePlayStore.setState({ sessions: m.sessions ?? [], xpDay: m.xpDay ?? '', xpToday: m.xpToday ?? 0, heroHud: m.heroHud ?? null }); break
     default: return false
   }
   return true

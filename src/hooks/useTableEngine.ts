@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { applyAction, createGame, legalActions, startHand } from '@/engine/game/reducer'
 import { decideBot, EQUITY_ITERS } from '@/engine/bots/policy'
-import { updateHud, type HudStats } from '@/engine/bots/hud'
+import { updateHeroHud, updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { buildQuiz, isQuizSpot, scoreQuiz, type Band, type QuizFreq, type QuizResult, type ReadQuiz } from '@/engine/coach/readQuiz'
@@ -200,6 +200,11 @@ export function useTableEngine(opts: TableOptions) {
     }))
     setArchive((a) => [game, ...a].slice(0, 8))
     setHud((h) => updateHud(h, game))
+    // o acumulado do heroi (entre sessoes) nao conta maos de cenario do laboratorio
+    if (!o.scenario) {
+      const play = usePlayStore.getState()
+      play.setHeroHud(updateHeroHud(play.heroHud, game) ?? play.heroHud)
+    }
     // jogar com o coach ligado conta como treino: XP (com teto diario), acertos, sequencia e meta diaria
     if (o.coach !== 'off' && decisions.length > 0) usePlayStore.getState().creditHand(decisions.map((d) => d.grade))
     let savedId: string | null = null

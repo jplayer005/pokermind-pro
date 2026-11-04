@@ -164,7 +164,9 @@ export function mergePlay(local: Obj | null, cloud: Obj | null): Obj {
   let xpToday = local?.xpToday ?? 0
   if (cd > ld) { xpDay = cd; xpToday = cloud?.xpToday ?? 0 }
   else if (cd === ld) xpToday = Math.max(xpToday, cloud?.xpToday ?? 0)
-  return { sessions, xpDay, xpToday }
+  // HUD acumulado do heroi: contadores de dois aparelhos nao se somam (as mesmas maos podem estar nos dois); vence quem viu mais maos
+  const heroHud = (cloud?.heroHud?.hands ?? 0) > (local?.heroHud?.hands ?? 0) ? cloud?.heroHud : local?.heroHud
+  return { sessions, xpDay, xpToday, ...(heroHud ? { heroHud } : {}) }
 }
 
 // ---------------------------------------------------------------- perfil

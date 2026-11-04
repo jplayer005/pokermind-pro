@@ -15,6 +15,7 @@ import { recordDecision, type LeakStat, type DecisionInput } from '@/engine/coac
 import { creditForDecisions, type PlaySession } from '@/engine/progress'
 import { mergeTombstones } from '@/engine/syncMerge'
 import type { Grade } from '@/engine/coach/types'
+import type { HudStats } from '@/engine/bots/hud'
 
 // ------- STORE DE USUÁRIO -------
 interface UserStore {
@@ -906,9 +907,12 @@ interface PlayStore {
   /** XP ja concedido pela mesa no dia (para o teto diario). */
   xpDay: string
   xpToday: number
+  /** VPIP, PFR e aberturas por posicao do heroi, somados entre sessoes. null ate a primeira mao. */
+  heroHud: HudStats | null
   /** Credita as decisoes avaliadas de UMA mao: XP, acertos, sequencia e meta diaria. */
   creditHand: (grades: Grade[]) => void
   recordSession: (s: PlaySession) => void
+  setHeroHud: (h: HudStats | null) => void
   reset: () => void
 }
 
@@ -923,6 +927,7 @@ export const usePlayStore = create<PlayStore>()(
       sessions: [],
       xpDay: '',
       xpToday: 0,
+      heroHud: null,
 
       creditHand: (grades) => {
         if (grades.length === 0) return
@@ -942,11 +947,14 @@ export const usePlayStore = create<PlayStore>()(
       },
 
       recordSession: (s) => set((state) => ({ sessions: [s, ...state.sessions].slice(0, MAX_PLAY_SESSIONS) })),
-      reset: () => set({ sessions: [], xpDay: '', xpToday: 0 }),
+      setHeroHud: (h) => set({ heroHud: h }),
+      reset: () => set({ sessions: [], xpDay: '', xpToday: 0, heroHud: null }),
     }),
     {
       name: 'pokermind-play',
-      version: 1,
+      version: 2,
+      // v1 -> v2: so ganha o campo heroHud; sessoes e XP ficam como estavam
+      migrate: (persisted) => ({ heroHud: null, ...(persisted as object) }) as PlayStore,
       storage: createJSONStorage(() => localStorage),
     }
   )

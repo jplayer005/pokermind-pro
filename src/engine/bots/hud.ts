@@ -106,6 +106,16 @@ export function updateHud(prev: Record<string, HudStats>, game: GameState): Reco
   return next
 }
 
+/**
+ * Acumula uma mao terminada no HUD do HEROI (o acumulado entre sessoes). Devolve undefined quando
+ * a mesa nao tem heroi. So o heroi entra: os bots mudam de nome a cada campo e a lista nao pararia de crescer.
+ */
+export function updateHeroHud(prev: HudStats | undefined | null, game: GameState): HudStats | undefined {
+  const hero = game.seats.find((s) => s.isHero)
+  if (!hero) return undefined
+  return updateHud(prev ? { [hero.name]: prev } : {}, game)[hero.name]
+}
+
 export const pctOf = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0)
 
 /** Linha curta para a mesa, ex.: "V34 P21". Vazio ate haver amostra minima. */
