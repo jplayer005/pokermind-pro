@@ -364,8 +364,8 @@ describe('coach: range do vilao por acoes (pos-flop)', () => {
     expect(g.toAct).toBe(hero)
     const r = buildVillainRange(g)!
     const hands = new Set(r.combos.map((c) => canonical169(c[0], c[1])))
-    // trinca de 2 (2c no board): o 99 e as outras trincas de pares medios ja foram para o 3-bet
-    expect(hands.has('22')).toBe(true)
+    // trinca de 9 (9h no board)
+    expect(hands.has('99')).toBe(true)
     expect(r.steps.join(' ')).toMatch(/slowplay/)
     expect(r.steps.join(' ')).toMatch(/depois de só pagar/)
   })
@@ -393,8 +393,8 @@ describe('coach: range do vilao por acoes (pos-flop)', () => {
     expect(qLead && qCr).toBeTruthy()
     // o check-raise tira o top par de vantagem: equity bem menor e muito mais mao feita no range
     expect(qCr.equity).toBeLessThan(qLead.equity - 0.1)
-    expect(qCr.equity).toBeLessThan(0.75)
-    expect(qCr.bands.strong).toBeGreaterThan(0.15)
+    expect(qCr.equity).toBeLessThan(0.6)
+    expect(qCr.bands.strong).toBeGreaterThan(0.2)
     expect(qCr.steps.join(' ')).toMatch(/aumentou sobre a aposta/)
   })
 

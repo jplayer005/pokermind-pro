@@ -1,6 +1,6 @@
 // ============================================================
 // Estatisticas dos jogadores (folha inferior, aberta pelo selo VPIP/PFR do cabecalho): as suas e as de
-// cada bot que voce ja enfrentou. O PFR e comparado com a faixa que o treino persegue (20% a 25%).
+// cada bot que voce ja enfrentou. A faixa de 20% a 25% e a media das aberturas dos ranges, nao uma meta para o seu PFR medido.
 // ============================================================
 import { createPortal } from 'react-dom'
 import { BarChart3, X } from 'lucide-react'
@@ -15,9 +15,6 @@ interface Props {
   styleOf: (name: string) => string
   onClose: () => void
 }
-
-/** Verde dentro da faixa-alvo, dourado fora dela. */
-const pfrTone = (pfr: number) => (pfr >= PFR_TARGET.min && pfr <= PFR_TARGET.max ? 'text-accent-emerald' : 'text-accent-gold')
 
 export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
   useEscapeKey(onClose)
@@ -45,11 +42,11 @@ export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
             <p className="text-[11px] text-text-muted">Você em {hero.hands} {hero.hands === 1 ? 'mão' : 'mãos'}</p>
             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono">
               <span className="text-sm text-text-primary">VPIP <b className="text-lg">{hero.vpip}%</b></span>
-              <span className="text-sm text-text-primary">PFR <b className={cn('text-lg', pfrTone(hero.pfr))}>{hero.pfr}%</b></span>
+              <span className="text-sm text-text-primary">PFR <b className="text-lg">{hero.pfr}%</b></span>
             </p>
             <p className="mt-1 text-[11px] text-text-secondary">
-              O treino persegue um PFR de {PFR_TARGET.min}% a {PFR_TARGET.max}%
-              {hero.hands < 30 ? '. Ainda são poucas mãos: o número oscila bastante.' : hero.pfr < PFR_TARGET.min ? `. Você está abaixo: abra mais mãos nas posições finais.` : hero.pfr > PFR_TARGET.max ? '. Você está acima: aperte as aberturas iniciais.' : '. Você está dentro da faixa.'}
+              Os ranges do app abrem, na média de todas as posições, de {PFR_TARGET.min}% a {PFR_TARGET.max}% das mãos (o UTG abre menos; o botão e o SB, mais).
+              {hero.hands < 30 ? ' Ainda são poucas mãos: o seu PFR oscila bastante.' : ' O seu PFR real sai menor que isso, porque nem toda mão chega a você com a vez de abrir o pote.'}
             </p>
           </div>
         )}
@@ -79,7 +76,7 @@ export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
                     </td>
                     <td className="px-1 text-right text-text-secondary">{r.hands}</td>
                     <td className="px-1 text-right text-text-primary">{r.vpip}</td>
-                    <td className={cn('px-1 text-right', r.isHero ? pfrTone(r.pfr) : 'text-text-primary')}>{r.pfr}</td>
+                    <td className="px-1 text-right text-text-primary">{r.pfr}</td>
                     <td className="px-1 text-right text-text-secondary">{r.threeBet}</td>
                     <td className="px-1 text-right text-text-secondary">{r.af}</td>
                     <td className="pl-1 text-right text-text-secondary">{r.foldToBet === null ? '-' : `${r.foldToBet}%`}</td>

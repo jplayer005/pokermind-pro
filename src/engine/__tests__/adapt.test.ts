@@ -137,11 +137,11 @@ describe('hud: fold para aposta pos-flop', () => {
 })
 
 describe('comportamento: o profissional realmente joga diferente contra cada heroi', () => {
-  /** Frequencia de abrir o pote do UTG de uma mesa de 6, com o heroi sentado no BB. */
+  /** Frequencia de abrir o pote do UTG de uma mesa de 6 (3000 maos: o efeito e de ~10% e a amostra pequena perdia no ruido). */
   const openRate = (id: string, hero: HudStats | undefined) => {
     const rng = mulberry32(77)
     let raises = 0
-    for (let h = 0; h < 600; h++) {
+    for (let h = 0; h < 3000; h++) {
       const g = startHand(
         createGame(
           [{ name: 'Bot', profile: id, stack: 200 }, ...Array.from({ length: 4 }, (_, i) => ({ name: `F${i}`, profile: 'tag', stack: 200 })), { name: 'Hero', isHero: true, profile: 'tag', stack: 200 }],
@@ -160,7 +160,7 @@ describe('comportamento: o profissional realmente joga diferente contra cada her
 
   it('abre mais maos contra quem aperta, e o bot fixo nao muda nada', () => {
     const adaptive = 'lag~1.00~1.00~2'
-    expect(openRate(adaptive, tight)).toBeGreaterThan(openRate(adaptive, undefined) + 8)
+    expect(openRate(adaptive, tight)).toBeGreaterThan(openRate(adaptive, undefined) + 25)
     expect(openRate('lag~1.00~1.00~0', tight)).toBe(openRate('lag~1.00~1.00~0', undefined))
   })
 

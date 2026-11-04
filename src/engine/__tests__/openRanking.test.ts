@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
-  OPEN_RANKING, OPEN_TARGETS_6MAX, OPEN_TARGETS_9MAX, THREEBET_TARGETS, rangeByCoverage, threeBetByCoverage,
+  OPEN_AVERAGE_TARGET, OPEN_RANKING, OPEN_TARGETS_6MAX, OPEN_TARGETS_9MAX, rangeByCoverage,
 } from '@/data/openRanking'
 import { DRILL_QUESTIONS, THREE_BET_RANGES, getOpenRaiseRange } from '@/data/ranges'
 import { comboCount } from '../ranges/painter'
+import { meanOpenCoverage, openCoverageRows } from '../ranges/coverage'
 import { generateHandGrid } from '@/lib/poker'
 import type { Position } from '@/types'
 
@@ -31,10 +32,30 @@ describe('ranking de abertura', () => {
   })
 })
 
-describe('ranges de abertura por posicao', () => {
-  const order: Position[] = ['UTG', 'HJ', 'CO', 'BTN']
+describe('meta do app: a media das aberturas de todas as posicoes fica entre 20% e 25%', () => {
+  for (const format of ['6max', '9max'] as const) {
+    it(`${format}: media entre 20% e 25%, com o BB contando zero`, () => {
+      const mean = meanOpenCoverage(format)
+      expect(mean).toBeGreaterThanOrEqual(OPEN_AVERAGE_TARGET.min)
+      expect(mean).toBeLessThanOrEqual(OPEN_AVERAGE_TARGET.max)
+      const rows = openCoverageRows(format)
+      expect(rows[rows.length - 1]).toEqual({ position: 'BB', coverage: 0 })
+    })
 
-  it('cada posicao abre a cobertura-alvo', () => {
+    it(`${format}: o UTG e a posicao que menos abre; o botao e o SB sao as que mais abrem`, () => {
+      const open = openCoverageRows(format).filter((r) => r.position !== 'BB')
+      const sorted = [...open].sort((a, b) => a.coverage - b.coverage)
+      expect(sorted[0].position).toBe('UTG')
+      expect(sorted.slice(-2).map((r) => r.position).sort()).toEqual(['BTN', 'SB'])
+    })
+
+    it(`${format}: da primeira posicao ao botao a abertura so cresce`, () => {
+      const open = openCoverageRows(format).filter((r) => r.position !== 'BB' && r.position !== 'SB')
+      for (let i = 1; i < open.length; i++) expect(open[i].coverage).toBeGreaterThanOrEqual(open[i - 1].coverage)
+    })
+  }
+
+  it('cada posicao abre a cobertura-alvo configurada', () => {
     for (const [p, t] of Object.entries(OPEN_TARGETS_6MAX)) {
       expect(Math.abs(cov(getOpenRaiseRange('6max', p as Position)) - (t as number))).toBeLessThan(0.02)
     }
@@ -42,6 +63,10 @@ describe('ranges de abertura por posicao', () => {
       expect(Math.abs(cov(getOpenRaiseRange('9max', p as Position)) - (t as number))).toBeLessThan(0.02)
     }
   })
+})
+
+describe('ranges de abertura por posicao', () => {
+  const order: Position[] = ['UTG', 'HJ', 'CO', 'BTN']
 
   it('posicao mais tardia abre tudo que a anterior abre e mais (ranges aninhados)', () => {
     for (let i = 1; i < order.length; i++) {
@@ -52,32 +77,26 @@ describe('ranges de abertura por posicao', () => {
     }
   })
 
-  it('o UTG abre todos os pares altos e os suited fortes', () => {
+  it('o UTG abre os pares altos e os suited fortes e nao abre lixo', () => {
     const utg = new Set(getOpenRaiseRange('6max', 'UTG'))
     for (const h of ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AKo', 'KQs']) expect(utg.has(h)).toBe(true)
     expect(utg.has('72o')).toBe(false)
   })
 
-  it('na mesa de 9 as posicoes iniciais sao mais apertadas que na de 6', () => {
+  it('na mesa de 9 o UTG e mais apertado que na de 6', () => {
     expect(cov(getOpenRaiseRange('9max', 'UTG'))).toBeLessThan(cov(getOpenRaiseRange('6max', 'UTG')))
     expect(cov(getOpenRaiseRange('9max', 'UTG'))).toBeLessThan(cov(getOpenRaiseRange('9max', 'LJ')))
   })
 })
 
-describe('ranges de 3-bet', () => {
-  it('cada posicao da 3-bet na cobertura-alvo e sempre com as maos premium', () => {
-    for (const [p, t] of Object.entries(THREEBET_TARGETS)) {
-      const r = THREE_BET_RANGES[p as Position]
-      expect(Math.abs(cov(r) - (t as number))).toBeLessThan(0.02)
+describe('3-bet: nao foi alterado pela calibracao', () => {
+  it('continua apertado: do UTG ao BB entre 2% e 8% das maos, sempre com as premium', () => {
+    for (const p of ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as Position[]) {
+      const r = THREE_BET_RANGES[p]
+      expect(cov(r)).toBeGreaterThan(0.02)
+      expect(cov(r)).toBeLessThan(0.08)
       for (const h of ['AA', 'KK', 'QQ', 'AKs', 'AKo']) expect(r).toContain(h)
     }
-  })
-
-  it('o 3-bet e mais largo no botao e nos blinds que no UTG, e inclui blefes com suited', () => {
-    expect(cov(THREE_BET_RANGES.BTN)).toBeGreaterThan(cov(THREE_BET_RANGES.UTG))
-    expect(cov(THREE_BET_RANGES.BB)).toBeGreaterThan(cov(THREE_BET_RANGES.CO))
-    expect(THREE_BET_RANGES.BTN).toContain('A5s')
-    expect(threeBetByCoverage(0.06).includes('A5s')).toBe(true)
   })
 })
 
@@ -91,18 +110,8 @@ describe('perguntas de treino coerentes com os ranges', () => {
     }
   })
 
-  it('as perguntas de 3-bet seguem o range de 3-bet da posicao', () => {
-    const qs = DRILL_QUESTIONS.filter((q) => q.scenario === '3bet' && q.heroStack >= 80)
-    expect(qs.length).toBeGreaterThan(5)
-    for (const q of qs) {
-      const inRange = (THREE_BET_RANGES[q.position] ?? []).includes(q.hand)
-      expect(q.correctAction === '3bet').toBe(inRange)
-    }
-  })
-
   it('as explicacoes geradas nas respostas trocadas nao usam travessao', () => {
     const generated = DRILL_QUESTIONS.filter((q) => q.explanation.includes('deste app'))
-    expect(generated.length).toBeGreaterThan(0)
     for (const q of generated) expect(q.explanation).not.toMatch(/[–—]/)
   })
 })

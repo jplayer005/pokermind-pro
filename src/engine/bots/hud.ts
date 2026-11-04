@@ -86,7 +86,7 @@ export function hudLine(s: HudStats | undefined, minHands = 8): string {
   return `V${pctOf(s.vpip, s.hands)} P${pctOf(s.pfr, s.hands)} AF${af}`
 }
 
-/** Faixa de PFR (%) que o treino persegue para o jogador: os ranges do app sao calibrados para ela. */
+/** Faixa (%) da MEDIA das aberturas de todas as posicoes nos ranges do app (ver data/openRanking). */
 export const PFR_TARGET = { min: 20, max: 25 } as const
 
 export interface StatRow {

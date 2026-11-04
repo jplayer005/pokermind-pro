@@ -1,8 +1,8 @@
 // ============================================================
 // Ranking das 169 maos para ABRIR o pote (da mais forte para a mais fraca) e os ranges de abertura
 // por posicao gerados a partir dele: cada posicao tem uma COBERTURA-ALVO (% das maos) e o range e
-// o topo do ranking ate essa cobertura. Os alvos foram calibrados para um jogador que segue a
-// tabela ter PFR de 20% a 25% (ver o teste pfrCalibration). Trocar um alvo altera o app inteiro:
+// o topo do ranking ate essa cobertura. A meta e que a MEDIA das aberturas de todas as posicoes fique
+// entre 20% e 25% das maos (ver engine/ranges/coverage e o teste openRanking). Trocar um alvo altera o app:
 // coach, bots, treino de pre-flop, consulta de range e Pinte o range.
 // ============================================================
 import { generateHandGrid } from '@/lib/poker'
@@ -47,37 +47,19 @@ export function rangeByCoverage(coverage: number): string[] {
   return out
 }
 
-/** Cobertura-alvo (fracao das maos) de cada posicao na mesa de 6. O BB nao abre. */
+/**
+ * Meta do app: a MEDIA das aberturas de todas as posicoes da mesa (o BB nao abre e conta zero) fica
+ * entre 20% e 25% das maos. O UTG e a que menos entra; o botao e o SB sao as que mais entram.
+ */
+export const OPEN_AVERAGE_TARGET = { min: 0.2, max: 0.25 } as const
+
+/** Cobertura-alvo (fracao das maos) de cada posicao na mesa de 6. Media das 6 posicoes: 22,8%. */
 export const OPEN_TARGETS_6MAX: Partial<Record<Position, number>> = {
-  UTG: 0.19, HJ: 0.25, CO: 0.34, BTN: 0.55, SB: 0.5,
+  UTG: 0.14, HJ: 0.18, CO: 0.25, BTN: 0.42, SB: 0.38,
 }
 
-/** Posicoes iniciais da mesa de 9 (as demais usam os alvos da mesa de 6). */
+/** Mesa de 9, todas as posicoes que abrem. Media das 9 posicoes: 21,3%. */
 export const OPEN_TARGETS_9MAX: Partial<Record<Position, number>> = {
-  UTG: 0.14, 'UTG+1': 0.16, 'UTG+2': 0.18, LJ: 0.21,
+  UTG: 0.11, 'UTG+1': 0.13, 'UTG+2': 0.15, LJ: 0.18, HJ: 0.21, CO: 0.28, BTN: 0.44, SB: 0.4,
 }
 
-/** Ordem para 3-betar: valor primeiro, depois blefes com suited (A5s a A2s, conectadas) e as melhores maos que sobram. */
-const THREEBET_CURATED = [
-  'AA', 'KK', 'QQ', 'AKs', 'AKo', 'JJ', 'AQs', 'TT', 'AQo', 'KQs', 'AJs', '99', 'A5s', 'A4s', 'KJs', 'AJo', 'A3s', 'A2s',
-  'KQo', 'QJs', 'JTs', '88', '76s', '65s', 'ATs', 'KTs', 'T9s', '54s', '98s', '87s', 'K9s', 'QTs', '77', 'A9s', 'Q9s', 'J9s',
-]
-const THREEBET_RANKING: readonly string[] = [...THREEBET_CURATED, ...OPEN_RANKING.filter((h) => !THREEBET_CURATED.includes(h))]
-
-/** Range de 3-bet: topo do ranking de 3-bet ate a cobertura (fracao das 1326 combinacoes). */
-export function threeBetByCoverage(coverage: number): string[] {
-  const out: string[] = []
-  let cum = 0
-  for (const h of THREEBET_RANKING) {
-    const w = combos(h) / 1326
-    if (cum + w / 2 > coverage) break
-    out.push(h)
-    cum += w
-  }
-  return out
-}
-
-/** Cobertura-alvo do 3-bet por posicao de quem da o 3-bet (contra uma abertura). */
-export const THREEBET_TARGETS: Partial<Record<Position, number>> = {
-  UTG: 0.075, 'UTG+1': 0.085, 'UTG+2': 0.095, LJ: 0.105, HJ: 0.115, CO: 0.13, BTN: 0.17, SB: 0.19, BB: 0.2,
-}

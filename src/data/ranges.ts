@@ -4,9 +4,7 @@
 // ============================================================
 
 import { PreflopDrillQuestion, Position, TableFormat } from '@/types'
-import {
-  OPEN_TARGETS_6MAX, OPEN_TARGETS_9MAX, THREEBET_TARGETS, rangeByCoverage, threeBetByCoverage,
-} from './openRanking'
+import { OPEN_TARGETS_6MAX, OPEN_TARGETS_9MAX, rangeByCoverage } from './openRanking'
 
 // ------- MÃOS NA FRONTEIRA DOS RANGES -------
 // Mãos que tipicamente ficam DENTRO OU FORA do range dependendo da posição.
@@ -45,7 +43,7 @@ export const MARGINAL_HANDS: ReadonlySet<string> = new Set<string>([
 // aleatórias. Isso evita receber 72o num pote 3-bet (não chegaria ao flop).
 export const POSTFLOP_PREFLOP_RANGES = {
   SRP_IP: [
-    // BTN open (~45%) — IP típico em SRP
+    // BTN open (~42%) - IP típico em SRP
     'AA','KK','QQ','JJ','TT','99','88','77','66','55','44','33','22',
     'AKs','AQs','AJs','ATs','A9s','A8s','A7s','A6s','A5s','A4s','A3s','A2s',
     'AKo','AQo','AJo','ATo','A9o','A8o',
@@ -385,7 +383,7 @@ export const POSITIONS_BY_FORMAT: Record<TableFormat, Position[]> = {
 // Representados como arrays de mãos no formato padrão
 
 // Gerado do ranking de abertura (data/openRanking): cada posicao abre o topo do ranking ate a
-// cobertura-alvo, calibrada para o PFR de quem segue a tabela ficar entre 20% e 25%.
+// cobertura-alvo; a media das aberturas de todas as posicoes (BB conta zero) fica entre 20% e 25%.
 export const OPEN_RAISE_RANGES: Record<Position, string[]> = {
   'UTG':    rangeByCoverage(OPEN_TARGETS_6MAX.UTG ?? 0),
   'UTG+1':  [], // definido em OPEN_RAISE_RANGES_BY_FORMAT
@@ -464,18 +462,16 @@ export const BB_DEFENSE_RANGES: Record<Position, string[]> = {
 }
 
 // ------- RANGES DE 3BET -------
-// Gerado do ranking de 3-bet (data/openRanking): maos de valor e blefes com suited ate a cobertura-alvo
-// de cada posicao, calibrada junto com a abertura para o PFR de quem segue a tabela ficar entre 20% e 25%.
 export const THREE_BET_RANGES: Record<Position, string[]> = {
-  'BTN':    threeBetByCoverage(THREEBET_TARGETS.BTN ?? 0),
-  'CO':     threeBetByCoverage(THREEBET_TARGETS.CO ?? 0),
-  'SB':     threeBetByCoverage(THREEBET_TARGETS.SB ?? 0),
-  'BB':     threeBetByCoverage(THREEBET_TARGETS.BB ?? 0),
-  'UTG':    threeBetByCoverage(THREEBET_TARGETS.UTG ?? 0),
-  'UTG+1':  threeBetByCoverage(THREEBET_TARGETS['UTG+1'] ?? 0),
-  'UTG+2':  threeBetByCoverage(THREEBET_TARGETS['UTG+2'] ?? 0),
-  'LJ':     threeBetByCoverage(THREEBET_TARGETS.LJ ?? 0),
-  'HJ':     threeBetByCoverage(THREEBET_TARGETS.HJ ?? 0),
+  'BTN':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s', 'A4s', 'K5s'],
+  'CO':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AJs', 'AKo', 'A5s'],
+  'SB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A5s', 'A4s', 'A3s', 'KQs'],
+  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A9s', 'A4s', 'A3s', 'KQs', 'KJs'],
+  'UTG':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo'],
+  'UTG+1':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'],
+  'UTG+2':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'], // similar a UTG+1
+  'LJ':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s'], // igual ao HJ
+  'HJ':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s'],
 }
 
 // ------- RANGES DE 4-BET (hero abriu, villain 3-betou, hero decide) -------
@@ -657,10 +653,10 @@ export const OPEN_RAISE_RANGES_BY_FORMAT: Record<TableFormat, Partial<Record<Pos
     'UTG+1': rangeByCoverage(OPEN_TARGETS_9MAX['UTG+1'] ?? 0),
     'UTG+2': rangeByCoverage(OPEN_TARGETS_9MAX['UTG+2'] ?? 0),
     'LJ':    rangeByCoverage(OPEN_TARGETS_9MAX.LJ ?? 0),
-    'HJ':  [],
-    'CO':  [],
-    'BTN': [],
-    'SB':  [],
+    'HJ':    rangeByCoverage(OPEN_TARGETS_9MAX.HJ ?? 0),
+    'CO':    rangeByCoverage(OPEN_TARGETS_9MAX.CO ?? 0),
+    'BTN':   rangeByCoverage(OPEN_TARGETS_9MAX.BTN ?? 0),
+    'SB':    rangeByCoverage(OPEN_TARGETS_9MAX.SB ?? 0),
     'BB':  [],
   },
 }
@@ -892,7 +888,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'open_raise',
     correctAction: 'raise',
     correctFrequency: 1.0,
-    explanation: 'K4s no BTN é uma abertura padrão em GTO. O BTN abre todos os Kxs de K2s para cima (~50% das 169 mãos). K4s tem boa playability pós-flop (nut flush draw, top pair com kicker razoável) e fold equity suficiente vs os blinds.',
+    explanation: 'K4s no BTN é uma abertura padrão em GTO. O BTN abre ~42% das mãos, com a maioria dos Kx suited. K4s tem boa playability pós-flop (nut flush draw, top pair com kicker razoável) e fold equity suficiente vs os blinds.',
     evComparison: { fold: 0, call: 0, raise: 0.7 }
   },
   {
@@ -1415,7 +1411,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'open_raise',
     correctAction: 'raise',
     correctFrequency: 1.0,
-    explanation: '87s no BTN é uma abertura padrão. Na BTN, o range é muito amplo (~45%), e 87s é um conector suited com boa jogabilidade pós-flop — draws a straight, flush, pair. Esta mão cria equity e bluffs bem-constru­ídos em boards coordenados.',
+    explanation: '87s no BTN é uma abertura padrão. Na BTN, o range é muito amplo (~42%), e 87s é um conector suited com boa jogabilidade pós-flop — draws a straight, flush, pair. Esta mão cria equity e bluffs bem-constru­ídos em boards coordenados.',
     evComparison: { fold: 0, call: 0, raise: 0.8 }
   },
   {
@@ -1525,7 +1521,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'open_raise',
     correctAction: 'fold',
     correctFrequency: 0.65,
-    explanation: 'A8o no SB é uma abertura borderline — o range do SB para raise é ~45% incluindo suited aces, mas A8o offsuit tem equity ruim OOP. A maioria dos solvers dá mix entre raise e fold aqui. Fold é mais conservador e evita spots difíceis fora de posição.',
+    explanation: 'A8o no SB é uma abertura borderline — o range do SB para raise é ~38% incluindo suited aces, mas A8o offsuit tem equity ruim OOP. A maioria dos solvers dá mix entre raise e fold aqui. Fold é mais conservador e evita spots difíceis fora de posição.',
     evComparison: { fold: 0, call: 0, raise: 0.1 }
   },
   {
@@ -1809,7 +1805,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BTN',
     correctAction: 'call',
     correctFrequency: 0.65,
-    explanation: 'JJ vs BTN open no BB: mix entre call e 3bet, com leve preferência por call. BTN range é muito amplo (~45%), e JJ está à frente de muito do range. No entanto, 3bet pode ser chamado por mãos que dominam (QQ-AA). Call mantém villain no range wide e realiza equity OOP.',
+    explanation: 'JJ vs BTN open no BB: mix entre call e 3bet, com leve preferência por call. BTN range é muito amplo (~42%), e JJ está à frente de muito do range. No entanto, 3bet pode ser chamado por mãos que dominam (QQ-AA). Call mantém villain no range wide e realiza equity OOP.',
     evComparison: { fold: 0, call: 5.5, raise: 5.8 }
   },
   {
@@ -2374,7 +2370,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BTN',
     correctAction: 'call',
     correctFrequency: 1.0,
-    explanation: '87s vs BTN open no BB é um call padrão. BTN range é amplo (~45%), e 87s tem boa playability — draws a straight, flush draws, pair médio. Com odds do BB (já tem 1 BB no pote), chamar é claramente lucrativo. 87s realiza equity bem vs range wide do BTN.',
+    explanation: '87s vs BTN open no BB é um call padrão. BTN range é amplo (~42%), e 87s tem boa playability — draws a straight, flush draws, pair médio. Com odds do BB (já tem 1 BB no pote), chamar é claramente lucrativo. 87s realiza equity bem vs range wide do BTN.',
     evComparison: { fold: 0, call: 0.9, raise: 0.5 }
   },
   {
@@ -2662,8 +2658,8 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
 
 // ------- CURSOS MOCKADOS -------
 /**
- * As perguntas de abertura e de 3-bet foram escritas com os ranges antigos (mais apertados). Os ranges
- * agora sao calibrados para PFR de 20% a 25% (data/openRanking), entao a resposta correta e a
+ * As perguntas de abertura e de 3-bet foram escritas com ranges antigos. Os ranges de abertura agora
+ * seguem data/openRanking (media das posicoes entre 20% e 25%), entao a resposta correta e a
  * explicacao dessas perguntas seguem os ranges atuais: o treino nunca contradiz o coach nem a consulta.
  */
 function reconcileDrills(questions: PreflopDrillQuestion[]): PreflopDrillQuestion[] {
@@ -2678,7 +2674,7 @@ function reconcileDrills(questions: PreflopDrillQuestion[]): PreflopDrillQuestio
         correctFrequency: 1,
         gtoMix: undefined,
         evComparison: undefined,
-        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de abertura do ${q.position} deste app, calibrado para um PFR de 20% a 25%.`,
+        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de abertura do ${q.position} deste app.`,
       }
     }
     if (q.scenario === '3bet' && q.heroStack >= 80) {
@@ -2690,7 +2686,7 @@ function reconcileDrills(questions: PreflopDrillQuestion[]): PreflopDrillQuestio
         correctFrequency: 1,
         gtoMix: undefined,
         evComparison: undefined,
-        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de 3-bet do ${q.position} deste app, calibrado junto com a abertura para um PFR de 20% a 25%.`,
+        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de 3-bet do ${q.position} deste app.`,
       }
     }
     return q
@@ -2738,17 +2734,17 @@ export const COURSES_DATA = [
     modules: [
       { id: 'm003', title: 'Posições Early', lessons: [
         { id: 'l006', title: 'UTG e UTG+1 em 6-max', duration: 20, isCompleted: false, type: 'article' as const,
-          content: 'UTG (Under The Gun) é a posição mais difícil do 6-max. Você age PRIMEIRO em todas as ruas — antes de saber o que os outros vão fazer.\n\n📊 Range UTG 6-max (~15% das mãos):\n• Pares: 88+\n• Aces suited: ATs+\n• Aces offsuit: AKo, AQo\n• Broadways suited: KQs, KJs\n\n❌ Mãos que parecem boas mas são fold no UTG:\n• JTs — joga bem em posição, não OOP vs 5 players\n• 55/66 — set-mining precisa de implied odds profundos\n• KJo — kicker médio OOP é problemático\n\n🎯 Por que tão tight? Você pode ser 3betado por qualquer posição depois de você. Seu range precisa ser forte o suficiente para aguentar pressão de toda a mesa.' },
+          content: 'UTG (Under The Gun) é a posição mais difícil do 6-max. Você age PRIMEIRO em todas as ruas, antes de saber o que os outros vão fazer.\n\n📊 Range UTG 6-max no app (~14% das mãos, a posição que menos abre):\n• Pares: 88+\n• Aces suited: todos (A2s+)\n• Aces offsuit: AJo+ e ATo\n• Suited: K9s+, QTs+, JTs, T9s\n• Offsuit: KQo\n\n📏 Referência do app: a média das aberturas de todas as posições (o BB não abre e conta zero) fica entre 20% e 25%. No 6-max dá ~23%: UTG 14%, HJ 18%, CO 25%, BTN 42%, SB 38%.\n\n❌ Mãos que parecem boas mas são fold no UTG:\n• KJo e QJo: kicker médio fora de posição é problemático\n• 77 e menores: set-mining precisa de implied odds profundos\n• J9s e 98s: jogam melhor em posição\n\n🎯 Por que tão tight? Você pode ser 3betado por qualquer posição depois de você. Seu range precisa ser forte o suficiente para aguentar pressão de toda a mesa.' },
         { id: 'l007', title: 'HJ e CO — posições de transição', duration: 15, isCompleted: false, type: 'article' as const,
-          content: 'HJ e CO são as posições de "transição" — mais largas que early positions mas não tão largas quanto BTN.\n\n📊 Range HJ (~22%):\nTudo do UTG+ adicionando: 77, A9s/A8s, K9s/KTs, QTs/Q9s, JTs, T9s, KQo\n\n📊 Range CO (~28%):\nTudo do HJ+ adicionando: 66/55, A7s-A5s, K8s, J9s, T8s, 98s, 87s, KJo, QJo, ATo/A9o\n\n🔑 Princípio: A cada posição que avança, você adiciona mãos especulativas (conectores, suited aces menores) que precisam de implied odds pós-flop.' },
+          content: 'HJ e CO são as posições de "transição" — mais largas que early positions mas não tão largas quanto BTN.\n\n📊 Range HJ (~18%):\nTudo do UTG adicionando: 77, Q9s, J9s, 98s, 87s, T8s, K8s, KJo, QJo\n\n📊 Range CO (~25%):\nTudo do HJ adicionando: 66/55, KTo, QTo, JTo, A9o, K7s/K6s, Q8s, J8s, 97s, 86s, 76s, 65s, 54s\n\n🔑 Princípio: A cada posição que avança, você adiciona mãos especulativas (conectores, suited aces menores) que precisam de implied odds pós-flop.' },
         { id: 'l008', title: 'Drill: Posições Early/Médio', duration: 15, isCompleted: false, type: 'quiz' as const,
           content: 'Pratique abertura de UTG e HJ no Treinador Pré-Flop. Configure o cenário para "Open Raise" e a posição para UTG ou HJ. Objetivo: ≥80% de precisão.' },
       ]},
       { id: 'm004', title: 'Posições Late', lessons: [
         { id: 'l009', title: 'BTN stealing — o superpoder do poker', duration: 18, isCompleted: false, type: 'article' as const,
-          content: 'O BTN (Button) é a melhor posição do poker. Você age POR ÚLTIMO em todas as ruas do flop em diante — uma vantagem enorme.\n\n📊 Range BTN (~45% das mãos):\nPraticamente tudo com potencial: pares 22+, todos Ax suited, broadways, conectores suited até 54s, Kxs até K2s, offsuit até QJo/KTo.\n\n🎯 Steal vs Blinds:\n• SB e BB têm que defender OOP — eles são desvantajosos\n• BTN pode abrir amplo e ganhar chips dos blinds frequentemente\n• Valor do BTN steal: ~0.5-1 BB/mão em risco\n\n💡 Regra prática: Se você abre no BTN e os blinds foldarem, você ganhou ~1.5 BBs sem ver flop. Fazendo isso consistentemente é extremamente lucrativo a longo prazo.' },
+          content: 'O BTN (Button) é a melhor posição do poker. Você age POR ÚLTIMO em todas as ruas do flop em diante, uma vantagem enorme.\n\n📊 Range BTN (~42% das mãos, junto com o SB a posição que mais abre):\nPares 22+, todos os Ax suited, a maioria dos Kx suited, broadways, conectores suited e as mãos offsuit de carta alta (Ax, Kx, Qx e Jx fortes).\n\n🎯 Steal vs Blinds:\n• SB e BB têm que defender OOP — eles são desvantajosos\n• BTN pode abrir amplo e ganhar chips dos blinds frequentemente\n• Valor do BTN steal: ~0.5-1 BB/mão em risco\n\n💡 Regra prática: Se você abre no BTN e os blinds foldarem, você ganhou ~1.5 BBs sem ver flop. Fazendo isso consistentemente é extremamente lucrativo a longo prazo.' },
         { id: 'l010', title: 'SB vs BB — o duelo especial', duration: 22, isCompleted: false, type: 'article' as const,
-          content: 'SB vs BB é o único spot onde AMBOS os players estão fora de posição. O SB age primeiro no pós-flop, então o BB tem ligeira vantagem posicional.\n\n📊 Estratégia SB:\n• Raise range: ~45% (bem largo — BB não tem incentivo de foldar)\n• Limp range: ~18% (mãos que jogam bem multiway mas difíceis de abrir)\n• Fold: ~37% (lixo puro)\n\n📊 Estratégia BB vs SB open:\n• Defesa: ~65% (BB tem odds excelentes — já investiu 1 BB)\n• 3bet: ~10% (mãos premium + bluffs com bloqueadores)\n\n🔑 Insight: O BB deve foldar menos vs SB do que vs qualquer outra posição, porque o SB abre muito amplo. Um SB range de 45% inclui muito trash que o BB domina facilmente.' },
+          content: 'SB vs BB é o único spot onde AMBOS os players estão fora de posição. O SB age primeiro no pós-flop, então o BB tem ligeira vantagem posicional.\n\n📊 Estratégia SB:\n• Raise range: ~38% (largo, só o BB para trás)\n• Fora do raise (~62%): fold para o lixo puro; limp só para mãos que jogam bem multiway\n\n📊 Estratégia BB vs SB open:\n• Defesa: ~65% (BB tem odds excelentes — já investiu 1 BB)\n• 3bet: ~10% (mãos premium + bluffs com bloqueadores)\n\n🔑 Insight: O BB deve foldar menos vs SB do que vs qualquer outra posição, porque o SB abre muito amplo. Um range de SB de ~38% inclui muito trash que o BB domina facilmente.' },
       ]},
     ],
   },
