@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store'
 import { App as CapApp } from '@capacitor/app'
 import { useSyncTrigger } from '@/hooks/useSyncTrigger'
+import { useKeepAwake } from '@/hooks/useKeepAwake'
+import { shouldKeepAwake } from '@/lib/keepAwake'
 import { backHandledByScreen } from '@/lib/backGuard'
 
 // desktopOnly: a barra inferior mobile já está cheia; esses itens ficam só no menu lateral
@@ -28,6 +30,8 @@ export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme } = useUIStore()
+  // a tela fica ligada na mesa e nos treinos: nao apaga no meio de uma mao
+  useKeepAwake(shouldKeepAwake(location.pathname))
   useSyncTrigger()
 
   useEffect(() => {
