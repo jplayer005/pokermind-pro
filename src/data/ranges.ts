@@ -4,6 +4,9 @@
 // ============================================================
 
 import { PreflopDrillQuestion, Position, TableFormat } from '@/types'
+import {
+  OPEN_TARGETS_6MAX, OPEN_TARGETS_9MAX, THREEBET_TARGETS, rangeByCoverage, threeBetByCoverage,
+} from './openRanking'
 
 // ------- MÃOS NA FRONTEIRA DOS RANGES -------
 // Mãos que tipicamente ficam DENTRO OU FORA do range dependendo da posição.
@@ -381,67 +384,15 @@ export const POSITIONS_BY_FORMAT: Record<TableFormat, Position[]> = {
 // ------- RANGES DE OPEN RAISE POR POSIÇÃO -------
 // Representados como arrays de mãos no formato padrão
 
+// Gerado do ranking de abertura (data/openRanking): cada posicao abre o topo do ranking ate a
+// cobertura-alvo, calibrada para o PFR de quem segue a tabela ficar entre 20% e 25%.
 export const OPEN_RAISE_RANGES: Record<Position, string[]> = {
-  'UTG': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88',
-    'AKs', 'AQs', 'AJs', 'ATs',
-    'AKo', 'AQo',
-    'KQs', 'KJs',
-    'QJs',
-  ],
-  'UTG+1': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77',
-    'AKs', 'AQs', 'AJs', 'ATs', 'A9s',
-    'AKo', 'AQo', 'AJo',
-    'KQs', 'KJs', 'KTs',
-    'QJs', 'QTs',
-    'JTs',
-  ],
-  'HJ': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
-    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s',
-    'AKo', 'AQo', 'AJo', 'ATo',
-    'KQs', 'KJs', 'KTs', 'K9s',
-    'QJs', 'QTs', 'Q9s',
-    'JTs', 'J9s',
-    'T9s',
-    'KQo',
-  ],
-  'CO': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55',
-    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s',
-    'AKo', 'AQo', 'AJo', 'ATo', 'A9o',
-    'KQs', 'KJs', 'KTs', 'K9s', 'K8s',
-    'QJs', 'QTs', 'Q9s', 'Q8s',
-    'JTs', 'J9s', 'J8s',
-    'T9s', 'T8s',
-    '98s', '87s',
-    'KQo', 'KJo',
-  ],
-  'BTN': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
-    'AKo', 'AQo', 'AJo', 'ATo', 'A9o', 'A8o',
-    'KQs', 'KJs', 'KTs', 'K9s', 'K8s', 'K7s', 'K6s', 'K5s', 'K4s', 'K3s', 'K2s',
-    'QJs', 'QTs', 'Q9s', 'Q8s', 'Q7s', 'Q6s',
-    'JTs', 'J9s', 'J8s', 'J7s', 'J6s',
-    'T9s', 'T8s', 'T7s', 'T6s',
-    '98s', '97s', '96s', '87s', '86s', '76s', '75s', '65s', '64s', '54s',
-    'KQo', 'KJo', 'KTo',
-    'QJo', 'QTo',
-    'JTo',
-  ],
-  'SB': [
-    'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77', '66', '55', '44', '33', '22',
-    'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'A7s', 'A6s', 'A5s', 'A4s', 'A3s', 'A2s',
-    'AKo', 'AQo', 'AJo', 'ATo',
-    'KQs', 'KJs', 'KTs', 'K9s', 'K8s',
-    'QJs', 'QTs', 'Q9s',
-    'JTs', 'J9s',
-    'T9s', '98s', '87s', '76s',
-    'KQo', 'KJo', 'KTo',
-    'QJo',
-  ],
+  'UTG':    rangeByCoverage(OPEN_TARGETS_6MAX.UTG ?? 0),
+  'UTG+1':  [], // definido em OPEN_RAISE_RANGES_BY_FORMAT
+  'HJ':     rangeByCoverage(OPEN_TARGETS_6MAX.HJ ?? 0),
+  'CO':     rangeByCoverage(OPEN_TARGETS_6MAX.CO ?? 0),
+  'BTN':    rangeByCoverage(OPEN_TARGETS_6MAX.BTN ?? 0),
+  'SB':     rangeByCoverage(OPEN_TARGETS_6MAX.SB ?? 0),
   'BB':     [], // BB defende, não open-raise normalmente
   'UTG+2':  [], // definido em OPEN_RAISE_RANGES_BY_FORMAT
   'LJ':     [], // definido em OPEN_RAISE_RANGES_BY_FORMAT
@@ -513,16 +464,18 @@ export const BB_DEFENSE_RANGES: Record<Position, string[]> = {
 }
 
 // ------- RANGES DE 3BET -------
+// Gerado do ranking de 3-bet (data/openRanking): maos de valor e blefes com suited ate a cobertura-alvo
+// de cada posicao, calibrada junto com a abertura para o PFR de quem segue a tabela ficar entre 20% e 25%.
 export const THREE_BET_RANGES: Record<Position, string[]> = {
-  'BTN':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s', 'A4s', 'K5s'],
-  'CO':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AJs', 'AKo', 'A5s'],
-  'SB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A5s', 'A4s', 'A3s', 'KQs'],
-  'BB':     ['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AQs', 'AJs', 'AKo', 'AQo', 'A9s', 'A4s', 'A3s', 'KQs', 'KJs'],
-  'UTG':    ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AKo'],
-  'UTG+1':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'],
-  'UTG+2':  ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo'], // similar a UTG+1
-  'LJ':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s'], // igual ao HJ
-  'HJ':     ['AA', 'KK', 'QQ', 'JJ', 'AKs', 'AQs', 'AKo', 'A5s'],
+  'BTN':    threeBetByCoverage(THREEBET_TARGETS.BTN ?? 0),
+  'CO':     threeBetByCoverage(THREEBET_TARGETS.CO ?? 0),
+  'SB':     threeBetByCoverage(THREEBET_TARGETS.SB ?? 0),
+  'BB':     threeBetByCoverage(THREEBET_TARGETS.BB ?? 0),
+  'UTG':    threeBetByCoverage(THREEBET_TARGETS.UTG ?? 0),
+  'UTG+1':  threeBetByCoverage(THREEBET_TARGETS['UTG+1'] ?? 0),
+  'UTG+2':  threeBetByCoverage(THREEBET_TARGETS['UTG+2'] ?? 0),
+  'LJ':     threeBetByCoverage(THREEBET_TARGETS.LJ ?? 0),
+  'HJ':     threeBetByCoverage(THREEBET_TARGETS.HJ ?? 0),
 }
 
 // ------- RANGES DE 4-BET (hero abriu, villain 3-betou, hero decide) -------
@@ -697,27 +650,13 @@ export const OPEN_RAISE_RANGES_BY_FORMAT: Record<TableFormat, Partial<Record<Pos
   '6max': {}, // usa OPEN_RAISE_RANGES como fallback
 
   // ---- 9-max MTT ----
-  // UTG: 8 atrás → ~10%; UTG+1: 7 atrás → ~12%; UTG+2: 6 atrás → ~14%; LJ: 5 atrás = 6max UTG
+  // As 4 primeiras posicoes saem do ranking de abertura (data/openRanking); HJ, CO, BTN e SB usam
+  // os mesmos ranges da mesa de 6 (mesmo numero de jogadores atras).
   '9max': {
-    'UTG': [ // ~10% — o spot mais tight do poker
-      'AA','KK','QQ','JJ','TT','99',
-      'AKs','AQs','AJs',
-      'AKo','AQo',
-      'KQs',
-    ],
-    'UTG+1': [ // ~12%
-      'AA','KK','QQ','JJ','TT','99',
-      'AKs','AQs','AJs','ATs',
-      'AKo','AQo',
-      'KQs',
-    ],
-    'UTG+2': [ // ~14%
-      'AA','KK','QQ','JJ','TT','99','88',
-      'AKs','AQs','AJs','ATs',
-      'AKo','AQo',
-      'KQs','KJs',
-    ],
-    'LJ':  [], // usa 6max UTG (5 jogadores atrás)
+    'UTG':   rangeByCoverage(OPEN_TARGETS_9MAX.UTG ?? 0),
+    'UTG+1': rangeByCoverage(OPEN_TARGETS_9MAX['UTG+1'] ?? 0),
+    'UTG+2': rangeByCoverage(OPEN_TARGETS_9MAX['UTG+2'] ?? 0),
+    'LJ':    rangeByCoverage(OPEN_TARGETS_9MAX.LJ ?? 0),
     'HJ':  [],
     'CO':  [],
     'BTN': [],
@@ -827,7 +766,7 @@ export const BB_VS_SB_3BET_RANGES: string[] = [
 ]
 
 // ------- BANCO DE PERGUNTAS PARA DRILLS -------
-export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
+const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
   {
     id: 'q001',
     hand: 'AKs',
@@ -2722,6 +2661,44 @@ export const DRILL_QUESTIONS: PreflopDrillQuestion[] = [
 ]
 
 // ------- CURSOS MOCKADOS -------
+/**
+ * As perguntas de abertura e de 3-bet foram escritas com os ranges antigos (mais apertados). Os ranges
+ * agora sao calibrados para PFR de 20% a 25% (data/openRanking), entao a resposta correta e a
+ * explicacao dessas perguntas seguem os ranges atuais: o treino nunca contradiz o coach nem a consulta.
+ */
+function reconcileDrills(questions: PreflopDrillQuestion[]): PreflopDrillQuestion[] {
+  return questions.map((q) => {
+    if (q.scenario === 'open_raise' && q.position !== 'BB' && q.heroStack >= 80) {
+      const inRange = getOpenRaiseRange('6max', q.position).includes(q.hand)
+      const expected = inRange ? 'raise' : 'fold'
+      if (q.correctAction === expected) return q
+      return {
+        ...q,
+        correctAction: expected,
+        correctFrequency: 1,
+        gtoMix: undefined,
+        evComparison: undefined,
+        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de abertura do ${q.position} deste app, calibrado para um PFR de 20% a 25%.`,
+      }
+    }
+    if (q.scenario === '3bet' && q.heroStack >= 80) {
+      const inRange = (THREE_BET_RANGES[q.position] ?? []).includes(q.hand)
+      if (inRange === (q.correctAction === '3bet')) return q
+      return {
+        ...q,
+        correctAction: inRange ? '3bet' : 'call',
+        correctFrequency: 1,
+        gtoMix: undefined,
+        evComparison: undefined,
+        explanation: `${q.hand} ${inRange ? 'entra no' : 'fica fora do'} range de 3-bet do ${q.position} deste app, calibrado junto com a abertura para um PFR de 20% a 25%.`,
+      }
+    }
+    return q
+  })
+}
+
+export const DRILL_QUESTIONS: PreflopDrillQuestion[] = reconcileDrills(RAW_DRILL_QUESTIONS)
+
 export const COURSES_DATA = [
   {
     id: 'c001',
