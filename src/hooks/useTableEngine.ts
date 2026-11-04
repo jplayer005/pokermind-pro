@@ -9,6 +9,7 @@ import { updateHeroHud, updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { buildQuiz, isQuizSpot, scoreQuiz, type Band, type QuizFreq, type QuizResult, type ReadQuiz } from '@/engine/coach/readQuiz'
+import { buildOpenQuiz, scoreOpenQuiz, shouldAskOpenQuiz, type OpenQuiz, type OpenQuizFreq, type OpenQuizResult } from '@/engine/coach/openQuiz'
 import { buildScenarioHand, type Scenario } from '@/engine/lab/scenarios'
 import { toSavedHand } from '@/engine/game/replay'
 import { loadSpots } from '@/engine/spots'
@@ -17,7 +18,7 @@ import { playSfx } from '@/lib/sfx'
 import { runoutDurationMs } from '@/hooks/useRunoutBoard'
 import { pickProfiles } from '@/engine/bots/profiles'
 import { advanceAfterHand, icmPressure, type TournamentConfig, type TournamentState } from '@/engine/game/tournament'
-import { useHandsStore, useLeakStore, usePlayStore } from '@/store'
+import { useHandsStore, useLeakStore, usePlayStore, useSpacedRepetitionStore } from '@/store'
 import { isCorrectGrade } from '@/engine/progress'
 import type { Action, GameConfig, GameState, PlayerInit } from '@/engine/game/types'
 
@@ -47,6 +48,8 @@ export interface TableOptions {
   coach: CoachMode
   /** Frequencia das pausas do modo quiz (padrao: toda aposta grande). */
   quizFreq?: QuizFreq
+  /** Pergunta "essa mao esta no seu range de abertura?" no pre-flop (so no coach quiz). */
+  openQuizFreq?: OpenQuizFreq
   modeId: string
   modeLabel: string
   /** Torneio (SNG/MTT): sem recompra, blinds sobem por nivel e ha eliminacoes. */
@@ -76,6 +79,12 @@ export interface Review {
 export interface LastGrade {
   d: GradedDecision
   key: number
+}
+
+/** Pergunta de range de abertura da decisao atual e, depois de responder, a nota. */
+export interface OpenQuizState {
+  q: OpenQuiz
+  result: OpenQuizResult | null
 }
 
 /** Pausa "leia o range": o quiz da decisao atual e, depois de responder, a nota. */
@@ -300,11 +309,42 @@ export function useTableEngine(opts: TableOptions) {
 
   const closeQuiz = useCallback(() => setQuiz(null), [])
 
+  // Pergunta de range no pre-flop: uma por decisao, como o quiz de leitura. Mao com card vencido na
+  // repeticao espacada e sempre perguntada; o resto segue a frequencia escolhida.
+  const [openQuiz, setOpenQuiz] = useState<OpenQuizState | null>(null)
+  const openQuizKey = useRef('')
+  useEffect(() => {
+    const o = optsRef.current
+    if (o.coach !== 'quiz' || !heroTurn || !o.openQuizFreq || o.openQuizFreq === 'off') {
+      setOpenQuiz(null)
+      return
+    }
+    const key = `${game.handNumber}:${game.history.length}`
+    if (openQuizKey.current === key) return
+    openQuizKey.current = key
+    const due = new Set(useSpacedRepetitionStore.getState().getDueQuestions().filter((k) => k.startsWith('open:')))
+    const q = shouldAskOpenQuiz(game, o.openQuizFreq, due) ? buildOpenQuiz(game) : null
+    setOpenQuiz(q ? { q, result: null } : null)
+  }, [heroTurn, game])
+
+  const openQuizRef = useRef(openQuiz)
+  openQuizRef.current = openQuiz
+  const answerOpenQuiz = useCallback((answeredIn: boolean) => {
+    const cur = openQuizRef.current
+    if (!cur || cur.result) return
+    const result = scoreOpenQuiz(cur.q, answeredIn)
+    useSpacedRepetitionStore.getState().updateSM2(cur.q.key, result.correct)
+    usePlayStore.getState().creditHand([result.grade])
+    useLeakStore.getState().record({ ctx: `QUIZ_OPEN_${cur.q.pos}`, tag: result.tag, grade: result.grade, evLossBB: null })
+    setOpenQuiz({ ...cur, result })
+  }, [])
+  const closeOpenQuiz = useCallback(() => setOpenQuiz(null), [])
+
   // Timebank (opcional): contagem regressiva a cada decisao do heroi; ao estourar, age sozinho
   // (check se possivel, senao fold) e essa jogada NAO e avaliada pelo coach.
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   // A pausa do modo quiz para o relogio: ler o range leva tempo e o tempo recomeca ao fechar o painel.
-  const quizOpen = quiz !== null
+  const quizOpen = quiz !== null || openQuiz !== null
   useEffect(() => {
     const sec = opts.timebankSec
     if (!heroTurn || !sec || quizOpen) {
@@ -343,7 +383,7 @@ export function useTableEngine(opts: TableOptions) {
     else if (n < 0) playSfx('lose')
   }, [game.over, game.handNumber]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz }
+  return { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz, openQuiz, answerOpenQuiz, closeOpenQuiz }
 }
 
 /** Formata fichas como bb (ou fichas) para exibir. */

@@ -484,6 +484,8 @@ export interface PlayPrefs {
   timebank: number
   /** Frequencia das pausas do modo quiz; ausente nas preferencias salvas antes dele. */
   quizFreq?: string
+  /** Pergunta de range de abertura no pre-flop (off, some, all); ausente nas preferencias antigas. */
+  openQuizFreq?: string
 }
 
 interface UIStore {

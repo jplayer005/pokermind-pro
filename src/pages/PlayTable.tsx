@@ -31,6 +31,8 @@ import { isLeak } from '@/engine/coach/types'
 import ShareButton from '@/components/share/ShareButton'
 import { StatsShareBody } from '@/components/share/bodies'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
+import type { OpenQuizFreq } from '@/engine/coach/openQuiz'
+import OpenRangeSheet from '@/components/table/OpenRangeSheet'
 import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
 import {
   mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
@@ -75,6 +77,12 @@ const COACH_MODES: { id: CoachMode; label: string; hint: string }[] = [
   { id: 'off', label: 'Desligado', hint: 'Jogo livre, sem notas' },
 ]
 
+const OPEN_QUIZ_FREQS: { id: OpenQuizFreq; label: string }[] = [
+  { id: 'some', label: 'Às vezes' },
+  { id: 'all', label: 'Toda abertura' },
+  { id: 'off', label: 'Desligada' },
+]
+
 const QUIZ_FREQS: { id: QuizFreq; label: string }[] = [
   { id: 'all', label: 'Toda aposta grande' },
   { id: 'half', label: 'Metade' },
@@ -89,6 +97,7 @@ interface Config {
   showProfiles: boolean
   coach: CoachMode
   quizFreq: QuizFreq
+  openQuizFreq: OpenQuizFreq
   showHud: boolean
   /** Segundos para agir; 0 = sem limite. */
   timebank: number
@@ -170,6 +179,7 @@ export default function PlayTable() {
   const [showProfiles, setShowProfiles] = useState(saved?.showProfiles ?? true)
   const [coach, setCoach] = useState<CoachMode>(COACH_MODES.some((c) => c.id === saved?.coach) ? (saved?.coach as CoachMode) : 'live')
   const [quizFreq, setQuizFreq] = useState<QuizFreq>(QUIZ_FREQS.some((f) => f.id === saved?.quizFreq) ? (saved?.quizFreq as QuizFreq) : 'all')
+  const [openQuizFreq, setOpenQuizFreq] = useState<OpenQuizFreq>(OPEN_QUIZ_FREQS.some((f) => f.id === saved?.openQuizFreq) ? (saved?.openQuizFreq as OpenQuizFreq) : 'some')
   const [showHud, setShowHud] = useState(saved?.showHud ?? true)
   const [timebank, setTimebank] = useState([0, 15, 30].includes(saved?.timebank ?? -1) ? (saved?.timebank as number) : 0)
 
@@ -197,8 +207,8 @@ export default function PlayTable() {
           size="lg"
           className="w-full"
           onClick={() => {
-            useUIStore.getState().setPlayPrefs({ modeId, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, showHud, timebank })
-            setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, showHud, timebank })
+            useUIStore.getState().setPlayPrefs({ modeId, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, openQuizFreq, showHud, timebank })
+            setConfig({ mode: selected, buyInBB, speed, autoNext, showProfiles, coach, quizFreq, openQuizFreq, showHud, timebank })
           }}
         >
           <Play size={16} /> Sentar na mesa
@@ -237,6 +247,7 @@ export default function PlayTable() {
             // o laboratorio existe para a leitura do vilao: pausa sempre, em toda aposta grande
             coach: 'quiz',
             quizFreq: 'all',
+            openQuizFreq: 'off',
             showHud: false,
             timebank: 0,
             scenario: sc,
@@ -320,6 +331,12 @@ export default function PlayTable() {
                   <Chip key={f.id} active={f.id === quizFreq} onClick={() => setQuizFreq(f.id)}>{f.label}</Chip>
                 ))}
               </div>
+              <p className="text-xs text-text-muted mt-2.5 mb-1.5 font-body">Pergunta de range antes de abrir o pote</p>
+              <div className="flex flex-wrap gap-2">
+                {OPEN_QUIZ_FREQS.map((f) => (
+                  <Chip key={f.id} active={f.id === openQuizFreq} onClick={() => setOpenQuizFreq(f.id)}>{f.label}</Chip>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -395,6 +412,7 @@ function TableGame({
       timebankSec: config.timebank,
       coach: config.coach,
       quizFreq: config.quizFreq,
+      openQuizFreq: config.openQuizFreq,
       modeId: config.mode.id,
       modeLabel: config.mode.label,
     }
@@ -430,7 +448,7 @@ function TableGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz } =
+  const { game, archive, session, heroId, heroTurn, act, nextHand, reviews, lastGrade, hud, saveReview, tour, timeLeft, quiz, answerQuiz, closeQuiz, openQuiz, answerOpenQuiz, closeOpenQuiz } =
     useTableEngine(options)
   // numero da mao aberta na revisao (null = fechada)
   const [reviewHand, setReviewHand] = useState<number | null>(null)
@@ -767,6 +785,14 @@ function TableGame({
       {/* modo quiz: a mesa pausa na vez do heroi diante de aposta grande (depois da folha do cenario) */}
       {quiz && heroTurn && !openReview && !introOpen && (
         <ReadRangeSheet game={game} quiz={quiz} onAnswer={answerQuiz} onClose={closeQuiz} />
+      )}
+      {openQuiz && heroTurn && !openReview && !introOpen && (
+        <OpenRangeSheet
+          quiz={openQuiz}
+          stackBB={((game.seats[heroId]?.stack ?? 0) + (game.seats[heroId]?.bet ?? 0)) / game.cfg.bb}
+          onAnswer={answerOpenQuiz}
+          onClose={closeOpenQuiz}
+        />
       )}
     </div>
   )
