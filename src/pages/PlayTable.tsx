@@ -15,6 +15,8 @@ import ReadRangeSheet from '@/components/table/ReadRangeSheet'
 import { ScenarioPicker, ScenarioIntroSheet } from '@/components/table/ScenarioCards'
 import TournamentHeader from '@/components/table/TournamentHeader'
 import FieldSheet from '@/components/table/FieldSheet'
+import StatsSheet from '@/components/table/StatsSheet'
+import { pctOf } from '@/engine/bots/hud'
 import { fieldSummary } from '@/engine/game/field'
 import BottomBarScreen from '@/components/layout/BottomBarScreen'
 import { useUIStore, usePlayStore } from '@/store'
@@ -356,6 +358,8 @@ function TableGame({
   const [introOpen, setIntroOpen] = useState(!!config.scenario)
   // painel do campo do torneio (ranking, lideres, mesas)
   const [fieldOpen, setFieldOpen] = useState(false)
+  // estatisticas VPIP/PFR de todos os jogadores
+  const [statsOpen, setStatsOpen] = useState(false)
 
   const options: TableOptions = useMemo(() => {
     const base = {
@@ -410,6 +414,8 @@ function TableGame({
 
   const bb = game.cfg.bb
   const hero = game.seats[heroId]
+  const heroName = hero?.name ?? null
+  const heroStats = heroName ? hud[heroName] : undefined
   const waitingFor = game.toAct >= 0 ? game.seats[game.toAct] : null
   const runout = useRunoutBoard(game)
   // durante o runout (all-in) o resultado espera o board terminar de sair
@@ -539,6 +545,16 @@ function TableGame({
             </>
           )}
           <Badge>{session.hands} {session.hands === 1 ? 'mão' : 'mãos'}</Badge>
+          {heroStats && heroStats.hands > 0 && (
+            <button
+              type="button"
+              onClick={() => setStatsOpen(true)}
+              aria-label="Ver as estatísticas VPIP e PFR dos jogadores"
+              className="inline-flex h-6 items-center rounded-full border border-border-default px-2.5 text-[10px] font-mono text-text-secondary hover:border-accent-gold/60 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-gold"
+            >
+              VPIP {pctOf(heroStats.vpip, heroStats.hands)} · PFR {pctOf(heroStats.pfr, heroStats.hands)}
+            </button>
+          )}
           {coachOn && latest && (
             <button
               onClick={() => setReviewHand(latest.game.handNumber)}
@@ -691,6 +707,17 @@ function TableGame({
         />
       )}
       {config.scenario && introOpen && <ScenarioIntroSheet scenario={config.scenario} onClose={() => setIntroOpen(false)} />}
+      {statsOpen && (
+        <StatsSheet
+          hud={hud}
+          heroName={heroName}
+          styleOf={(name) => {
+            const prof = game.seats.find((s) => s.name === name)?.profile ?? tour?.field?.players.find((p) => p.name === name)?.profile
+            return prof ? profileOf(prof).label : ''
+          }}
+          onClose={() => setStatsOpen(false)}
+        />
+      )}
       {fieldOpen && tour && (() => {
         const summary = fieldSummary(tour, game.cfg.bb)
         return summary ? <FieldSheet summary={summary} hud={hud} onClose={() => setFieldOpen(false)} /> : null

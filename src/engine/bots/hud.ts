@@ -85,3 +85,37 @@ export function hudLine(s: HudStats | undefined, minHands = 8): string {
   const af = s.calls > 0 ? (s.aggr / s.calls).toFixed(1) : s.aggr > 0 ? '∞' : '0'
   return `V${pctOf(s.vpip, s.hands)} P${pctOf(s.pfr, s.hands)} AF${af}`
 }
+
+/** Faixa de PFR (%) que o treino persegue para o jogador: os ranges do app sao calibrados para ela. */
+export const PFR_TARGET = { min: 20, max: 25 } as const
+
+export interface StatRow {
+  name: string
+  isHero: boolean
+  hands: number
+  /** Em % das maos. */
+  vpip: number
+  pfr: number
+  threeBet: number
+  /** Fator de agressao pos-flop (apostas e aumentos / calls). */
+  af: string
+  /** % das apostas pos-flop que largou; null com menos de 5 apostas enfrentadas. */
+  foldToBet: number | null
+}
+
+/** Linhas da tela de estatisticas: o heroi primeiro, os demais por maos jogadas e depois por nome. */
+export function statRows(hud: Record<string, HudStats>, heroName: string | null): StatRow[] {
+  const rows = Object.entries(hud)
+    .filter(([, s]) => s.hands > 0)
+    .map(([name, s]): StatRow => ({
+      name,
+      isHero: name === heroName,
+      hands: s.hands,
+      vpip: pctOf(s.vpip, s.hands),
+      pfr: pctOf(s.pfr, s.hands),
+      threeBet: pctOf(s.threeBet, s.hands),
+      af: s.calls > 0 ? (s.aggr / s.calls).toFixed(1) : s.aggr > 0 ? '∞' : '0',
+      foldToBet: s.facedBet >= 5 ? pctOf(s.foldToBet, s.facedBet) : null,
+    }))
+  return rows.sort((a, b) => Number(b.isHero) - Number(a.isHero) || b.hands - a.hands || a.name.localeCompare(b.name))
+}
