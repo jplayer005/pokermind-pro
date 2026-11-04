@@ -58,8 +58,8 @@ export const OPEN_TARGETS_6MAX: Partial<Record<Position, number>> = {
   UTG: 0.14, HJ: 0.18, CO: 0.25, BTN: 0.42, SB: 0.38,
 }
 
-/** Mesa de 9, todas as posicoes que abrem. Media das 9 posicoes: 21,3%. */
+/** Mesa de 9, todas as posicoes que abrem. Media das 9 posicoes: 21,6%. HJ, CO e BTN seguem de perto o coach. */
 export const OPEN_TARGETS_9MAX: Partial<Record<Position, number>> = {
-  UTG: 0.11, 'UTG+1': 0.13, 'UTG+2': 0.15, LJ: 0.18, HJ: 0.21, CO: 0.28, BTN: 0.44, SB: 0.4,
+  UTG: 0.11, 'UTG+1': 0.13, 'UTG+2': 0.15, LJ: 0.18, HJ: 0.22, CO: 0.29, BTN: 0.46, SB: 0.4,
 }
 
