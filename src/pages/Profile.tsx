@@ -23,6 +23,8 @@ import {
   BarChart2, Award, Clock, Layers, LogIn, LogOut
 } from 'lucide-react'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import ShareButton from '@/components/share/ShareButton'
+import { StatsShareBody } from '@/components/share/bodies'
 import { StudyGoal } from '@/types'
 
 // ============================================================
@@ -525,6 +527,22 @@ export default function Profile() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <h2 className="text-lg font-bold text-text-primary">{profile.name}</h2>
+                  <ShareButton
+                    iconOnly
+                    title={profile.name}
+                    subtitle={levelData.fullName}
+                    text={`Meu perfil no PokerMind Pro: ${levelData.fullName}`}
+                  >
+                    <StatsShareBody
+                      big={String(stats.level)}
+                      bigLabel={`${levelData.fullName}, ${formatNumber(stats.xp)} XP`}
+                      tiles={[
+                        { label: 'Sequência', value: `${stats.currentStreak} dias` },
+                        { label: 'Precisão geral', value: `${Math.round(stats.accuracy * 100)}%` },
+                        { label: 'Conquistas', value: String(unlockedAchievements.length) },
+                      ]}
+                    />
+                  </ShareButton>
                   {/* Botão editar nome — funcional */}
                   <button
                     onClick={() => setShowEditName(true)}

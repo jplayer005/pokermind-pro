@@ -21,6 +21,8 @@ import { useUserStore, useTrainingStore, usePostflopReviewStore } from '@/store'
 import type { PostflopSpotProfile } from '@/store'
 import { formatPercent, formatTime, formatNumber, xpToNextLevel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import ShareButton from '@/components/share/ShareButton'
+import { StatsShareBody } from '@/components/share/bodies'
 import { DrillSession } from '@/types'
 
 // ---- HELPERS PÓS-FLOP REVIEW QUEUE ----
@@ -390,9 +392,27 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-mono font-bold text-sm text-accent-gold">{formatNumber(stats.xp)} XP</div>
-                <div className="text-[10px] text-text-muted">+{xp.needed - xp.current} para nível {stats.level + 1}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="font-mono font-bold text-sm text-accent-gold">{formatNumber(stats.xp)} XP</div>
+                  <div className="text-[10px] text-text-muted">+{xp.needed - xp.current} para nível {stats.level + 1}</div>
+                </div>
+                <ShareButton
+                  iconOnly
+                  title={`Nível ${stats.level}`}
+                  subtitle={`${formatNumber(stats.xp)} XP`}
+                  text={`Estou no nível ${stats.level} do PokerMind Pro`}
+                >
+                  <StatsShareBody
+                    big={String(stats.level)}
+                    bigLabel={`nível, ${formatNumber(stats.xp)} XP`}
+                    tiles={[
+                      { label: 'Sequência', value: `${stats.currentStreak} dias` },
+                      { label: weekAccuracy !== null ? 'Precisão (7 dias)' : 'Precisão geral', value: formatPercent(weekAccuracy !== null ? weekAccuracy : stats.accuracy, 0) },
+                    ]}
+                    rows={[{ label: 'Questões respondidas', value: formatNumber(stats.totalQuestions) }]}
+                  />
+                </ShareButton>
               </div>
             </div>
             <ProgressBar value={Math.round(xp.percent * 100)} color="gold" size="sm" />

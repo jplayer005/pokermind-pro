@@ -28,6 +28,8 @@ import { useRunoutBoard } from '@/hooks/useRunoutBoard'
 import { useTableEngine, fmtChips, type Speed, type CoachMode, type TableOptions } from '@/hooks/useTableEngine'
 import { fieldProfile, pickProfiles, profileOf, withSkill } from '@/engine/bots/profiles'
 import { isLeak } from '@/engine/coach/types'
+import ShareButton from '@/components/share/ShareButton'
+import { StatsShareBody } from '@/components/share/bodies'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
 import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
 import {
@@ -100,6 +102,26 @@ interface Summary {
   /** Cash: saldo em bb. Torneio: texto do resultado. */
   netBB?: number
   result?: string
+  /** Dados do cartao de compartilhar (podem faltar em sessoes sem decisoes). */
+  decisions?: number
+  correct?: number
+  leaks?: number
+  place?: number
+  field?: number
+}
+
+/** Numeros do cartao de compartilhar de uma sessao (cash ou torneio). */
+function sessionShareProps(s: Summary) {
+  const acc = s.decisions ? Math.round(((s.correct ?? 0) / s.decisions) * 100) : null
+  return {
+    big: s.place ? `${s.place}º` : s.netBB !== undefined ? `${s.netBB >= 0 ? '+' : ''}${s.netBB.toFixed(1)}` : undefined,
+    bigLabel: s.place ? `de ${s.field}${s.result ? ', ' + s.result : ''}` : s.netBB !== undefined ? 'bb na sessão' : undefined,
+    tiles: [
+      { label: 'Mãos', value: String(s.hands) },
+      ...(acc !== null ? [{ label: 'Decisões certas', value: `${acc}%` }] : []),
+      ...(s.leaks !== undefined ? [{ label: 'Vazamentos', value: String(s.leaks) }] : []),
+    ],
+  }
 }
 
 function Chip({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
@@ -191,11 +213,16 @@ export default function PlayTable() {
             <p className="text-[11px] text-text-muted">Última sessão, {last.label}</p>
             <p className="text-xs text-text-secondary">{last.hands} mãos{last.result ? `, ${last.result}` : ''}</p>
           </div>
-          {last.netBB !== undefined && (
-            <Badge variant={last.netBB >= 0 ? 'emerald' : 'crimson'} size="md">
-              {last.netBB >= 0 ? '+' : ''}{last.netBB.toFixed(1)} bb
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {last.netBB !== undefined && (
+              <Badge variant={last.netBB >= 0 ? 'emerald' : 'crimson'} size="md">
+                {last.netBB >= 0 ? '+' : ''}{last.netBB.toFixed(1)} bb
+              </Badge>
+            )}
+            <ShareButton iconOnly title={`Sessão: ${last.label}`} subtitle={`${last.hands} mãos`} text={`Minha sessão no PokerMind Pro: ${last.label}`}>
+              <StatsShareBody {...sessionShareProps(last)} />
+            </ShareButton>
+          </div>
         </Card>
       )}
 
@@ -436,6 +463,8 @@ function TableGame({
 
   const summaryNow = (): Summary => ({
     label: config.mode.label, hands: session.hands, netBB: tour ? undefined : netBB, result: tourText,
+    decisions: session.decisions, correct: session.correct, leaks: session.leaks,
+    place: tour && place ? place : undefined, field: tour && place ? tour.config.fieldSize : undefined,
   })
 
   const sessionRecord = () => {
@@ -668,6 +697,15 @@ function TableGame({
                     Sair
                   </Button>
                 </div>
+                <ShareButton
+                  className="w-full mt-2"
+                  label="Compartilhar resultado"
+                  title={place === 1 ? 'Campeão!' : `${place}º lugar`}
+                  subtitle={`${config.mode.label}, ${tour.config.fieldSize} jogadores`}
+                  text={`Terminei em ${place}º de ${tour.config.fieldSize} no PokerMind Pro`}
+                >
+                  <StatsShareBody {...sessionShareProps(summaryNow())} />
+                </ShareButton>
               </div>
             ) : game.gameOver ? (
               <p className="text-xs text-center text-text-muted">Mesa encerrada.</p>

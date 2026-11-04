@@ -11,6 +11,8 @@ import { isLeak } from '@/engine/coach/types'
 import type { Review } from '@/hooks/useTableEngine'
 import { GRADE_UI, KIND_LABEL } from './CoachToast'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import ShareButton from '@/components/share/ShareButton'
+import { HandReviewShareBody } from '@/components/share/bodies'
 
 const SUITS = ['♠', '♥', '♦', '♣']
 const RED = new Set([1, 2])
@@ -53,9 +55,29 @@ export default function HandReviewSheet({ review, onClose, onSave }: Props) {
               {decisions.length} decisões, {leaks === 0 ? 'nenhum vazamento' : `${leaks} para melhorar`}
             </p>
           </div>
-          <button aria-label="Fechar" onClick={onClose} className="p-1 text-text-muted hover:text-text-primary">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <ShareButton
+              iconOnly
+              title={`Revisão da mão ${game.handNumber}`}
+              subtitle={`${decisions.length} decisões, ${leaks === 0 ? 'nenhum vazamento' : `${leaks} para melhorar`}`}
+              text={`Revisão da mão ${game.handNumber} no PokerMind Pro`}
+            >
+              <HandReviewShareBody
+                hero={hero?.cards ?? undefined}
+                board={game.board}
+                decisions={decisions.map((d) => ({
+                  street: d.street,
+                  gradeLabel: GRADE_UI[d.grade].label,
+                  lossBB: d.evLossBB,
+                  took: KIND_LABEL[d.took],
+                  best: KIND_LABEL[d.best],
+                }))}
+              />
+            </ShareButton>
+            <button aria-label="Fechar" onClick={onClose} className="p-1 text-text-muted hover:text-text-primary">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {decisions.map((d, i) => {

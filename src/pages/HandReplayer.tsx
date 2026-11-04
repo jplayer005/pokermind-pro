@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { handToText } from '@/lib/handText'
+import ShareButton from '@/components/share/ShareButton'
+import { ReplayShareBody } from '@/components/share/bodies'
 import CoachDecisions from '@/components/table/CoachDecisions'
 
 // ============================================================
@@ -725,8 +727,22 @@ export default function HandReplayer() {
                     <Download size={14} /> Copiar texto
                   </Button>
                   <Button variant="ghost" size="sm" className="flex-1 min-h-[44px]" onClick={() => handleShare(selectedHand)}>
-                    <Share2 size={14} /> Compartilhar
+                    <Share2 size={14} /> Compartilhar texto
                   </Button>
+                  <ShareButton
+                    className="flex-1 min-h-[44px]"
+                    label="Compartilhar imagem"
+                    title={selectedHand.title}
+                    subtitle={new Date(selectedHand.date).toLocaleDateString('pt-BR')}
+                    text={`${selectedHand.title} no PokerMind Pro`}
+                  >
+                    <ReplayShareBody
+                      hero={selectedHand.heroCards}
+                      board={selectedHand.board}
+                      resultLine={`Pote ${selectedHand.pot.toFixed(1)} bb  ·  Resultado ${selectedHand.result >= 0 ? '+' : ''}${selectedHand.result.toFixed(1)} bb`}
+                      actions={selectedHand.actions.map((a) => ({ street: a.street, player: a.player, text: `${a.action}${a.amount ? ` ${a.amount} bb` : ''}` }))}
+                    />
+                  </ShareButton>
                 </div>
                 {shareMsg && <p role="status" className="text-center text-[11px] text-accent-emerald">{shareMsg}</p>}
               </div>
