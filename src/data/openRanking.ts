@@ -53,9 +53,9 @@ export function rangeByCoverage(coverage: number): string[] {
  */
 export const OPEN_AVERAGE_TARGET = { min: 0.2, max: 0.25 } as const
 
-/** Cobertura-alvo (fracao das maos) de cada posicao na mesa de 6. Media das 6 posicoes: 22,8%. */
+/** Cobertura-alvo (fracao das maos) de cada posicao na mesa de 6. Media das 6 posicoes: 23,8%. */
 export const OPEN_TARGETS_6MAX: Partial<Record<Position, number>> = {
-  UTG: 0.14, HJ: 0.18, CO: 0.25, BTN: 0.42, SB: 0.38,
+  UTG: 0.14, HJ: 0.2, CO: 0.27, BTN: 0.44, SB: 0.38,
 }
 
 /** Mesa de 9, todas as posicoes que abrem. Media das 9 posicoes: 21,6%. HJ, CO e BTN seguem de perto o coach. */
