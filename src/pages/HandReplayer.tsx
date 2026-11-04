@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { handToText } from '@/lib/handText'
+import { useNavigate } from 'react-router-dom'
 import ShareButton from '@/components/share/ShareButton'
 import { ReplayShareBody } from '@/components/share/bodies'
 import CoachDecisions from '@/components/table/CoachDecisions'
@@ -283,6 +284,7 @@ function ActionTimeline({ actions, currentStep, onStep }: TimelineProps) {
 // ============================================================
 
 function NewHandModal({ onClose, onSave }: { onClose: () => void; onSave: (hand: SavedHand) => void }) {
+  const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [tagInput, setTagInput] = useState('')
@@ -323,7 +325,15 @@ function NewHandModal({ onClose, onSave }: { onClose: () => void; onSave: (hand:
         className="bg-bg-surface border border-border-default rounded-2xl p-5 w-full max-w-md"
         onClick={e => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-text-primary mb-4">Nova Mão</h3>
+        <h3 className="text-lg font-bold text-text-primary mb-2">Nova Mão</h3>
+        <div className="mb-4 rounded-xl border border-accent-gold/35 bg-accent-gold/10 p-3">
+          <p className="text-xs text-text-secondary">
+            Esta opção guarda só título, notas e tags, sobre uma mão de exemplo. Para registrar uma mão real, com as suas cartas, o board e as ações, e jogar de novo com o coach, use Recriar minha mão na tela Jogar.
+          </p>
+          <button type="button" onClick={() => navigate('/play')} className="mt-2 text-xs font-semibold text-accent-gold">
+            Ir para Recriar minha mão
+          </button>
+        </div>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-text-muted mb-1 block">Título</label>

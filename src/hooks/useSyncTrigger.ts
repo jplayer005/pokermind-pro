@@ -3,7 +3,7 @@ import { App as CapApp } from '@capacitor/app'
 import { useAuthStore } from '@/store/authStore'
 import {
   useUserStore, useTrainingStore, useSpacedRepetitionStore, usePostflopReviewStore, useHandsStore,
-  useLeakStore, useNotesStore, usePlayStore,
+  useLeakStore, useNotesStore, useMyHandsStore, usePlayStore,
 } from '@/store'
 import { uploadUserData, SYNC_DOCS, DOC_SIZE_LIMIT, type SyncPayload } from '@/firebase/sync'
 import { getLocalDoc, applyMergedDoc } from '@/firebase/localDocs'
@@ -22,6 +22,7 @@ const DOC_LABEL: Record<string, string> = {
   hands: 'Mãos salvas',
   spacedRepetition: 'Revisão espaçada',
   notes: 'Anotações',
+  myHands: 'Minhas mãos',
   play: 'Sessões da mesa',
 }
 
@@ -48,6 +49,8 @@ export function useSyncTrigger() {
   const leakDecisions = useLeakStore((s) => s.decisions)
   const notes = useNotesStore((s) => s.notes)
   const deletedNotes = useNotesStore((s) => s.deleted)
+  const myHands = useMyHandsStore((s) => s.hands)
+  const deletedMyHands = useMyHandsStore((s) => s.deleted)
   const playSessions = usePlayStore((s) => s.sessions)
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -71,6 +74,7 @@ export function useSyncTrigger() {
       useHandsStore.getState().savedHands.length === 0 &&
       useLeakStore.getState().decisions === 0 &&
       useNotesStore.getState().notes.length === 0 &&
+      useMyHandsStore.getState().hands.length === 0 &&
       usePlayStore.getState().sessions.length === 0
     if (pristine) {
       setSyncStatus('idle')
@@ -139,7 +143,7 @@ export function useSyncTrigger() {
     return () => clearTimeout(timerRef.current)
   }, [
     runSync, profile, training, sm2Data, postflopProfiles, savedHands, deletedHands, leakStats, leakDecisions,
-    notes, deletedNotes, playSessions, user?.uid, guestMode, // eslint-disable-line react-hooks/exhaustive-deps
+    notes, deletedNotes, myHands, deletedMyHands, playSessions, user?.uid, guestMode, // eslint-disable-line react-hooks/exhaustive-deps
   ])
 
   // internet voltou ou o app foi reaberto: se a ultima tentativa falhou, tenta agora, sem esperar

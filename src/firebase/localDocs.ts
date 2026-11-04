@@ -2,7 +2,7 @@
 // aplica de volta o resultado de uma fusao (so o que realmente mudou).
 import {
   useUserStore, useTrainingStore, useSpacedRepetitionStore, usePostflopReviewStore,
-  useHandsStore, useLeakStore, useNotesStore, usePlayStore,
+  useHandsStore, useLeakStore, useNotesStore, useMyHandsStore, usePlayStore,
 } from '@/store'
 import { sameData, stripMeta } from '@/engine/syncMerge'
 
@@ -36,6 +36,10 @@ export function getLocalDoc(name: string): Obj | null {
       const s = useNotesStore.getState()
       return { notes: s.notes, deleted: s.deleted }
     }
+    case 'myHands': {
+      const s = useMyHandsStore.getState()
+      return { hands: s.hands, deleted: s.deleted }
+    }
     case 'play': {
       const s = usePlayStore.getState()
       return { sessions: s.sessions, xpDay: s.xpDay, xpToday: s.xpToday, ...(s.heroHud ? { heroHud: s.heroHud } : {}) }
@@ -59,6 +63,7 @@ export function applyMergedDoc(name: string, merged: Obj): boolean {
     case 'hands': useHandsStore.setState({ savedHands: m.savedHands ?? [], deleted: m.deleted ?? {} }); break
     case 'leaks': useLeakStore.setState({ stats: m.stats ?? {}, decisions: m.decisions ?? 0 }); break
     case 'notes': useNotesStore.setState({ notes: m.notes ?? [], deleted: m.deleted ?? {} }); break
+    case 'myHands': useMyHandsStore.setState({ hands: m.hands ?? [], deleted: m.deleted ?? {} }); break
     case 'play': usePlayStore.setState({ sessions: m.sessions ?? [], xpDay: m.xpDay ?? '', xpToday: m.xpToday ?? 0, heroHud: m.heroHud ?? null }); break
     default: return false
   }

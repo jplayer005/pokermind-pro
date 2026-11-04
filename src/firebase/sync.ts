@@ -11,7 +11,7 @@ type Obj = Record<string, any>
 
 export type SyncPayload = Partial<Record<(typeof SYNC_DOCS)[number], Obj>>
 
-export const SYNC_DOCS = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks', 'notes', 'play'] as const
+export const SYNC_DOCS = ['profile', 'training', 'spacedRepetition', 'postflopReview', 'hands', 'leaks', 'notes', 'myHands', 'play'] as const
 
 /** Limite por documento do Firestore e uma margem de seguranca (1 MiB). */
 export const DOC_SIZE_LIMIT = 800_000

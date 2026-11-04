@@ -154,6 +154,16 @@ export function mergeNotes(local: Obj | null, cloud: Obj | null): Obj {
   return { notes, deleted: tomb }
 }
 
+export function mergeMyHands(local: Obj | null, cloud: Obj | null): Obj {
+  const tomb = mergeTombstones(local?.deleted, cloud?.deleted)
+  const hands = unionById<{ id: string; updatedAt: number }>(
+    local?.hands, cloud?.hands, tomb,
+    (l, c) => (l.updatedAt >= c.updatedAt ? l : c), // a edicao mais recente vence
+    (h) => h.updatedAt,
+  ).sort((x, y) => y.updatedAt - x.updatedAt)
+  return { hands, deleted: tomb }
+}
+
 export function mergePlay(local: Obj | null, cloud: Obj | null): Obj {
   const sessions = unionById<{ id: string; endedAt: number }>(local?.sessions, cloud?.sessions)
     .sort((a, b) => b.endedAt - a.endedAt)
@@ -196,6 +206,7 @@ export const MERGERS: Record<string, (local: Obj, cloud: Obj | null) => Obj> = {
   hands: mergeHands,
   leaks: mergeLeaks,
   notes: mergeNotes,
+  myHands: mergeMyHands,
   play: mergePlay,
 }
 

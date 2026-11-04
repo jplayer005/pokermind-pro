@@ -16,6 +16,7 @@ import { creditForDecisions, type PlaySession } from '@/engine/progress'
 import { mergeTombstones } from '@/engine/syncMerge'
 import type { Grade } from '@/engine/coach/types'
 import type { HudStats } from '@/engine/bots/hud'
+import type { HandRecord } from '@/engine/lab/myHand'
 
 // ------- STORE DE USUÁRIO -------
 interface UserStore {
@@ -895,6 +896,46 @@ export const useNotesStore = create<NotesStore>()(
     }),
     {
       name: 'pokermind-notes',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+)
+
+// ------- STORE DAS MAOS RECRIADAS ("Recriar minha mao") -------
+interface MyHandsStore {
+  hands: HandRecord[]
+  /** Lapides das maos apagadas (id -> quando), para a exclusao valer em todos os aparelhos. */
+  deleted: Record<string, number>
+  /** Grava (novo ou editado, pelo id) e devolve o id. */
+  saveHand: (rec: HandRecord) => string
+  deleteHand: (id: string) => void
+  reset: () => void
+}
+
+export const MAX_MY_HANDS = 100
+
+export const useMyHandsStore = create<MyHandsStore>()(
+  persist(
+    (set) => ({
+      hands: [],
+      deleted: {},
+      saveHand: (rec) => {
+        const next = { ...rec, updatedAt: Date.now() }
+        set((state) => ({
+          hands: [next, ...state.hands.filter((h) => h.id !== rec.id)].slice(0, MAX_MY_HANDS),
+        }))
+        return rec.id
+      },
+      deleteHand: (id) =>
+        set((state) => ({
+          hands: state.hands.filter((h) => h.id !== id),
+          deleted: mergeTombstones(state.deleted, { [id]: Date.now() }),
+        })),
+      reset: () => set({ hands: [], deleted: {} }),
+    }),
+    {
+      name: 'pokermind-myhands',
       version: 1,
       storage: createJSONStorage(() => localStorage),
     }

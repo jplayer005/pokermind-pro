@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  mergeHands, mergeTraining, mergeSm2, mergeLeaks, mergeNotes, mergePlay, mergeProfile, mergeTombstones,
+  mergeHands, mergeTraining, mergeSm2, mergeLeaks, mergeNotes, mergeMyHands, mergePlay, mergeProfile, mergeTombstones, MERGERS,
   capPlayedHands, sameData, MAX_PLAYED_HANDS, MAX_TOMBSTONES,
 } from '../syncMerge'
 
@@ -152,5 +152,29 @@ describe('perfil e utilidades', () => {
     const once = mergeHands(a, b)
     expect(sameData(mergeHands(once, b), once)).toBe(true)
     expect(sameData(mergeHands(once, once), once)).toBe(true)
+  })
+})
+
+describe('maos recriadas (myHands)', () => {
+  const h = (id: string, updatedAt: number) => ({ id, updatedAt, title: id })
+
+  it('uniao por id, a edicao mais recente vence e a mais nova fica primeiro', () => {
+    const m = mergeMyHands(
+      { hands: [h('a', 10), h('b', 5)], deleted: {} },
+      { hands: [h('a', 20), h('c', 30)], deleted: {} },
+    )
+    expect(m.hands.map((x: any) => `${x.id}:${x.updatedAt}`)).toEqual(['c:30', 'a:20', 'b:5'])
+  })
+
+  it('apagar vale nos dois aparelhos, mas uma edicao posterior a lapide ressuscita a mao', () => {
+    const m = mergeMyHands({ hands: [], deleted: { a: 100 } }, { hands: [h('a', 50), h('b', 60)], deleted: {} })
+    expect(m.hands.map((x: any) => x.id)).toEqual(['b'])
+    expect(mergeMyHands({ hands: [], deleted: { a: 100 } }, { hands: [h('a', 150)], deleted: {} }).hands.map((x: any) => x.id)).toEqual(['a'])
+  })
+
+  it('esta registrada como documento de sincronizacao', async () => {
+    const { SYNC_DOCS } = await import('@/firebase/sync')
+    expect(SYNC_DOCS).toContain('myHands')
+    expect(Object.keys(MERGERS)).toContain('myHands')
   })
 })

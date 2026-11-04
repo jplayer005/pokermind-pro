@@ -33,6 +33,33 @@ export interface ScenarioDeal {
   board: number[]
 }
 
+/** Passo de uma mao recriada: o assento age (os demais assentos largam sozinhos). */
+export interface SeatStep {
+  seat: number
+  type: 'fold' | 'check' | 'call' | 'raise'
+  /** raise: total da rua, em bb. */
+  bb?: number
+  allIn?: boolean
+}
+
+/**
+ * Montagem livre de uma mao registrada pelo jogador (ver engine/lab/myHand): 2 a 9 assentos, botao,
+ * ante, cartas e board fixos e acoes ate a decisao. Quando existe, substitui deal/script/stacks.
+ */
+export interface CustomSetup {
+  players: PlayerInit[]
+  button: number
+  /** Ante por jogador, em fichas. */
+  ante: number
+  hero: [number, number]
+  /** Cartas do vilao; ausentes = sorteadas do range coerente com as acoes dele. */
+  villainCards?: [number, number]
+  villainSeat: number
+  /** Board fixo (0, 3, 4 ou 5 cartas): sai por ruas conforme a mao avanca. */
+  board: number[]
+  steps: SeatStep[]
+}
+
 export interface Scenario {
   id: string
   title: string
@@ -48,6 +75,8 @@ export interface Scenario {
   decisionStreet: Street
   deal: (rng: Rng) => ScenarioDeal
   script: Step[]
+  /** Mao recriada pelo jogador (substitui deal e script). */
+  custom?: CustomSetup
 }
 
 // ---------- sorteio de cartas ----------
@@ -222,7 +251,7 @@ export const scenarioById = (id: string): Scenario | undefined => SCENARIOS.find
 
 // ---------- montagem da mao ----------
 
-function toAction(state: GameState, step: Step): Action {
+function toAction(state: GameState, step: Pick<Step, 'type' | 'bb' | 'pot' | 'allIn'>): Action {
   if (step.type !== 'raise') return { type: step.type }
   const la = legalActions(state)
   if (step.allIn) return { type: 'raise', to: la.maxTo }
@@ -234,6 +263,7 @@ function toAction(state: GameState, step: Step): Action {
 
 /** Jogadores do cenario: heroi (assento 0), vilao (1) e, se houver, o stack curto (2). */
 export function scenarioPlayers(sc: Scenario): PlayerInit[] {
+  if (sc.custom) return sc.custom.players
   return [
     { name: 'Você', isHero: true, profile: 'tag', stack: sc.stacks.hero * BB },
     { name: 'Rafa', profile: sc.villainProfile, stack: sc.stacks.villain * BB },
@@ -243,11 +273,73 @@ export function scenarioPlayers(sc: Scenario): PlayerInit[] {
 
 export const SCENARIO_CFG: GameConfig = { sb: 1, bb: BB, ante: 0 }
 
+/** Blinds e ante da mesa do cenario. */
+export const scenarioConfig = (sc: Scenario): GameConfig => (sc.custom ? { ...SCENARIO_CFG, ante: sc.custom.ante } : SCENARIO_CFG)
+
+/** Quantos assentos o cenario usa. */
+export const scenarioSeats = (sc: Scenario): number => (sc.custom ? sc.custom.players.length : sc.stacks.short ? 3 : 2)
+
+/** Sorteia a mao do vilao do range que as acoes dele sugerem (sem as cartas dos outros assentos). */
+function sampleVillain(g: GameState, villainSeat: number, rng: Rng): GameState {
+  const range = buildVillainRange(g)
+  if (!range) return g
+  const taken = new Set(g.seats.filter((s) => s.id !== villainSeat).flatMap((s) => s.cards ?? []))
+  const pool = range.combos.filter((c) => !taken.has(c[0]) && !taken.has(c[1]))
+  if (pool.length === 0) return g
+  const chosen = pool[Math.floor(rng() * pool.length)]
+  const old = g.seats[villainSeat].cards ?? []
+  return {
+    ...g,
+    seats: g.seats.map((s) => (s.id === villainSeat ? { ...s, cards: [chosen[0], chosen[1]] } : s)),
+    // as cartas antigas voltam ao baralho; as novas saem dele
+    deck: [...old, ...g.deck].filter((c) => c !== chosen[0] && c !== chosen[1]),
+  }
+}
+
+export interface CustomBuild {
+  game: GameState
+  /** Rua em que cada passo foi dado, para mostrar na tela de registro. */
+  stepStreets: Street[]
+}
+
+/** Quem nao e o heroi nem o vilao larga (ou passa, quando pode) quando chega a vez dele. */
+function foldOthers(g: GameState, heroSeat: number, villainSeat: number): GameState {
+  let guard = 0
+  while (!g.over && g.toAct >= 0 && g.toAct !== heroSeat && g.toAct !== villainSeat && ++guard < 20) {
+    g = applyAction(g, legalActions(g).canCheck ? { type: 'check' } : { type: 'fold' })
+  }
+  return g
+}
+
+/** Monta a mao registrada ate a decisao do heroi. Lanca Error com a causa em portugues quando nao fecha. */
+export function buildCustomHand(c: CustomSetup, rng: Rng, handNumber = 1): CustomBuild {
+  const HERO_SEAT = 0
+  const holes: Record<number, [number, number]> = { [HERO_SEAT]: c.hero }
+  if (c.villainCards) holes[c.villainSeat] = c.villainCards
+  let g = startHand(createGame(c.players, { ...SCENARIO_CFG, ante: c.ante }, c.button), rng, { holes, board: c.board })
+  const stepStreets: Street[] = []
+  c.steps.forEach((step, i) => {
+    g = foldOthers(g, HERO_SEAT, c.villainSeat)
+    if (g.over || g.toAct !== step.seat) {
+      const who = step.seat === HERO_SEAT ? 'Você' : 'O vilão'
+      throw new Error(`A ação ${i + 1} (${who}) não é a vez dele: confira a ordem das ações.`)
+    }
+    stepStreets.push(g.street)
+    g = applyAction(g, toAction(g, step))
+  })
+  g = foldOthers(g, HERO_SEAT, c.villainSeat)
+  if (g.over || g.toAct !== HERO_SEAT) throw new Error('As ações registradas precisam terminar na sua vez de decidir.')
+  if (g.board.length > c.board.length) throw new Error('Faltam cartas do board para chegar a essa rua.')
+  if (!c.villainCards) g = sampleVillain(g, c.villainSeat, rng)
+  return { game: { ...g, handNumber }, stepStreets }
+}
+
 /**
  * Monta uma mao do cenario ate a decisao do heroi: cartas do tema, acoes do roteiro e a mao do
  * vilao sorteada do range coerente com elas. `handNumber` identifica a repeticao.
  */
 export function buildScenarioHand(sc: Scenario, rng: Rng, handNumber = 1): GameState {
+  if (sc.custom) return buildCustomHand(sc.custom, rng, handNumber).game
   const { hero, board } = sc.deal(rng)
   let g = startHand(createGame(scenarioPlayers(sc), SCENARIO_CFG, 0), rng, { holes: { [HERO]: hero }, board })
 
@@ -262,20 +354,6 @@ export function buildScenarioHand(sc: Scenario, rng: Rng, handNumber = 1): GameS
   }
 
   // mao do vilao: sorteada do range que as acoes dele sugerem (sem as cartas do heroi, do board e do stack curto)
-  const range = buildVillainRange(g)
-  if (range) {
-    const taken = new Set(g.seats.filter((s) => s.id !== VILLAIN).flatMap((s) => s.cards ?? []))
-    const pool = range.combos.filter((c) => !taken.has(c[0]) && !taken.has(c[1]))
-    if (pool.length > 0) {
-      const chosen = pool[Math.floor(rng() * pool.length)]
-      const old = g.seats[VILLAIN].cards ?? []
-      g = {
-        ...g,
-        seats: g.seats.map((s) => (s.id === VILLAIN ? { ...s, cards: [chosen[0], chosen[1]] } : s)),
-        // as cartas antigas voltam ao baralho; as novas saem dele
-        deck: [...old, ...g.deck].filter((c) => c !== chosen[0] && c !== chosen[1]),
-      }
-    }
-  }
+  g = sampleVillain(g, VILLAIN, rng)
   return { ...g, handNumber }
 }

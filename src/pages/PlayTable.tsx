@@ -33,7 +33,8 @@ import { StatsShareBody } from '@/components/share/bodies'
 import type { QuizFreq } from '@/engine/coach/readQuiz'
 import type { OpenQuizFreq } from '@/engine/coach/openQuiz'
 import OpenRangeSheet from '@/components/table/OpenRangeSheet'
-import { SCENARIO_CFG, scenarioPlayers, type Scenario } from '@/engine/lab/scenarios'
+import { scenarioConfig, scenarioPlayers, scenarioSeats, type Scenario } from '@/engine/lab/scenarios'
+import MyHandsSection from '@/components/lab/MyHandsSection'
 import {
   mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
 } from '@/engine/game/tournament'
@@ -185,6 +186,23 @@ export default function PlayTable() {
 
   const selected = MODES.find((m) => m.id === modeId) as ModeDef
 
+  /** Cenario do laboratorio ou mao recriada: a mesa abre na decisao, com o coach em modo quiz. */
+  const startScenario = (sc: Scenario) =>
+    setConfig({
+      mode: { id: `lab-${sc.id}`, label: sc.title, sub: sc.summary, seats: scenarioSeats(sc) },
+      buyInBB: 100,
+      speed: 'normal',
+      autoNext: false,
+      showProfiles: true,
+      // o laboratorio existe para a leitura do vilao: pausa sempre, em toda aposta grande
+      coach: 'quiz',
+      quizFreq: 'all',
+      openQuizFreq: 'off',
+      showHud: false,
+      timebank: 0,
+      scenario: sc,
+    })
+
   if (config) {
     return (
       <TableGame
@@ -236,24 +254,8 @@ export default function PlayTable() {
         </Card>
       )}
 
-      <ScenarioPicker
-        onPick={(sc) =>
-          setConfig({
-            mode: { id: `lab-${sc.id}`, label: sc.title, sub: sc.summary, seats: sc.stacks.short ? 3 : 2 },
-            buyInBB: 100,
-            speed: 'normal',
-            autoNext: false,
-            showProfiles: true,
-            // o laboratorio existe para a leitura do vilao: pausa sempre, em toda aposta grande
-            coach: 'quiz',
-            quizFreq: 'all',
-            openQuizFreq: 'off',
-            showHud: false,
-            timebank: 0,
-            scenario: sc,
-          })
-        }
-      />
+      <ScenarioPicker onPick={startScenario} />
+      <MyHandsSection onPlay={startScenario} />
 
       <Card className="p-4 space-y-4">
         <div className="space-y-2">
@@ -417,7 +419,7 @@ function TableGame({
       modeLabel: config.mode.label,
     }
     if (config.scenario) {
-      return { ...base, players: scenarioPlayers(config.scenario), cfg: SCENARIO_CFG, buyIn: 0, scenario: config.scenario }
+      return { ...base, players: scenarioPlayers(config.scenario), cfg: scenarioConfig(config.scenario), buyIn: 0, scenario: config.scenario }
     }
     if (config.mode.tournament) {
       // cada bot do torneio tem estilo e tracos proprios (agressividade e frouxidao individuais)
