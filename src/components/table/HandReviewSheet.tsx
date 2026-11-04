@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui'
 import { RANK_CHARS } from '@/engine/cards'
 import { isLeak } from '@/engine/coach/types'
+import { EQUITY_DROP, rangeLine } from '@/engine/coach/rangeLine'
 import type { Review } from '@/hooks/useTableEngine'
 import { GRADE_UI, KIND_LABEL } from './CoachToast'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
@@ -32,6 +33,7 @@ export default function HandReviewSheet({ review, onClose, onSave }: Props) {
   const { game, decisions } = review
   const leaks = decisions.filter((d) => isLeak(d.grade)).length
   const hero = game.seats.find((s) => s.isHero)
+  const line = rangeLine(decisions)
 
   useEscapeKey(onClose)
   // Portal: um ancestral animado (transform) faria o `fixed` prender na coluna de conteudo.
@@ -79,6 +81,37 @@ export default function HandReviewSheet({ review, onClose, onSave }: Props) {
             </button>
           </div>
         </div>
+
+        {line.length > 0 && (
+          <div className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
+            <p className="text-[11px] text-text-muted">Linha do range do vilão, rua a rua</p>
+            <table className="mt-1 w-full text-xs font-mono">
+              <thead>
+                <tr className="text-text-muted">
+                  <th className="px-1 text-left font-normal">Rua</th>
+                  <th className="px-1 text-right font-normal">Range dele</th>
+                  <th className="px-1 text-right font-normal">Sua equity</th>
+                  <th className="px-1 text-right font-normal">Pote</th>
+                </tr>
+              </thead>
+              <tbody>
+                {line.map((r, i) => (
+                  <tr key={i} className={r.drop ? 'text-accent-gold' : 'text-text-primary'}>
+                    <td className="px-1 capitalize">{r.street}</td>
+                    <td className="px-1 text-right">{r.rangePct}%</td>
+                    <td className="px-1 text-right">{r.equityPct}%</td>
+                    <td className="px-1 text-right">{(r.pot / game.cfg.bb).toFixed(1)} bb</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[10px] text-text-muted">
+              {line.some((r) => r.drop)
+                ? `Em dourado: a rua em que a sua equity caiu ${EQUITY_DROP} pontos ou mais. É ali que a mão passou a perder para o range dele.`
+                : 'O range é o que o vilão pode ter pelas ações dele; a equity é uma estimativa, não solver.'}
+            </p>
+          </div>
+        )}
 
         {decisions.map((d, i) => {
           const ui = GRADE_UI[d.grade]

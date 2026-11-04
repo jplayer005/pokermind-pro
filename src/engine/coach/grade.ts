@@ -309,6 +309,9 @@ function gradePostflop(
   const bbs = (c: number) => `${round1(c / bb)} bb`
 
   const deadN = base.hole.length + state.board.length
+  const rangePct = vr
+    ? Math.min(100, Math.max(1, Math.round((vr.combos.length / (((52 - deadN) * (51 - deadN)) / 2)) * 100)))
+    : Math.round(width * 100)
   const ctx = [
     vr
       ? `Equity estimada: ${pct(eq)} contra o range suposto do vilão${foes > 1 ? ` (${foes} oponentes)` : ''}. ${describeRange(vr, deadN)} Estimativa, não solver.`
@@ -395,6 +398,7 @@ function gradePostflop(
     evLossBB: took === best ? 0 : round1(lossBB),
     approx: true,
     equity: eq,
+    rangePct,
     needed: facing ? needed : undefined,
     ctx: `POST_${S}_${facing ? 'FACING' : 'OPEN'}`,
     tag,
