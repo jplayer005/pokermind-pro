@@ -76,7 +76,7 @@ function raiseTo(la: LegalActions, target: number, stack: number, bet: number): 
 
 const checkOrFold = (la: LegalActions): Action => (la.canCheck ? { type: 'check' } : { type: 'fold' })
 
-function formatFor(n: number): TableFormat {
+export function formatFor(n: number): TableFormat {
   return n <= 2 ? 'HU' : n <= 6 ? '6max' : '9max'
 }
 

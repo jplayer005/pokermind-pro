@@ -2,6 +2,8 @@
 // ENGINE: HUD dos bots (VPIP, PFR, 3-bet, AF, WTSD) acumulado por jogador (nome)
 // ============================================================
 import type { GameState } from '../game/types'
+import { positionsBySeat } from '../game/reducer'
+import { formatFor } from './policy'
 
 export interface HudStats {
   hands: number
@@ -15,6 +17,11 @@ export interface HudStats {
   /** Vezes que enfrentou uma aposta pos-flop e quantas dessas largou (fold para aposta). */
   facedBet: number
   foldToBet: number
+  /**
+   * Aberturas por posicao, chave `formato|posicao` (ex.: "6max|BTN"): quantas vezes a vez de abrir o pote
+   * chegou (ninguem tinha aumentado) e quantas vezes o jogador aumentou. O BB nao conta (nao abre).
+   */
+  open?: Record<string, { opps: number; opens: number }>
 }
 
 export const emptyHud = (): HudStats => ({
@@ -60,6 +67,28 @@ export function updateHud(prev: Record<string, HudStats>, game: GameState): Reco
       }
     }
   }
+  // oportunidades de abrir o pote por posicao: a primeira acao pre-flop do jogador, com o pote sem aumento
+  const nPlayers = game.seats.filter((x) => !x.out).length
+  if (nPlayers > 2) {
+    const fmt = formatFor(nPlayers)
+    const posOf = positionsBySeat(game)
+    const acted = new Set<number>()
+    let raisesSoFar = 0
+    for (const e of game.history) {
+      if (e.street !== 'preflop' || (e.type !== 'fold' && e.type !== 'check' && e.type !== 'call' && e.type !== 'raise')) continue
+      const first = !acted.has(e.seat)
+      acted.add(e.seat)
+      const pos = posOf[e.seat]
+      const st = next[nameOf(e.seat)]
+      if (first && raisesSoFar === 0 && st && pos && pos !== 'BB') {
+        const key = `${fmt}|${pos}`
+        const cell = st.open?.[key] ?? { opps: 0, opens: 0 }
+        st.open = { ...st.open, [key]: { opps: cell.opps + 1, opens: cell.opens + (e.type === 'raise' ? 1 : 0) } }
+      }
+      if (e.type === 'raise') raisesSoFar++
+    }
+  }
+
   vpip.forEach((n) => next[n] && next[n].vpip++)
   pfr.forEach((n) => next[n] && next[n].pfr++)
   tb.forEach((n) => next[n] && next[n].threeBet++)

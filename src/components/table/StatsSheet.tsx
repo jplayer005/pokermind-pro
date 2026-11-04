@@ -7,6 +7,7 @@ import { BarChart3, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PFR_TARGET, statRows, type HudStats } from '@/engine/bots/hud'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import { MIN_OPEN_OPPS, heroOpenTables } from '@/engine/ranges/coverage'
 
 interface Props {
   hud: Record<string, HudStats>
@@ -20,6 +21,7 @@ export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
   useEscapeKey(onClose)
   const rows = statRows(hud, heroName)
   const hero = rows.find((r) => r.isHero)
+  const openTables = heroName && hud[heroName] ? heroOpenTables(hud[heroName].open) : []
 
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label="Estatísticas dos jogadores" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
@@ -50,6 +52,42 @@ export default function StatsSheet({ hud, heroName, styleOf, onClose }: Props) {
             </p>
           </div>
         )}
+
+        {openTables.map((t) => (
+          <div key={t.format} className="rounded-xl border border-border-default bg-bg-base px-3 py-2">
+            <p className="text-[11px] text-text-muted">Suas aberturas por posição, mesa de {t.format === '6max' ? '6' : '9'}</p>
+            <table className="mt-1 w-full text-xs font-mono">
+              <thead>
+                <tr className="text-text-muted">
+                  <th className="px-1 text-left font-normal">Pos</th>
+                  <th className="px-1 text-right font-normal">Vezes</th>
+                  <th className="px-1 text-right font-normal">Você</th>
+                  <th className="px-1 text-right font-normal">Alvo</th>
+                  <th className="px-1 text-right font-normal">Dif</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.rows.map((r) => (
+                  <tr key={r.position}>
+                    <td className="px-1 text-text-primary">{r.position}</td>
+                    <td className="px-1 text-right text-text-muted">{r.opps}</td>
+                    <td className="px-1 text-right text-text-primary">{r.opened === null ? '-' : `${r.opened}%`}</td>
+                    <td className="px-1 text-right text-text-secondary">{r.target}%</td>
+                    <td className={cn('px-1 text-right', r.diff !== null && Math.abs(r.diff) > 5 ? 'text-accent-gold' : 'text-text-muted')}>
+                      {r.diff === null ? '-' : `${r.diff > 0 ? '+' : ''}${r.diff}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1.5 text-[11px] text-text-secondary">
+              {t.mean === null
+                ? `Faltam mãos: com ${MIN_OPEN_OPPS} oportunidades em cada posição eu calculo a média das suas aberturas (o BB conta zero).`
+                : `Média das suas aberturas: ${t.mean.toFixed(1)}% (BB = 0). Alvo do app: ${t.targetMean.toFixed(1)}%, dentro de ${PFR_TARGET.min}% a ${PFR_TARGET.max}%.`}
+              {' '}Dif positiva: você abriu mais que a tabela. Em dourado, mais de 5 pontos de diferença.
+            </p>
+          </div>
+        ))}
 
         {rows.length === 0 ? (
           <p className="text-xs text-text-muted">Ainda não há mãos jogadas. As estatísticas aparecem depois da primeira mão.</p>
