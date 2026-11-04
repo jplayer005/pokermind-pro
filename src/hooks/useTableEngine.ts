@@ -9,6 +9,7 @@ import { updateHeroHud, updateHud, type HudStats } from '@/engine/bots/hud'
 import { gradeDecision } from '@/engine/coach/grade'
 import { isLeak, type GradedDecision } from '@/engine/coach/types'
 import { buildQuiz, isQuizSpot, scoreQuiz, type Band, type QuizFreq, type QuizResult, type ReadQuiz } from '@/engine/coach/readQuiz'
+import { buildVillainRange } from '@/engine/coach/range'
 import { buildOpenQuiz, scoreOpenQuiz, shouldAskOpenQuiz, type OpenQuiz, type OpenQuizFreq, type OpenQuizResult } from '@/engine/coach/openQuiz'
 import { buildScenarioHand, type Scenario } from '@/engine/lab/scenarios'
 import { toSavedHand } from '@/engine/game/replay'
@@ -103,6 +104,9 @@ function payoutsFor(o: TableOptions, t: TournamentState | null): number[] | unde
   return o.scenario?.payouts ?? icmPayoutsOf(t)
 }
 
+/** Range que um bot atribui ao heroi, a partir do ponto de vista de quem esta na vez. */
+const heroRangeOf = (g: GameState, heroSeat: number) => buildVillainRange(g, heroSeat)?.combos ?? null
+
 export function useTableEngine(opts: TableOptions) {
   const [game, setGame] = useState<GameState>(() => createGame(opts.players, opts.cfg, 0))
   const [archive, setArchive] = useState<GameState[]>([])
@@ -185,7 +189,12 @@ export function useTableEngine(opts: TableOptions) {
       const heroName = g.seats.find((x) => x.isHero)?.name
       // chip leader e stack curto sao medidos contra o torneio inteiro (a mesa so, no cash)
       const avgAll = t ? t.totalChips / Math.max(1, t.remaining) : avg
-      const adapt = { hero: heroName ? hudRef.current[heroName] : undefined, avgStackBB: g.cfg.bb > 0 ? avgAll / g.cfg.bb : undefined }
+      const adapt = {
+        hero: heroName ? hudRef.current[heroName] : undefined,
+        avgStackBB: g.cfg.bb > 0 ? avgAll / g.cfg.bb : undefined,
+        // bots que se adaptam leem o range do heroi pelas acoes dele (o mesmo calculo do coach)
+        heroRangeOf: heroRangeOf,
+      }
       setGame(applyAction(g, decideBot(g, Math.random, pressure, EQUITY_ITERS, adapt)))
     }, lo + Math.random() * (hi - lo))
     return () => clearTimeout(t)

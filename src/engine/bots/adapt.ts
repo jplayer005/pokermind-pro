@@ -7,6 +7,8 @@
 // ============================================================
 import type { BotProfile } from './profiles'
 import type { HudStats } from './hud'
+import type { GameState } from '../game/types'
+import type { Combo } from '../equity'
 
 /** Maos do heroi que o bot precisa ter visto antes de ajustar: o profissional percebe mais cedo. */
 export const MIN_HANDS_PRO = 15
@@ -15,6 +17,11 @@ export const MIN_HANDS_REGULAR = 25
 const MIN_FACED = 10
 
 export interface AdaptContext {
+  /**
+   * Range que o bot atribui ao heroi pelas acoes dele (combos), ou null se nao da para montar.
+   * Injetado pela mesa ao vivo (o mesmo calculo do coach); mesas simuladas ao fundo nao o passam.
+   */
+  heroRangeOf?: (state: GameState, heroSeat: number) => Combo[] | null
   /** Estatisticas acumuladas do heroi (o que o bot viu dele). */
   hero?: HudStats
   /** Stack medio do torneio em bb, para saber quem e chip leader. */

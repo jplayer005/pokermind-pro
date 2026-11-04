@@ -102,9 +102,10 @@ function pickVillain(state: GameState, hero: number): number | null {
   return live.reduce((best, s) => (s.total > best.total ? s : best), live[0]).id
 }
 
-export function buildVillainRange(state: GameState): VillainRange | null {
+/** `target`: assento a ser lido; ausente = o vilao principal (agressor mais recente) do ponto de vista de quem esta na vez. */
+export function buildVillainRange(state: GameState, target?: number): VillainRange | null {
   const hero = state.toAct
-  const vid = pickVillain(state, hero)
+  const vid = target ?? pickVillain(state, hero)
   if (vid === null) return null
   const bb = state.cfg.bb
   const dead = new Set<number>([...(state.seats[hero].cards as number[]), ...state.board])

@@ -92,10 +92,31 @@ export function decideBot(
   const heroActive = state.seats.some((s) => s.isHero && !s.out && !s.folded && s.id !== seat.id)
   const profile = adaptProfile(profileOf(seat.profile), adapt, { stackBB: (seat.stack + seat.bet) / state.cfg.bb }, heroActive)
   if (!seat.cards) return checkOrFold(la)
-  return state.street === 'preflop'
-    ? decidePreflop(state, la, profile, rng, icm)
-    : decidePostflop(state, la, profile, rng, icm, equityIters)
+  if (state.street === 'preflop') return decidePreflop(state, la, profile, rng, icm)
+  return decidePostflop(state, la, profile, rng, icm, equityIters, heroRangeFor(state, seat.id, heroActive, adapt))
 }
+
+/** Menos combos que isso e um range degenerado: o bot volta a jogar contra maos aleatorias. */
+const MIN_READ_COMBOS = 6
+
+/** So bots que se adaptam leem o range do heroi, e so com ele na mao e a mesa ao vivo fornecendo a leitura. */
+function heroRangeFor(state: GameState, botId: number, heroActive: boolean, adapt: AdaptContext): Combo[] | null {
+  if (!heroActive || !adapt.heroRangeOf) return null
+  if (profileOf(state.seats[botId].profile).adapt < 1) return null
+  const hero = state.seats.find((s) => s.isHero && !s.out && !s.folded && s.id !== botId)
+  if (!hero) return null
+  const combos = adapt.heroRangeOf(state, hero.id)
+  return combos && combos.length >= MIN_READ_COMBOS ? combos : null
+}
+
+/**
+ * Equity contra o range do heroi sai bem menor que contra maos aleatorias (medido: cerca de -0,21 diante de
+ * aposta e -0,08 sem aposta). Estes ajustes devolvem os limiares de decisao ao que eram em media; o que muda
+ * e a DIFERENCA entre um heroi forte (range estreito, o bot larga mais) e um heroi fraco (o bot paga mais).
+ * O desconto por aposta (que estimava a forca da aposta) sai: o proprio range ja carrega isso.
+ */
+const RANGE_BONUS_FACING = 0.03
+const RANGE_BONUS_OPEN = 0.08
 
 /** Amostras de equity do bot no pos-flop. Mesas simuladas ao fundo usam menos (ver engine/game/field). */
 export const EQUITY_ITERS = 220
@@ -242,19 +263,23 @@ export function combosUpToPercentile(maxPct: number, dead: readonly number[]): C
   return out
 }
 
-function decidePostflop(state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number, equityIters: number): Action {
+function decidePostflop(
+  state: GameState, la: LegalActions, p: BotProfile, rng: Rng, icm: number, equityIters: number, heroRange: Combo[] | null = null,
+): Action {
   const seat = state.seats[state.toAct]
   const cards = seat.cards as [number, number]
   const pot = potTotal(state)
   const foes = Math.max(1, state.seats.filter((x) => !x.out && !x.folded).length - 1)
 
-  const raw = equityVsCombos(cards, ALL_COMBOS, state.board, equityIters, rng).equity
+  const raw = equityVsCombos(cards, heroRange ?? ALL_COMBOS, state.board, equityIters, rng).equity
   // contra varios oponentes a equity individual encolhe
   const multi = Math.pow(raw, 1 + 0.7 * (foes - 1))
   const facing = la.canCall
   const toCall = la.callAmount
   const discount = facing ? 0.1 + 0.1 * Math.min(1, toCall / Math.max(pot, 1)) + 0.1 * Math.max(0, icm) : 0
-  const adj = multi - discount
+  const adj = heroRange
+    ? multi + (facing ? RANGE_BONUS_FACING - 0.1 * Math.max(0, icm) : RANGE_BONUS_OPEN)
+    : multi - discount
   const A = p.aggression
   const streetFactor = state.street === 'flop' ? 1 : state.street === 'turn' ? 0.7 : 0.5
 
