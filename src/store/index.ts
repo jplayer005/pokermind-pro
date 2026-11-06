@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — STORE GLOBAL (ZUSTAND)
+// POKERMIND PRO, STORE GLOBAL (ZUSTAND)
 // Gerenciamento centralizado de estado da aplicação
 // ============================================================
 
@@ -213,7 +213,7 @@ export const useUserStore = create<UserStore>()(
             const max = ach.maxProgress || 1
 
             switch (ach.id) {
-              // ---- ORIGINAIS (a001-a006) — lógica preservada ----
+              // ---- ORIGINAIS (a001-a006), lógica preservada ----
               case 'a001': newProgress = Math.min(stats.totalSessions >= 1 ? 1 : 0, max); break
               case 'a002': newProgress = Math.min(stats.currentStreak, max); break
               case 'a003': newProgress = Math.min(maxConsec, max); break
@@ -279,9 +279,9 @@ export const useUserStore = create<UserStore>()(
               case 'a047': newProgress = (bestCompScore >= 700 || compScores.some(s => s.score >= 700)) ? 1 : 0; break
 
               // ---- CONTEÚDO (depende de rastreamento externo via updateStats) ----
-              // ==== XP_HOOK: a048 — chamar syncAchievements após updateStats({ modulesCompleted: +1 }) em Study.tsx ====
+              // ==== XP_HOOK: a048, chamar syncAchievements após updateStats({ modulesCompleted: +1 }) em Study.tsx ====
               case 'a048': newProgress = (stats.modulesCompleted || 0) >= 1 ? 1 : 0; break
-              // ==== XP_HOOK: a049/a050 — chamar syncAchievements após updateStats({ flashcardsReviewed: +n }) em Study.tsx ====
+              // ==== XP_HOOK: a049/a050, chamar syncAchievements após updateStats({ flashcardsReviewed: +n }) em Study.tsx ====
               case 'a049': newProgress = Math.min(stats.flashcardsReviewed || 0, max); break
               case 'a050': newProgress = Math.min(stats.flashcardsReviewed || 0, max); break
 
@@ -679,7 +679,7 @@ export const useSpacedRepetitionStore = create<SpacedRepetitionStore>()(
 // ------- STORE DE REVIEW QUEUE PÓS-FLOP -------
 // Rastreia o desempenho do usuário por categoria de spot (categoria de mão +
 // posição + potType + street + textura). Usado para enviesar a geração de
-// novos spots no PostflopTrainer — quem erra um spot vê spots similares
+// novos spots no PostflopTrainer, quem erra um spot vê spots similares
 // com mais frequência nas próximas mãos (sem usar SR/SM-2 tradicional).
 export interface PostflopSpotProfile {
   key: string                 // hash: `${category}_${position}_${potType}_${street}_${textureClass}`

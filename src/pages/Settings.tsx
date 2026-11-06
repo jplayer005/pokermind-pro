@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — CONFIGURAÇÕES
+// POKERMIND PRO, CONFIGURAÇÕES
 // ============================================================
 
 import { useState } from 'react'
@@ -48,11 +48,13 @@ function SettingRow({
   children?: React.ReactNode
   onClick?: () => void
 }) {
+  // sem acao propria a linha e um div: assim um botao dentro dela (ex.: Upgrade) nao fica botao dentro de botao
+  const Row = (onClick ? 'button' : 'div') as 'button'
   return (
-    <button
+    <Row
       onClick={onClick}
       className={cn(
-        'w-full flex items-center gap-3 p-3.5 rounded-xl transition-colors',
+        'w-full min-h-14 flex items-center gap-3 p-3.5 transition-colors',
         onClick ? 'hover:bg-white/5 active:bg-white/10 cursor-pointer' : 'cursor-default'
       )}
     >
@@ -61,10 +63,10 @@ function SettingRow({
       </div>
       <div className="flex-1 text-left min-w-0">
         <div className="text-sm font-medium text-text-primary">{label}</div>
-        {sublabel && <div className="text-xs text-text-muted truncate">{sublabel}</div>}
+        {sublabel && <div className="text-xs leading-snug text-text-muted">{sublabel}</div>}
       </div>
       {children ?? (onClick && <ChevronRight size={14} className="text-text-muted shrink-0" />)}
-    </button>
+    </Row>
   )
 }
 
@@ -80,7 +82,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 }
 
 // ============================================================
-// MODAL DE CONFIRMAÇÃO — sem AnimatePresence, CSS simples
+// MODAL DE CONFIRMAÇÃO, sem AnimatePresence, CSS simples
 // ============================================================
 
 function ConfirmModal({
@@ -146,7 +148,7 @@ function ConfirmModal({
 }
 
 // ============================================================
-// PAINEL: EDITAR NOME — sem AnimatePresence
+// PAINEL: EDITAR NOME, sem AnimatePresence
 // ============================================================
 
 function EditNamePanel({ name, onSave, onClose }: {
@@ -297,7 +299,7 @@ export default function Settings() {
               <SettingRow
                 icon={<Cloud size={15} />}
                 label="Conta Google"
-                sublabel={user.email ?? 'Conta conectada — dados sincronizados'}
+                sublabel={user.email ?? 'Conta conectada, dados sincronizados'}
               >
                 <span className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse shrink-0" />
               </SettingRow>
@@ -364,7 +366,7 @@ export default function Settings() {
             <SettingRow
               icon={<LogIn size={15} />}
               label="Entrar com Google"
-              sublabel={guestMode ? 'Modo sem login — dados locais apenas' : 'Faça login para sincronizar na nuvem'}
+              sublabel={guestMode ? 'Modo sem login: dados só neste aparelho' : 'Faça login para sincronizar na nuvem'}
               onClick={async () => {
                 setAuthLoading(true)
                 setAuthError(null)
@@ -403,14 +405,14 @@ export default function Settings() {
           <SettingRow
             icon={<Crown size={15} />}
             label="Plano atual"
-            sublabel={isPremium ? 'Premium — acesso completo' : 'Free — recursos limitados'}
+            sublabel={isPremium ? 'Premium: acesso completo' : 'Free: recursos limitados'}
           >
             {isPremium ? (
               <span className="text-xs font-bold text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded-lg">Premium</span>
             ) : (
               <button
                 onClick={() => { upgradePlan('premium'); flashSaved() }}
-                className="text-xs font-bold text-bg-base bg-accent-gold px-3 py-1 rounded-lg"
+                className="min-h-10 text-xs font-bold text-bg-base bg-accent-gold px-4 py-2 rounded-lg"
               >
                 Upgrade
               </button>
@@ -599,7 +601,7 @@ export default function Settings() {
 
       </div>
 
-      {/* MODAIS — renderizados via portais implícitos (fixed), sem AnimatePresence */}
+      {/* MODAIS, renderizados via portais implícitos (fixed), sem AnimatePresence */}
       {showEditName && (
         <EditNamePanel
           name={profile.name}

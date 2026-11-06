@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — COMPONENTE DE CARTA
+// POKERMIND PRO, COMPONENTE DE CARTA
 // Renderização visual de cartas de baralho
 // ============================================================
 

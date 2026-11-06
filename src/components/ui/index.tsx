@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — COMPONENTES UI PRIMITIVOS
+// POKERMIND PRO, COMPONENTES UI PRIMITIVOS
 // Blocos de construção reutilizáveis da interface
 // ============================================================
 
@@ -117,7 +117,7 @@ export function Badge({ children, variant = 'neutral', size = 'sm' }: BadgeProps
 
   return (
     <span className={cn(
-      'inline-flex items-center font-mono font-bold rounded-full border',
+      'inline-flex shrink-0 items-center whitespace-nowrap font-mono font-bold rounded-full border',
       variants[variant],
       sizes[size]
     )}>

@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — TRAINING TABLE
+// POKERMIND PRO, TRAINING TABLE
 // Mesa visual para os treinadores Pré-Flop e Pós-Flop.
 // Versão web: mesa grande com posições e cartas.
 // Versão mobile: compacta, embutida na tela de treino.
@@ -244,7 +244,7 @@ export default function TrainingTable({
             {/* Pot */}
             {potSize != null && (
               <div className="text-center">
-                <div className="text-[8px] text-emerald-400/50 font-mono tracking-widest">POT</div>
+                <div className="text-[9px] text-emerald-400/50 font-mono tracking-widest">POT</div>
                 <motion.div
                   key={potSize}
                   initial={{ scale: 0.85, opacity: 0 }}
@@ -330,7 +330,7 @@ export default function TrainingTable({
                     {isHero ? 'Você' : isVillain ? 'Villain' : seatId}
                   </div>
                   <div className={cn(
-                    'text-[8px] font-mono leading-none mt-0.5',
+                    'text-[9px] font-mono leading-none mt-0.5',
                     isHero ? 'text-yellow-400/60' : isVillain ? 'text-red-400/50' : 'text-text-muted/20'
                   )}>
                     {seatId}
@@ -346,7 +346,7 @@ export default function TrainingTable({
                       exit={{ opacity: 0, scale: 0.7 }}
                       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       className={cn(
-                        'px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase border tracking-wide',
+                        'px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase border tracking-wide',
                         isHero && heroAction ? actionBadgeClass(heroAction) : 'bg-red-500/25 text-red-400 border-red-500/40'
                       )}
                     >

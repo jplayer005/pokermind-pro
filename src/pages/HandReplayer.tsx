@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — HAND REPLAYER
+// POKERMIND PRO, HAND REPLAYER
 // Reprodutor visual de mãos com mesa, animações e timeline
 // ============================================================
 
@@ -34,7 +34,7 @@ const makeCard = (s: string): Card => {
 const DEMO_HANDS: SavedHand[] = [
   {
     id: 'demo_001',
-    title: 'BTN vs BB — Blefe no river',
+    title: 'BTN vs BB, Blefe no river',
     date: Date.now() - 2 * 24 * 60 * 60 * 1000,
     heroCards: [makeCard('Ah'), makeCard('Kd')],
     board: [makeCard('Qs'), makeCard('Jc'), makeCard('2h'), makeCard('7d'), makeCard('3s')],
@@ -62,7 +62,7 @@ const DEMO_HANDS: SavedHand[] = [
   },
   {
     id: 'demo_002',
-    title: 'UTG vs BTN — Value 3bet pot',
+    title: 'UTG vs BTN, Value 3bet pot',
     date: Date.now() - 5 * 24 * 60 * 60 * 1000,
     heroCards: [makeCard('Kh'), makeCard('Ks')],
     board: [makeCard('Kc'), makeCard('7d'), makeCard('2s'), makeCard('9h'), makeCard('Jc')],

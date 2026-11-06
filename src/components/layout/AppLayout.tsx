@@ -121,7 +121,7 @@ export default function AppLayout() {
           })}
         </nav>
 
-        {/* Footer — plan badge */}
+        {/* Footer, plan badge */}
         <div className="px-4 py-4 border-t border-border-subtle">
           <div className="bg-gradient-to-br from-accent-gold/8 to-transparent rounded-xl p-3 border border-accent-gold/15">
             <div className="flex items-center gap-2 mb-1.5">
@@ -138,7 +138,7 @@ export default function AppLayout() {
       {/* ===== COLUNA PRINCIPAL ===== */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* Header — mobile only */}
+        {/* Header, mobile only */}
         <header
           className="lg:hidden glass-strong border-b border-border-subtle flex items-center justify-between px-4 py-3 flex-shrink-0 z-20"
           style={{ paddingTop: 'max(12px, var(--safe-top))' }}
@@ -173,7 +173,7 @@ export default function AppLayout() {
           </motion.div>
         </main>
 
-        {/* Bottom Nav — mobile only */}
+        {/* Bottom Nav, mobile only */}
         <nav className="lg:hidden glass-strong border-t border-border-subtle flex-shrink-0 z-20 bottom-nav-safe">
           <div className="flex items-center justify-around px-0.5 pt-2 pb-1">
             {NAV_ITEMS.filter((n) => !n.desktopOnly).map(({ path, icon: Icon, label, short }) => {

@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — GRID DE RANGE (HEATMAP 13x13)
+// POKERMIND PRO, GRID DE RANGE (HEATMAP 13x13)
 // Visualização do range de mãos com cores por ação
 // ============================================================
 

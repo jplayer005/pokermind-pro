@@ -73,21 +73,18 @@ export default function RangePainter() {
   const ui = result ? GRADE_UI[result.grade] : null
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-4 px-4 pb-8 pt-4">
+    <div className="mx-auto w-full max-w-xl space-y-4 px-4 pb-24 pt-4">
       <SectionHeader title="Pinte o range" subtitle="Pinte de memória, confira e veja o que faltou. Os spots que você erra voltam para revisar." />
 
       <Card className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-base font-display font-bold text-text-primary">{spot.title}</p>
-            <p className="text-xs text-text-muted">{spot.subtitle}</p>
-          </div>
-          <label className="shrink-0 text-[10px] text-text-muted">
+        <div className="space-y-2">
+          <p className="text-xs text-text-muted">{spot.subtitle}</p>
+          <label className="block text-[11px] text-text-muted">
             <span className="sr-only">Escolher o spot</span>
             <select
               value={spot.id}
               onChange={(e) => go(spots.find((s) => s.id === e.target.value) ?? spot)}
-              className="max-w-[11.5rem] rounded-lg border border-border-default bg-bg-base px-2 py-1.5 text-xs text-text-primary"
+              className="min-h-10 w-full rounded-lg border border-border-default bg-bg-base px-2 py-2 text-sm font-semibold text-text-primary"
             >
               {spots.map((s) => (
                 <option key={s.id} value={s.id}>{s.title}{s.scenario === 'pushfold' ? `, ${s.subtitle.split(' ')[0]} bb` : ''}</option>

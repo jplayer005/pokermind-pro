@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — BIBLIOTECA DE LÓGICA DE POKER
+// POKERMIND PRO, BIBLIOTECA DE LÓGICA DE POKER
 // Funções core: combos, ranges, equities, EV, ICM
 // ============================================================
 
@@ -143,7 +143,7 @@ export function generateHandGrid(): string[][] {
 // ------- EQUITY SIMPLIFICADA -------
 /**
  * Equity simplificada baseada em tabelas pré-calculadas
- * Para uso educacional — não é um solver real
+ * Para uso educacional, não é um solver real
  * @deprecated valores inventados, sem chamadores. Use runMonteCarloEquity.
  */
 export function estimateEquity(heroHand: string, villainRange: string[]): number {
@@ -327,7 +327,7 @@ export interface PostflopHandEval {
   draws: string[]   // e.g. ['Flush Draw', 'Gutshot']
   description: string
   /** Full House vulnerável a FH maior: hero tem pocket pair X trips, mas o par
-   *  no board é Y > X — qualquer villain com Yx tem trips de Y (maior boat) ou
+   *  no board é Y > X, qualquer villain com Yx tem trips de Y (maior boat) ou
    *  bem perto disso. Sizing pequeno é melhor que pot bet. */
   vulnerableFH?: boolean
 }
@@ -339,7 +339,7 @@ export interface BoardTexture {
   monotone: boolean
   twoTone: boolean
   connected: boolean
-  /** Board tem 4+ cartas consecutivas — qualquer overcard ou undercard completa straight.
+  /** Board tem 4+ cartas consecutivas, qualquer overcard ou undercard completa straight.
    *  Mãos abaixo de straight (set/trips/two pair) ficam vulneráveis. */
   straightOnBoard: boolean
   /** Board tem TRINCA (3 ou mais de mesmo rank): QQQ, KKK, etc.
@@ -414,7 +414,7 @@ export function classifyTurnCard(
     return {
       type: 'gin',
       label: 'GIN! Você melhorou',
-      reason: `Turn completou sua(s) draw(s): ${completedDraws.join(' + ')}. Agora é hora de construir o pot — aposte grande ou check-raise.`,
+      reason: `Turn completou sua(s) draw(s): ${completedDraws.join(' + ')}. Agora é hora de construir o pot, aposte grande ou check-raise.`,
       completedDraws,
       newThreats: [],
     }
@@ -428,17 +428,17 @@ export function classifyTurnCard(
   const turnSuitOnBoard = (flopSuitCounts[turnCard.suit] || 0) + 1
   const heroHadFlushDraw = flopDraws.includes('Flush Draw')
   if (turnSuitOnBoard >= 3 && !heroHadFlushDraw) {
-    newThreats.push('3ª carta do mesmo naipe — flush possível para villain')
+    newThreats.push('3ª carta do mesmo naipe, flush possível para villain')
   }
 
   // Overcard para o par/overpair do herói
   if (['tptk', 'tpgk', 'tpwk'].includes(flopEval.category) && turnIdx < flopIdxs[0]) {
-    newThreats.push(`${turnCard.rank} supera sua top pair — você virou second pair`)
+    newThreats.push(`${turnCard.rank} supera sua top pair, você virou second pair`)
   }
   if (flopEval.category === 'overpair') {
     const heroRankIdx = RANKS.indexOf(heroCards[0].rank)
     if (turnIdx < heroRankIdx) {
-      newThreats.push(`Overcard ${turnCard.rank} para seu sobre-par — villain pode ter hit top pair`)
+      newThreats.push(`Overcard ${turnCard.rank} para seu sobre-par, villain pode ter hit top pair`)
     }
   }
 
@@ -446,9 +446,9 @@ export function classifyTurnCard(
   if (flopBoard.some(c => c.rank === turnCard.rank)) {
     const strongMades = ['set', 'flush', 'straight', 'two_pair', 'full_house']
     if (strongMades.includes(flopEval.category)) {
-      newThreats.push('Board pareou — full house possível para villain')
+      newThreats.push('Board pareou, full house possível para villain')
     } else {
-      newThreats.push('Board pareou — mãos de valor médio perdem equidade')
+      newThreats.push('Board pareou, mãos de valor médio perdem equidade')
     }
   }
 
@@ -456,14 +456,14 @@ export function classifyTurnCard(
   const turnsConnects = flopIdxs.some(fi => Math.abs(turnIdx - fi) <= 2)
   const isNewCard = !flopBoard.some(c => c.rank === turnCard.rank)
   if (turnsConnects && isNewCard && turnSuitOnBoard < 3) {
-    newThreats.push(`${turnCard.rank} conecta com o flop — novos straight draws para villain`)
+    newThreats.push(`${turnCard.rank} conecta com o flop, novos straight draws para villain`)
   }
 
   if (newThreats.length > 0) {
     return {
       type: 'scare',
       label: 'Scare Card',
-      reason: `Turn complica o jogo: ${newThreats[0]}. ${newThreats.length > 1 ? 'Múltiplas ameaças presentes.' : ''} Reavalie sua linha — bluffs perdem valor, mãos de valor podem precisar proteger.`,
+      reason: `Turn complica o jogo: ${newThreats[0]}. ${newThreats.length > 1 ? 'Múltiplas ameaças presentes.' : ''} Reavalie sua linha, bluffs perdem valor, mãos de valor podem precisar proteger.`,
       completedDraws: [],
       newThreats,
     }
@@ -473,7 +473,7 @@ export function classifyTurnCard(
   return {
     type: 'blank',
     label: 'Blank',
-    reason: `Turn é uma carta neutra (${turnCard.rank}) que não muda significativamente a textura. Continue com a linha do flop, mas use sizings maiores — pot maior e ranges mais polarizadas no turn.`,
+    reason: `Turn é uma carta neutra (${turnCard.rank}) que não muda significativamente a textura. Continue com a linha do flop, mas use sizings maiores, pot maior e ranges mais polarizadas no turn.`,
     completedDraws: [],
     newThreats: [],
   }
@@ -517,7 +517,7 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'IP'
       nutAdvantage = 'IP'
       rangeStrength = 'strong'
-      explanation = `Board alto (${topRankIdx === 0 ? 'Ás' : 'Rei'}) favorece fortemente o IP — sua range tem muito mais AX/KX que o OOP (BB). IP tem vantagem de range E de nuts.`
+      explanation = `Board alto (${topRankIdx === 0 ? 'Ás' : 'Rei'}) favorece fortemente o IP, sua range tem muito mais AX/KX que o OOP (BB). IP tem vantagem de range E de nuts.`
       bettingImplication = 'IP deve apostar com alta frequência (55-70%), tamanhos pequenos (33-50%). OOP deve checar quase sempre e ser cauteloso ao continuar.'
       recommendedFrequency = 'high'
       recommendedSize = 'small'
@@ -526,7 +526,7 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'IP'
       nutAdvantage = 'IP'
       rangeStrength = 'slight'
-      explanation = `Board médio-alto (${RANKS[topRankIdx]}). IP tem ligeira vantagem de range — QQ/JJ e AX ainda favorecem IP. Vantagem moderada de nuts com overpairs.`
+      explanation = `Board médio-alto (${RANKS[topRankIdx]}). IP tem ligeira vantagem de range, QQ/JJ e AX ainda favorecem IP. Vantagem moderada de nuts com overpairs.`
       bettingImplication = 'IP pode apostar com frequência moderada (40-55%), tamanhos mistos (33-50%). OOP pode checar-chamar ou checar-levantar com sets/draws fortes.'
       recommendedFrequency = 'medium'
       recommendedSize = 'mixed'
@@ -535,7 +535,7 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'OOP'
       nutAdvantage = 'IP'
       rangeStrength = 'moderate'
-      explanation = `Board conectado médio (${RANKS[topRankIdx]}-high). OOP (BB) tem vantagem de range — sua range defensiva inclui mais suited connectors e pequenos pares que conectam aqui. Mas IP ainda tem vantagem de nuts (overpairs).`
+      explanation = `Board conectado médio (${RANKS[topRankIdx]}-high). OOP (BB) tem vantagem de range, sua range defensiva inclui mais suited connectors e pequenos pares que conectam aqui. Mas IP ainda tem vantagem de nuts (overpairs).`
       bettingImplication = 'IP deve apostar com frequência menor (30-45%), tamanhos maiores quando aposta (50-67%). OOP pode donk bet OU checar-levantar com mãos fortes.'
       recommendedFrequency = 'medium'
       recommendedSize = 'medium'
@@ -544,8 +544,8 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'OOP'
       nutAdvantage = 'IP'
       rangeStrength = 'moderate'
-      explanation = `Board baixo conectado (${RANKS[topRankIdx]}-high). OOP tem vantagem de range — suits connectors e pares pequenos do range defensivo do BB conectam bem aqui. IP ainda tem vantagem de nuts com overpairs altos.`
-      bettingImplication = 'IP aposta menos frequentemente (25-40%), mas com tamanhos maiores para proteger overpairs. OOP pode jogar mais agressivo — check-raise com sets e two pairs é standard.'
+      explanation = `Board baixo conectado (${RANKS[topRankIdx]}-high). OOP tem vantagem de range, suits connectors e pares pequenos do range defensivo do BB conectam bem aqui. IP ainda tem vantagem de nuts com overpairs altos.`
+      bettingImplication = 'IP aposta menos frequentemente (25-40%), mas com tamanhos maiores para proteger overpairs. OOP pode jogar mais agressivo, check-raise com sets e two pairs é standard.'
       recommendedFrequency = 'low'
       recommendedSize = 'large'
     } else if (paired) {
@@ -553,8 +553,8 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'IP'
       nutAdvantage = 'IP'
       rangeStrength = 'moderate'
-      explanation = `Board pareado (${RANKS[topRankIdx]}${RANKS[topRankIdx]}). IP tem vantagem de range e nuts — pocket pairs são mais frequentes em ranges de abertura. OOP tem menos trips/full houses que IP nesta textura.`
-      bettingImplication = 'IP pode c-bet com frequência moderada-alta (45-60%), tamanhos pequenos (33-50%). OOP deve ser cauteloso — sua range hits boards pareados menos frequentemente.'
+      explanation = `Board pareado (${RANKS[topRankIdx]}${RANKS[topRankIdx]}). IP tem vantagem de range e nuts, pocket pairs são mais frequentes em ranges de abertura. OOP tem menos trips/full houses que IP nesta textura.`
+      bettingImplication = 'IP pode c-bet com frequência moderada-alta (45-60%), tamanhos pequenos (33-50%). OOP deve ser cauteloso, sua range hits boards pareados menos frequentemente.'
       recommendedFrequency = 'medium'
       recommendedSize = 'small'
     } else {
@@ -562,14 +562,14 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'IP'
       nutAdvantage = 'IP'
       rangeStrength = 'slight'
-      explanation = `Board seco sem conectividade clara. IP tem ligeira vantagem de range e nuts — overpairs e top pairs de kicker alta são mais frequentes no range de abertura.`
-      bettingImplication = 'IP pode apostar com frequência moderada (35-50%), tamanhos pequenos (33%). Boards secos permitem c-bets baratas — fold equity é boa mesmo com ar.'
+      explanation = `Board seco sem conectividade clara. IP tem ligeira vantagem de range e nuts, overpairs e top pairs de kicker alta são mais frequentes no range de abertura.`
+      bettingImplication = 'IP pode apostar com frequência moderada (35-50%), tamanhos pequenos (33%). Boards secos permitem c-bets baratas, fold equity é boa mesmo com ar.'
       recommendedFrequency = 'medium'
       recommendedSize = 'small'
     }
 
     if (monotone) {
-      explanation += ' Board monotone: fold equity reduzida — villain pode ter flush ou flush draw. Ajuste frequências para baixo.'
+      explanation += ' Board monotone: fold equity reduzida, villain pode ter flush ou flush draw. Ajuste frequências para baixo.'
       bettingImplication += ' Com board monotone, reduza frequência de bluff; aumente tamanho com value hands.'
       recommendedSize = 'large'
     }
@@ -584,8 +584,8 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'OOP'
       nutAdvantage = 'OOP'
       rangeStrength = 'strong'
-      explanation = `Board alto em 3bet pot — OOP (3-bettor) tem vantagem forte de range e nuts. AA/KK/AK dominam em boards A/K-high e estão mais concentrados no range de 3-bet do OOP.`
-      bettingImplication = 'OOP deve apostar com alta frequência (60-75%), tamanhos pequenos (33-50%). IP deve defender com cuidado — top pair pode estar atrás de overpairs ou two pairs do OOP.'
+      explanation = `Board alto em 3bet pot, OOP (3-bettor) tem vantagem forte de range e nuts. AA/KK/AK dominam em boards A/K-high e estão mais concentrados no range de 3-bet do OOP.`
+      bettingImplication = 'OOP deve apostar com alta frequência (60-75%), tamanhos pequenos (33-50%). IP deve defender com cuidado, top pair pode estar atrás de overpairs ou two pairs do OOP.'
       recommendedFrequency = 'high'
       recommendedSize = 'small'
     } else if (topRankIdx <= 4) {
@@ -593,8 +593,8 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'neutral'
       nutAdvantage = 'OOP'
       rangeStrength = 'slight'
-      explanation = `Board médio em 3bet pot. Ranges são relativamente equilibrados aqui — OOP tem AA/KK como nuts, mas IP tem sets de TT/JJ/QQ e top pairs fortes. OOP mantém ligeira vantagem de nuts.`
-      bettingImplication = 'Ambos podem apostar e checar com equilíbrio. Tamanhos mistos (33-67%). IP deve checar-levantar sets com frequência — construa o pot enquanto OOP ainda aposta.'
+      explanation = `Board médio em 3bet pot. Ranges são relativamente equilibrados aqui, OOP tem AA/KK como nuts, mas IP tem sets de TT/JJ/QQ e top pairs fortes. OOP mantém ligeira vantagem de nuts.`
+      bettingImplication = 'Ambos podem apostar e checar com equilíbrio. Tamanhos mistos (33-67%). IP deve checar-levantar sets com frequência, construa o pot enquanto OOP ainda aposta.'
       recommendedFrequency = 'medium'
       recommendedSize = 'mixed'
     } else {
@@ -602,7 +602,7 @@ export function analyzeBoardAdvantage(
       rangeAdvantage = 'IP'
       nutAdvantage = 'OOP'
       rangeStrength = 'moderate'
-      explanation = `Board baixo em 3bet pot. IP (caller) tem vantagem de range — sua calling range inclui TT-88 e suited connectors que conectam bem em boards baixos. OOP ainda tem vantagem de nuts com overpairs (AA/KK).`
+      explanation = `Board baixo em 3bet pot. IP (caller) tem vantagem de range, sua calling range inclui TT-88 e suited connectors que conectam bem em boards baixos. OOP ainda tem vantagem de nuts com overpairs (AA/KK).`
       bettingImplication = 'OOP deve checar com frequência alta (50-65%) em boards baixos. IP pode apostar como vantagem de range. OOP aposta principalmente para valor com AA/KK.'
       recommendedFrequency = 'low'
       recommendedSize = 'large'
@@ -816,7 +816,7 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     if (count === 4 && heroCards.some(c => c.suit === suit)) { draws.push('Flush Draw'); break }
   }
 
-  // Straight draws — janelas de 5 slots, procura 4-of-5 com hero contribuindo
+  // Straight draws, janelas de 5 slots, procura 4-of-5 com hero contribuindo
   const allIdxsSet = [...new Set(allCards.map(c => RANKS.indexOf(c.rank)))]
   for (let start = 0; start <= 8; start++) {
     const window = allIdxsSet.filter(i => i >= start && i <= start + 4).sort((a, b) => a - b)
@@ -838,7 +838,7 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
 
   // ---- MÃOS FEITAS (ordem decrescente de força) ----
 
-  // Straight Flush — verificar PRIMEIRO (categoria reportada como 'flush' com strength 99)
+  // Straight Flush, verificar PRIMEIRO (categoria reportada como 'flush' com strength 99)
   // Procura 5 cartas do mesmo naipe formando sequência onde hero contribui
   for (const [suit, count] of Object.entries(suitMap)) {
     if (count >= 5 && heroCards.some(c => c.suit === suit)) {
@@ -855,7 +855,7 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
         if (wheelSF.every(i => suitIdxs.includes(i))) isSF = true
       }
       if (isSF && heroCards.some(c => c.suit === suit)) {
-        return { category: 'flush', label: 'Straight Flush!', strength: 99, draws: [], description: 'Straight Flush! Mão quase-nuts — value bet grande, slow play ocasionalmente para induzir bluffs.' }
+        return { category: 'flush', label: 'Straight Flush!', strength: 99, draws: [], description: 'Straight Flush! Mão quase-nuts, value bet grande, slow play ocasionalmente para induzir bluffs.' }
       }
     }
   }
@@ -863,7 +863,7 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
   // Flush (não-straight)
   for (const [suit, count] of Object.entries(suitMap)) {
     if (count >= 5 && heroCards.some(c => c.suit === suit)) {
-      return { category: 'flush', label: 'Flush!', strength: 88, draws, description: 'Flush completo! Mão muito forte — value bet médio a grande. Cheque raramente para equilibrar.' }
+      return { category: 'flush', label: 'Flush!', strength: 88, draws, description: 'Flush completo! Mão muito forte, value bet médio a grande. Cheque raramente para equilibrar.' }
     }
   }
 
@@ -871,15 +871,15 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
   if (detectStraight(heroCards, board)) {
     const hasBoardFlushDraw = Object.values(suitMap).some(c => c >= 3)
     const desc = hasBoardFlushDraw
-      ? 'Sequência completa! Mão muito forte, mas board tem flush draw — aposte para proteger. Cuidado com boards pareados (full house do villain).'
-      : 'Sequência completa! Mão muito forte — value bet grande. Aposte 67-100% do pot.'
+      ? 'Sequência completa! Mão muito forte, mas board tem flush draw, aposte para proteger. Cuidado com boards pareados (full house do villain).'
+      : 'Sequência completa! Mão muito forte, value bet grande. Aposte 67-100% do pot.'
     return { category: 'straight', label: 'Straight!', strength: 85, draws, description: desc }
   }
 
   // Quads
   // Pocket pair + 2 iguais no board = quadra; ou uma carta + 3 iguais no board
   if ((isHeroPocketPair && h1Matches >= 2) || h1Matches >= 3 || h2Matches >= 3) {
-    return { category: 'quads', label: 'Quadra!', strength: 100, draws: [], description: 'Quadra! Mão absoluta. Slow play quase sempre — deixe o villain bluffar ou construir o pot. Value bet no river.' }
+    return { category: 'quads', label: 'Quadra!', strength: 100, draws: [], description: 'Quadra! Mão absoluta. Slow play quase sempre, deixe o villain bluffar ou construir o pot. Value bet no river.' }
   }
 
   // Full house
@@ -887,12 +887,12 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     // Par no bolso + trips no board de rank diferente = FH (ex: KK + 777)
     if (boardHasTrips(h1.rank)) {
       // Vulnerável a quads: villain com o rank dos trips do board = quads
-      // (improvável mas possível). Não consideramos isso aqui — strength 97 é OK.
-      return { category: 'full_house', label: 'Full House', strength: 97, draws: [], description: `Full house! Par no bolso sobre trips do board. Mão nutted — construa o pot, não deixe draws gratuitos.` }
+      // (improvável mas possível). Não consideramos isso aqui, strength 97 é OK.
+      return { category: 'full_house', label: 'Full House', strength: 97, draws: [], description: `Full house! Par no bolso sobre trips do board. Mão nutted, construa o pot, não deixe draws gratuitos.` }
     }
     // Par no bolso + 1 no board + par no board de rank diferente = FH (ex: KK + K-7-7)
     if (h1Matches === 1 && boardHasPair(h1.rank)) {
-      // ⚠️ Vulnerável se o par do BOARD é MAIOR que o rank do hero — qualquer
+      // ⚠️ Vulnerável se o par do BOARD é MAIOR que o rank do hero, qualquer
       // villain com a carta do par alto tem trinca alta = FH maior.
       const heroIdx = RANKS.indexOf(h1.rank)
       const boardPairRanks = Object.entries(boardFreq)
@@ -901,25 +901,25 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
       const hasHigherBoardPair = boardPairRanks.some(idx => idx < heroIdx)
       const strength = hasHigherBoardPair ? 88 : 96
       const desc = hasHigherBoardPair
-        ? `Full house ${h1.rank}s full de ${RANKS[boardPairRanks[0]]}s. ⚠️ FH VULNERÁVEL — o par no board (${RANKS[boardPairRanks[0]]}) é maior que sua trinca. Qualquer villain com ${RANKS[boardPairRanks[0]]}x tem FH dominante. Bet pequeno (33-50%) ou pot control.`
-        : 'Full house! Set com board pareado. Mão nutted — aposte para construir o pot.'
+        ? `Full house ${h1.rank}s full de ${RANKS[boardPairRanks[0]]}s. ⚠️ FH VULNERÁVEL, o par no board (${RANKS[boardPairRanks[0]]}) é maior que sua trinca. Qualquer villain com ${RANKS[boardPairRanks[0]]}x tem FH dominante. Bet pequeno (33-50%) ou pot control.`
+        : 'Full house! Set com board pareado. Mão nutted, aposte para construir o pot.'
       return { category: 'full_house', label: hasHigherBoardPair ? `FH (Vulnerável)` : 'Full House', strength, draws: [], description: desc, vulnerableFH: hasHigherBoardPair }
     }
     // Par no bolso + 1 no board sem par extra = SET (não FH!)
     if (h1Matches === 1) {
-      const desc = `Set de ${h1.rank}s! Uma das mãos mais fortes no flop. ${draws.length > 0 ? 'Board com draws — construa o pot rapidamente.' : 'Aposte para valor, misture com check para equilibrar.'}`
+      const desc = `Set de ${h1.rank}s! Uma das mãos mais fortes no flop. ${draws.length > 0 ? 'Board com draws, construa o pot rapidamente.' : 'Aposte para valor, misture com check para equilibrar.'}`
       return { category: 'set', label: `Set de ${h1.rank}`, strength: 93, draws, description: desc }
     }
   } else {
     // Não é pocket pair: trips de h1 + par de h2 = FH, ou vice-versa
     // Vulnerabilidade: se o "par" da FH é uma carta única do hero + outra única do board
     // (ex: hero AK, board K-K-A-X-Y: hero KK + AA = AA + KKK = FH As full de Ks. Não vulnerável.)
-    // Mas se hero tem JJ-on-board-trips with a kicker on board pair — geralmente é nutted.
+    // Mas se hero tem JJ-on-board-trips with a kicker on board pair, geralmente é nutted.
     if (h1Matches >= 2 && h2Matches >= 1) {
-      return { category: 'full_house', label: 'Full House', strength: 95, draws: [], description: 'Full house! Aposte para valor máximo — mão nutted.' }
+      return { category: 'full_house', label: 'Full House', strength: 95, draws: [], description: 'Full house! Aposte para valor máximo, mão nutted.' }
     }
     if (h1Matches >= 1 && h2Matches >= 2) {
-      return { category: 'full_house', label: 'Full House', strength: 95, draws: [], description: 'Full house! Aposte para valor máximo — mão nutted.' }
+      return { category: 'full_house', label: 'Full House', strength: 95, draws: [], description: 'Full house! Aposte para valor máximo, mão nutted.' }
     }
   }
 
@@ -936,8 +936,8 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
   // Two pair
   if (h1Matches >= 1 && h2Matches >= 1) {
     const desc = draws.length > 0
-      ? `Dois pares com draw (${draws.join(' + ')})! Muito forte — aposte grande para proteção e valor.`
-      : 'Dois pares! Mão forte — value bet. Cuidado com boards com straight/flush draws para o villain.'
+      ? `Dois pares com draw (${draws.join(' + ')})! Muito forte, aposte grande para proteção e valor.`
+      : 'Dois pares! Mão forte, value bet. Cuidado com boards com straight/flush draws para o villain.'
     return { category: 'two_pair', label: 'Dois Pares', strength: 78, draws, description: desc }
   }
 
@@ -953,11 +953,11 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     const drawDesc = draws.length > 0 ? ` + ${draws.join('/')}` : ''
 
     if (isTopPair) {
-      if (kickerIdx <= 3) return { category: 'tptk', label: `Top Par + Top Kicker${drawDesc}`, strength: 64 + drawBonus, draws, description: `TPTK (${pairedCard.rank}${kicker.rank})! Mão forte — value bet na maioria dos boards. Em boards secos, bet 50-67%; em boards molhados, bet 67% para proteção.` }
+      if (kickerIdx <= 3) return { category: 'tptk', label: `Top Par + Top Kicker${drawDesc}`, strength: 64 + drawBonus, draws, description: `TPTK (${pairedCard.rank}${kicker.rank})! Mão forte, value bet na maioria dos boards. Em boards secos, bet 50-67%; em boards molhados, bet 67% para proteção.` }
       if (kickerIdx <= 6) return { category: 'tpgk', label: `Top Par + Boa Kicker${drawDesc}`, strength: 58 + drawBonus, draws, description: `Top par com kicker decente (${pairedCard.rank}${kicker.rank}). Value bet, mas cuidado com boards molhados onde draws completam no turn.` }
-      return { category: 'tpwk', label: `Top Par + Kicker Fraca${drawDesc}`, strength: 48 + drawBonus, draws, description: `Top par kicker ruim (${pairedCard.rank}${kicker.rank}). Jogue com cuidado — cheque às vezes para pot control, bet para proteção em boards com draws.` }
+      return { category: 'tpwk', label: `Top Par + Kicker Fraca${drawDesc}`, strength: 48 + drawBonus, draws, description: `Top par kicker ruim (${pairedCard.rank}${kicker.rank}). Jogue com cuidado, cheque às vezes para pot control, bet para proteção em boards com draws.` }
     }
-    if (isMidPair) return { category: 'middle_pair', label: `Par do Meio${drawDesc}`, strength: 36 + drawBonus, draws, description: `Par do meio (${pairedCard.rank}). Mão mediana — prefira checar na maioria dos spots. Bet pequeno em posição em boards secos.` }
+    if (isMidPair) return { category: 'middle_pair', label: `Par do Meio${drawDesc}`, strength: 36 + drawBonus, draws, description: `Par do meio (${pairedCard.rank}). Mão mediana, prefira checar na maioria dos spots. Bet pequeno em posição em boards secos.` }
     return { category: 'bottom_pair', label: `Par Fraco${drawDesc}`, strength: 22 + drawBonus, draws, description: `Par fraco (${pairedCard.rank}). Geralmente cheque/fold. Só continue com draw adicional forte ou pot odds muito boas.` }
   }
 
@@ -967,12 +967,12 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     const drawBonus = draws.length > 0 ? 8 : 0
     if (ppIdx < boardRankIdxs[0]) {
       const ppStr = ppIdx <= 2 ? 70 : ppIdx <= 5 ? 62 : 52
-      return { category: 'overpair', label: `Sobre-Par (${h1.rank}${h2.rank})`, strength: ppStr + drawBonus, draws, description: `Sobre-par de ${h1.rank}s! Mão forte — value bet. Em boards molhados, aposte para proteção e para negar equity de draws. Em boards secos, pode misturar check para equilibrar.` }
+      return { category: 'overpair', label: `Sobre-Par (${h1.rank}${h2.rank})`, strength: ppStr + drawBonus, draws, description: `Sobre-par de ${h1.rank}s! Mão forte, value bet. Em boards molhados, aposte para proteção e para negar equity de draws. Em boards secos, pode misturar check para equilibrar.` }
     }
-    return { category: 'underpair', label: `Par Menor (${h1.rank}${h2.rank})`, strength: 18 + drawBonus, draws, description: `Par menor que o board (${h1.rank}s). Mão fraca — cheque na maioria das vezes. Continue apenas com draw adicional relevante.` }
+    return { category: 'underpair', label: `Par Menor (${h1.rank}${h2.rank})`, strength: 18 + drawBonus, draws, description: `Par menor que o board (${h1.rank}s). Mão fraca, cheque na maioria das vezes. Continue apenas com draw adicional relevante.` }
   }
 
-  // Sem par — draws e overcards
+  // Sem par, draws e overcards
   const h1Overcard = h1Idx < boardRankIdxs[0]
   const h2Overcard = h2Idx < boardRankIdxs[0]
 
@@ -981,23 +981,23 @@ export function evaluatePostflopHand(heroCards: [Card, Card], board: Card[]): Po
     return { category: 'draw_strong', label: 'Flush Draw + OESD', strength: 62, draws, description: 'Monstro draw! Flush draw (9 outs) + OESD (8 outs) = ~15 outs limpos (~55-57% equity em 2 ruas). Aposte sempre como semi-bluff agressivo.' }
   }
   if (draws.includes('Flush Draw') && (h1Overcard || h2Overcard)) {
-    return { category: 'draw_strong', label: 'FD + Overcard', strength: 54, draws, description: `Flush draw (9 outs) com overcard (3-6 outs extras) = ~45-50% equity em 2 ruas. Excelente semi-bluff — aposte com alta frequência, especialmente em posição.` }
+    return { category: 'draw_strong', label: 'FD + Overcard', strength: 54, draws, description: `Flush draw (9 outs) com overcard (3-6 outs extras) = ~45-50% equity em 2 ruas. Excelente semi-bluff, aposte com alta frequência, especialmente em posição.` }
   }
   if (draws.includes('Flush Draw')) {
-    return { category: 'draw_strong', label: 'Flush Draw', strength: 46, draws, description: `Flush draw puro (9 outs, ~35% equity em 2 ruas / ~19% no turn). Semi-bluff clássico — aposte frequentemente em posição. Pot odds de 1:2 justificam chamada mesmo sem fold equity.` }
+    return { category: 'draw_strong', label: 'Flush Draw', strength: 46, draws, description: `Flush draw puro (9 outs, ~35% equity em 2 ruas / ~19% no turn). Semi-bluff clássico, aposte frequentemente em posição. Pot odds de 1:2 justificam chamada mesmo sem fold equity.` }
   }
   if (draws.includes('OESD')) {
     const hasOC = h1Overcard || h2Overcard
     const oeDesc = hasOC
-      ? `OESD + overcard: ~8 outs para straight + 3-6 extras = ~32-40% equity. Semi-bluff sólido — aposte em posição com frequência.`
-      : `OESD puro (8 outs, ~31% equity em 2 ruas / ~17% no turn). Aposte como semi-bluff em posição. Cheque-chame fora de posição — não cheque-fold com 8 outs.`
+      ? `OESD + overcard: ~8 outs para straight + 3-6 extras = ~32-40% equity. Semi-bluff sólido, aposte em posição com frequência.`
+      : `OESD puro (8 outs, ~31% equity em 2 ruas / ~17% no turn). Aposte como semi-bluff em posição. Cheque-chame fora de posição, não cheque-fold com 8 outs.`
     return { category: 'draw_medium', label: `OESD${hasOC ? ' + Overcard' : ''}`, strength: hasOC ? 44 : 40, draws, description: oeDesc }
   }
   if (h1Overcard && h2Overcard) {
     const hasGut = draws.includes('Gutshot')
     const desc = hasGut
       ? 'Duas overcards + gutshot: ~6 outs para par + 4 para straight = ~30% equity. Semi-bluff ocasional em boards favoráveis.'
-      : 'Duas overcards (~6 outs para par, ~24% equity). Mão especulativa — prefira checar para ver turn gratuitamente. Bluff apenas com fold equity clara.'
+      : 'Duas overcards (~6 outs para par, ~24% equity). Mão especulativa, prefira checar para ver turn gratuitamente. Bluff apenas com fold equity clara.'
     return { category: 'overcards', label: `Duas Overcards${hasGut ? ' + Gutshot' : ''}`, strength: hasGut ? 24 : 16, draws, description: desc }
   }
   if (draws.includes('Gutshot')) {
@@ -1056,7 +1056,7 @@ function getGTODecisionImpl(
   // Categorias que PERDEM para FH dominante: tudo abaixo de FH (inclui straight e flush).
   const isBelowFH = isBelowFlush || category === 'flush'
 
-  // ⚠️ POT CONTROL flags — usados nos branches IP/OOP nutted para reduzir sizing
+  // ⚠️ POT CONTROL flags, usados nos branches IP/OOP nutted para reduzir sizing
   // quando o board permite mãos melhores no range do villain.
   const vulnerableToStraight = straightOnBoard && isBelowStraight
   const vulnerableToFlush = monotone && isBelowFlush
@@ -1066,14 +1066,14 @@ function getGTODecisionImpl(
   const vulnerableToBoardFH = (boardTrips || boardDoublePaired) && isBelowFH
   const anyVulnerability = vulnerableToStraight || vulnerableToFlush || vulnerableFH || vulnerableToBoardFH
   // Ajuste SPR: stack curto favorece sizing maior e comprometimento; stack profundo favorece controle
-  const isShortSPR = spr <= 2   // stack ≤ 2× pot — muito comprometido
+  const isShortSPR = spr <= 2   // stack ≤ 2× pot, muito comprometido
   const isMidSPR   = spr > 2 && spr <= 5
   const isDeepSPR  = spr > 12
   const hasDraw = draws.length > 0
   const isTurn = street === 'turn'
   const isRiver = street === 'river'
 
-  // No turn, draws valem menos (1 rua sobrando) — penalidade afeta classificação da mão
+  // No turn, draws valem menos (1 rua sobrando), penalidade afeta classificação da mão
   const turnPenalty = isTurn ? -8 : 0
   const adjStrength = strength + turnPenalty
 
@@ -1090,31 +1090,31 @@ function getGTODecisionImpl(
   const isMissedDraw = isRiver && ['draw_strong', 'draw_medium', 'draw_weak', 'overcards'].includes(category)
 
   // =========================================================
-  // RIVER — lógica separada, sem draws, sizing polarizado
+  // RIVER, lógica separada, sem draws, sizing polarizado
   // =========================================================
   if (isRiver) {
     if (facingBet) {
       if (isNutted) return {
         primaryAction: 'raise', primaryFrequency: 0.92,
         alternativeAction: 'call', alternativeFrequency: 0.08,
-        explanation: `${handEval.label} no river — raise (92%) para extrair valor máximo. O pot é grande; villain está comprometido. Chame 8% para balancear vs bluffs do villain.`
+        explanation: `${handEval.label} no river, raise (92%) para extrair valor máximo. O pot é grande; villain está comprometido. Chame 8% para balancear vs bluffs do villain.`
       }
       if (isStrong) return {
         primaryAction: 'call', primaryFrequency: 0.85,
         alternativeAction: 'fold', alternativeFrequency: 0.15,
-        explanation: `${handEval.label} no river — call (85%). Mão forte o suficiente para pagar na maioria dos sizings. Fold apenas contra bets muito grandes (>pot) em boards muito perigosos.`
+        explanation: `${handEval.label} no river, call (85%). Mão forte o suficiente para pagar na maioria dos sizings. Fold apenas contra bets muito grandes (>pot) em boards muito perigosos.`
       }
       if (isMedium) return {
         primaryAction: 'call', primaryFrequency: 0.50,
         alternativeAction: 'fold', alternativeFrequency: 0.50,
-        explanation: `${handEval.label} no river — decisão de MDF. Calcule: pot/(pot+bet). Se villain bet 67% pot → você precisa chamar ~60% para prevenir bluffs lucrativos. Se bet pot → chame ~50%. Considere o perfil do villain.`
+        explanation: `${handEval.label} no river, decisão de MDF. Calcule: pot/(pot+bet). Se villain bet 67% pot → você precisa chamar ~60% para prevenir bluffs lucrativos. Se bet pot → chame ~50%. Considere o perfil do villain.`
       }
       if (isMissedDraw || isWeak) return {
         primaryAction: 'fold', primaryFrequency: 0.80,
         alternativeAction: 'call', alternativeFrequency: 0.20,
-        explanation: `${isMissedDraw ? 'Draw não completada' : handEval.label} no river — fold (80%). Sem equity, sem draws — bluff catch só quando villain é muito agressivo e pot odds são excelentes. Call 20% para não ser explorado totalmente.`
+        explanation: `${isMissedDraw ? 'Draw não completada' : handEval.label} no river, fold (80%). Sem equity, sem draws, bluff catch só quando villain é muito agressivo e pot odds são excelentes. Call 20% para não ser explorado totalmente.`
       }
-      return { primaryAction: 'fold', primaryFrequency: 0.85, alternativeAction: 'call', alternativeFrequency: 0.15, explanation: `Mão fraca no river — fold. Sem possibilidade de melhora.` }
+      return { primaryAction: 'fold', primaryFrequency: 0.85, alternativeAction: 'call', alternativeFrequency: 0.15, explanation: `Mão fraca no river, fold. Sem possibilidade de melhora.` }
     }
 
     // River acting first
@@ -1123,19 +1123,19 @@ function getGTODecisionImpl(
         // ⚠️ POT CONTROL: board permite mão melhor (straight, flush, FH maior)
         if (anyVulnerability) {
           const reason = vulnerableToStraight
-            ? `board tem 4 cartas consecutivas — qualquer 9/4 (etc.) do villain = straight`
+            ? `board tem 4 cartas consecutivas, qualquer 9/4 (etc.) do villain = straight`
             : vulnerableToFlush
-            ? `board MONOTONE (3+ do mesmo naipe) — qualquer carta do naipe do villain = flush`
+            ? `board MONOTONE (3+ do mesmo naipe), qualquer carta do naipe do villain = flush`
             : vulnerableFH
-            ? `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
+            ? `FH com par no board MAIOR que sua trinca, villain com a carta do par alto tem FH dominante`
             : boardTrips
-            ? `board tem TRINCA — QUALQUER pocket pair do villain = full house; QUALQUER carta do rank da trinca = quads`
-            : `board DUPLO-PAREADO — múltiplas full houses possíveis no range do villain`
+            ? `board tem TRINCA, QUALQUER pocket pair do villain = full house; QUALQUER carta do rank da trinca = quads`
+            : `board DUPLO-PAREADO, múltiplas full houses possíveis no range do villain`
           return {
             primaryAction: 'bet_50', primaryFrequency: 0.40,
             alternativeAction: 'bet_33', alternativeFrequency: 0.30,
             alsoAcceptable: ['check', 'bet_67'],
-            explanation: `${handEval.label} no river IP — ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai valor de pares fortes/two pair sem inflar quando villain tem a mão melhor. Check (50%) também válido. EVITE bet 75%/pot — villain com straight/flush/FH maior te paga MAIS; pares fortes foldam pra qualquer aposta.`
+            explanation: `${handEval.label} no river IP, ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai valor de pares fortes/two pair sem inflar quando villain tem a mão melhor. Check (50%) também válido. EVITE bet 75%/pot, villain com straight/flush/FH maior te paga MAIS; pares fortes foldam pra qualquer aposta.`
           }
         }
         // Em board pareado/monotone (sem ser vulnerável a flush real), 67% é o sizing
@@ -1146,31 +1146,31 @@ function getGTODecisionImpl(
           primaryAction: sz, primaryFrequency: 0.70,
           alternativeAction: altSz, alternativeFrequency: 0.30,
           alsoAcceptable: ['bet_75', 'bet_50'],
-          explanation: `${handEval.label} no river IP — sizing recomendado: ${paired || monotone ? 'bet 67% (board pareado/monotone reduz range de calling do villain — overbets perdem valor)' : 'bet pot (range polarizado, máximo de extração)'}. Bet ${paired || monotone ? 'pot' : '67%'} também é válido. Qualquer value bet grande (50%-pot) está dentro do range GTO com mão nutted.`
+          explanation: `${handEval.label} no river IP, sizing recomendado: ${paired || monotone ? 'bet 67% (board pareado/monotone reduz range de calling do villain, overbets perdem valor)' : 'bet pot (range polarizado, máximo de extração)'}. Bet ${paired || monotone ? 'pot' : '67%'} também é válido. Qualquer value bet grande (50%-pot) está dentro do range GTO com mão nutted.`
         }
       }
       if (isStrong) return {
         primaryAction: 'bet_67', primaryFrequency: 0.70,
         alternativeAction: 'check', alternativeFrequency: 0.30,
         alsoAcceptable: ['bet_50', 'bet_75'],
-        explanation: `${handEval.label} no river IP — bet 67% para valor (70%). Cheque 30% com as mãos mais fortes da categoria para induzir bluffs. Bet 50% e 75% também válidos. Bet pot é overbet — só correto se você tem range polarizado claro (raro com mão "strong" mas não nuts).`
+        explanation: `${handEval.label} no river IP, bet 67% para valor (70%). Cheque 30% com as mãos mais fortes da categoria para induzir bluffs. Bet 50% e 75% também válidos. Bet pot é overbet, só correto se você tem range polarizado claro (raro com mão "strong" mas não nuts).`
       }
       if (isMedium) return {
         primaryAction: 'check', primaryFrequency: 0.55,
         alternativeAction: 'bet_33', alternativeFrequency: 0.45,
-        explanation: `${handEval.label} no river IP — cheque 55% para pot control (com pot grande, villain pode levantar com mãos melhores). Thin value bet 33% (45%) extrai valor de mãos piores sem inflar o pot.`
+        explanation: `${handEval.label} no river IP, cheque 55% para pot control (com pot grande, villain pode levantar com mãos melhores). Thin value bet 33% (45%) extrai valor de mãos piores sem inflar o pot.`
       }
       if (isMissedDraw || isWeak) {
         // Bluff only with polarized sizing
         if (dry && !paired) return {
           primaryAction: 'bet_pot', primaryFrequency: 0.25,
           alternativeAction: 'check', alternativeFrequency: 0.75,
-          explanation: `${isMissedDraw ? 'Draw não completada' : 'Nada'} no river — cheque (75%). Bluff puro com pot-size (25%) apenas quando board é seco/unfavorável para villain e você tem fold equity real. River bluffs devem ser grandes ou check.`
+          explanation: `${isMissedDraw ? 'Draw não completada' : 'Nada'} no river, cheque (75%). Bluff puro com pot-size (25%) apenas quando board é seco/unfavorável para villain e você tem fold equity real. River bluffs devem ser grandes ou check.`
         }
         return {
           primaryAction: 'check', primaryFrequency: 0.85,
           alternativeAction: 'bet_pot', alternativeFrequency: 0.15,
-          explanation: `${isMissedDraw ? 'Draw não completada no river' : 'Nada'} — cheque quase sempre (85%). Bluff puro raramente com bet pot (15%). Boards molhados/pareados reduzem drasticamente fold equity no river.`
+          explanation: `${isMissedDraw ? 'Draw não completada no river' : 'Nada'}, cheque quase sempre (85%). Bluff puro raramente com bet pot (15%). Boards molhados/pareados reduzem drasticamente fold equity no river.`
         }
       }
     }
@@ -1181,16 +1181,16 @@ function getGTODecisionImpl(
       // straight/flush/FH dominante.
       if (anyVulnerability) {
         const reason = vulnerableToStraight
-          ? `board tem 4 cartas consecutivas — qualquer 9/4 (etc.) do villain = straight`
+          ? `board tem 4 cartas consecutivas, qualquer 9/4 (etc.) do villain = straight`
           : vulnerableToFlush
-          ? `board MONOTONE (3+ do mesmo naipe) — qualquer carta do naipe do villain = flush`
-          : `FH com par no board MAIOR que sua trinca — villain com a carta do par alto tem FH dominante`
+          ? `board MONOTONE (3+ do mesmo naipe), qualquer carta do naipe do villain = flush`
+          : `FH com par no board MAIOR que sua trinca, villain com a carta do par alto tem FH dominante`
         return {
           primaryAction: 'check', primaryFrequency: 0.55,
           alternativeAction: 'bet_33', alternativeFrequency: 0.25,
           alsoAcceptable: ['bet_50'],
           checkRaiseCandidate: false,
-          explanation: `${handEval.label} OOP no river — ⚠️ ${reason}. POT CONTROL é crítico OOP: cheque (55%) e decida com base no sizing do villain. Donk pequeno (33%) extrai valor de top pair sem arriscar check-raise. NUNCA check-raise — villain com a mão melhor te dobra.`
+          explanation: `${handEval.label} OOP no river, ⚠️ ${reason}. POT CONTROL é crítico OOP: cheque (55%) e decida com base no sizing do villain. Donk pequeno (33%) extrai valor de top pair sem arriscar check-raise. NUNCA check-raise, villain com a mão melhor te dobra.`
         }
       }
       return {
@@ -1198,59 +1198,59 @@ function getGTODecisionImpl(
         alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
         alsoAcceptable: ['bet_67', 'bet_75'],
         checkRaiseCandidate: true,
-        explanation: `${handEval.label} OOP no river — Check-Raise (55%): linha mais valiosa com nuts OOP. Deixa villain c-bet ou bluff e você levanta. Donk bet pot (25%) também excelente — range polarizado no river permite overbets. Bet 67% e 75% também válidos.`
+        explanation: `${handEval.label} OOP no river, Check-Raise (55%): linha mais valiosa com nuts OOP. Deixa villain c-bet ou bluff e você levanta. Donk bet pot (25%) também excelente, range polarizado no river permite overbets. Bet 67% e 75% também válidos.`
       }
     }
     if (isStrong) return {
       primaryAction: 'check', primaryFrequency: 0.65,
       alternativeAction: 'bet_67', alternativeFrequency: 0.35,
       checkRaiseCandidate: false,
-      explanation: `${handEval.label} OOP no river — cheque (65%) para deixar villain bluffar ou bet thin value. Donk bet 67% (35%) quando board favorece sua range. Não cheque-levante mãos fortes aqui (salve check-raise para nuts).`
+      explanation: `${handEval.label} OOP no river, cheque (65%) para deixar villain bluffar ou bet thin value. Donk bet 67% (35%) quando board favorece sua range. Não cheque-levante mãos fortes aqui (salve check-raise para nuts).`
     }
     if (isMedium) return {
       primaryAction: 'check', primaryFrequency: 0.80,
       alternativeAction: 'bet_33', alternativeFrequency: 0.20,
       checkRaiseCandidate: false,
-      explanation: `${handEval.label} OOP no river — cheque (80%) para pot control. Thin value bet 33% (20%) raramente. Com mãos medianas OOP, você é vulnerável a raises; cheque é o caminho mais seguro.`
+      explanation: `${handEval.label} OOP no river, cheque (80%) para pot control. Thin value bet 33% (20%) raramente. Com mãos medianas OOP, você é vulnerável a raises; cheque é o caminho mais seguro.`
     }
     return {
       primaryAction: 'check', primaryFrequency: 0.92,
       alternativeAction: 'bet_pot', alternativeFrequency: 0.08,
       checkRaiseCandidate: false,
-      explanation: `${isMissedDraw ? 'Draw não completada' : 'Nada'} OOP no river — cheque (92%). Bluff 8% em spots muito seletivos (board dry, villain capped, fold equity extremamente alta). Se bluffa, use bet grande (pot) — bluffs pequenos no river são ineficientes.`
+      explanation: `${isMissedDraw ? 'Draw não completada' : 'Nada'} OOP no river, cheque (92%). Bluff 8% em spots muito seletivos (board dry, villain capped, fold equity extremamente alta). Se bluffa, use bet grande (pot), bluffs pequenos no river são ineficientes.`
     }
   }
 
   if (facingBet) {
-    // SPR baixo: stack está comprometido — raise com qualquer mão forte ou boa (maximiza valor)
+    // SPR baixo: stack está comprometido, raise com qualquer mão forte ou boa (maximiza valor)
     if (isShortSPR && (isNutted || isStrong)) return {
       primaryAction: 'raise', primaryFrequency: 0.95,
       alternativeAction: 'call', alternativeFrequency: 0.05,
-      explanation: `${handEval.label} com SPR baixo (${spr.toFixed(1)}) — RAISE all-in (95%). Stack comprometido ao pot: levantar maximiza valor e nega equity de draws. Call apenas em spots raros para balancear.`
+      explanation: `${handEval.label} com SPR baixo (${spr.toFixed(1)}), RAISE all-in (95%). Stack comprometido ao pot: levantar maximiza valor e nega equity de draws. Call apenas em spots raros para balancear.`
     }
     if (isNutted) return {
       primaryAction: 'raise', primaryFrequency: isTurn ? 0.90 : 0.85,
       alternativeAction: 'call', alternativeFrequency: isTurn ? 0.10 : 0.15,
-      explanation: `${handEval.label} — raise${isTurn ? ' no turn com mais frequência que no flop (ranges mais polarizadas)' : ' para extrair valor máximo e proteger contra draws'}. Chame raramente para equilibrar.`
+      explanation: `${handEval.label}, raise${isTurn ? ' no turn com mais frequência que no flop (ranges mais polarizadas)' : ' para extrair valor máximo e proteger contra draws'}. Chame raramente para equilibrar.`
     }
     if (isStrong) return {
       primaryAction: 'call', primaryFrequency: isTurn ? 0.85 : 0.80,
       alternativeAction: 'raise', alternativeFrequency: isTurn ? 0.15 : 0.20,
-      explanation: `${handEval.label} — call${isTurn ? '. No turn, raise menos frequente (pot maior, menos draws para proteger). Chame e decida no river.' : ' com frequência. Raise às vezes para extrair valor.'}`
+      explanation: `${handEval.label}, call${isTurn ? '. No turn, raise menos frequente (pot maior, menos draws para proteger). Chame e decida no river.' : ' com frequência. Raise às vezes para extrair valor.'}`
     }
     if (isMedium && hasDraw) return {
       primaryAction: draws.some(d => d.includes('Flush') || d === 'OESD') ? 'call' : 'fold',
       primaryFrequency: isTurn ? 0.60 : 0.65,
       alternativeAction: isTurn ? 'fold' : 'raise',
       alternativeFrequency: isTurn ? 0.40 : 0.35,
-      explanation: `${handEval.label}${isTurn ? ' no turn — draws valem menos (só 1 rua). Call apenas com draws fortes (FD, OESD). Fold draws fracos.' : ' — call frequente, raise como semi-bluff com draw forte.'}`
+      explanation: `${handEval.label}${isTurn ? ' no turn, draws valem menos (só 1 rua). Call apenas com draws fortes (FD, OESD). Fold draws fracos.' : ', call frequente, raise como semi-bluff com draw forte.'}`
     }
     if (isMedium && !hasDraw) return {
       primaryAction: isTurn ? 'fold' : 'call',
       primaryFrequency: isTurn ? 0.65 : 0.55,
       alternativeAction: isTurn ? 'call' : 'fold',
       alternativeFrequency: isTurn ? 0.35 : 0.45,
-      explanation: `${handEval.label}${isTurn ? ' — no turn sem draw é geralmente fold. Ranges são mais polarizadas, pot maior. Só continue com pot odds excepcionais.' : ' — borderline. Chame em posição, fold fora de posição em bets grandes.'}`
+      explanation: `${handEval.label}${isTurn ? ', no turn sem draw é geralmente fold. Ranges são mais polarizadas, pot maior. Só continue com pot odds excepcionais.' : ', borderline. Chame em posição, fold fora de posição em bets grandes.'}`
     }
     if (hasDraw && adjStrength >= 32) return {
       primaryAction: draws.some(d => d.includes('Flush')) ? 'call' : (isTurn ? 'fold' : 'call'),
@@ -1260,7 +1260,7 @@ function getGTODecisionImpl(
     return {
       primaryAction: 'fold', primaryFrequency: isTurn ? 0.90 : 0.85,
       alternativeAction: 'call', alternativeFrequency: isTurn ? 0.10 : 0.15,
-      explanation: `${handEval.label} — fold${isTurn ? ' quase sempre no turn. Sem equity suficiente para continuar.' : ' principal. Chame raramente para não ser explorado.'}`
+      explanation: `${handEval.label}, fold${isTurn ? ' quase sempre no turn. Sem equity suficiente para continuar.' : ' principal. Chame raramente para não ser explorado.'}`
     }
   }
 
@@ -1273,77 +1273,77 @@ function getGTODecisionImpl(
         const reason = vulnerableToStraight
           ? `board tem 4 cartas consecutivas`
           : vulnerableToFlush
-          ? `board monotone (3+ mesmo naipe) — flush completo possível`
+          ? `board monotone (3+ mesmo naipe), flush completo possível`
           : vulnerableFH
           ? `FH com par no board maior que sua trinca`
           : boardTrips
-          ? `board tem TRINCA — qualquer pocket pair = FH; qualquer card do rank = quads`
-          : `board duplo-pareado — múltiplas FH no range do villain`
+          ? `board tem TRINCA, qualquer pocket pair = FH; qualquer card do rank = quads`
+          : `board duplo-pareado, múltiplas FH no range do villain`
         return {
           primaryAction: 'bet_50', primaryFrequency: 0.45,
           alternativeAction: 'check', alternativeFrequency: 0.25,
           alsoAcceptable: ['bet_33', 'bet_67'],
-          explanation: `${handEval.label} IP — ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai de pares fortes sem inflar quando villain tem mão melhor. Check também válido para realizar equity barato. EVITE bets grandes — villain com a mão melhor te paga mais; pares fortes foldam pra qualquer aposta.`
+          explanation: `${handEval.label} IP, ⚠️ ${reason}. POT CONTROL: bet 33-50% extrai de pares fortes sem inflar quando villain tem mão melhor. Check também válido para realizar equity barato. EVITE bets grandes, villain com a mão melhor te paga mais; pares fortes foldam pra qualquer aposta.`
         }
       }
-      // SPR baixo: stack comprometido — bet pot imediato, não slow play
-      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, alsoAcceptable: ['bet_75', 'bet_67'], explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor. Bet 75%/67% também aceitáveis.` }
+      // SPR baixo: stack comprometido, bet pot imediato, não slow play
+      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.92, alternativeAction: 'check', alternativeFrequency: 0.08, alsoAcceptable: ['bet_75', 'bet_67'], explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}), bet pot (92%). Stack é pequeno relativo ao pot: extraia valor máximo agora. Slow play com SPR baixo desperdiça valor. Bet 75%/67% também aceitáveis.` }
       if (isTurn) {
-        if (wet || monotone) return { primaryAction: 'bet_75', primaryFrequency: 0.65, alternativeAction: 'bet_pot', alternativeFrequency: 0.20, alsoAcceptable: ['bet_67', 'check'], explanation: `${handEval.label} no turn em board molhado — bet 75% para extrair valor e negar equity de draws. Bet pot também válido (overbet polariza). Cheque ocasional para slow play.` }
-        return { primaryAction: 'bet_67', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.30, alsoAcceptable: ['bet_75', 'bet_50'], explanation: `${handEval.label} no turn board seco — bet 67% para valor. Cheque para induzir bluffs do villain no river. Bet 50%-75% também válidos com nuts.` }
+        if (wet || monotone) return { primaryAction: 'bet_75', primaryFrequency: 0.65, alternativeAction: 'bet_pot', alternativeFrequency: 0.20, alsoAcceptable: ['bet_67', 'check'], explanation: `${handEval.label} no turn em board molhado, bet 75% para extrair valor e negar equity de draws. Bet pot também válido (overbet polariza). Cheque ocasional para slow play.` }
+        return { primaryAction: 'bet_67', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.30, alsoAcceptable: ['bet_75', 'bet_50'], explanation: `${handEval.label} no turn board seco, bet 67% para valor. Cheque para induzir bluffs do villain no river. Bet 50%-75% também válidos com nuts.` }
       }
-      if (wet || monotone) return { primaryAction: 'bet_67', primaryFrequency: 0.60, alternativeAction: 'bet_75', alternativeFrequency: 0.25, alsoAcceptable: ['bet_pot', 'check'], explanation: `${handEval.label} em board molhado — aposte 67% para extrair valor e negar equity de draws. Bet 75% e pot também válidos para proteção máxima. Cheque ocasional para slow play.` }
-      return { primaryAction: 'check', primaryFrequency: 0.50, alternativeAction: 'bet_50', alternativeFrequency: 0.30, alsoAcceptable: ['bet_33', 'bet_67'], explanation: `${handEval.label} em board seco — slow play com check (induz bluffs do villain) ou bet 50% para valor equilibrado. Bet 33%/67% também aceitáveis dependendo do villain.` }
+      if (wet || monotone) return { primaryAction: 'bet_67', primaryFrequency: 0.60, alternativeAction: 'bet_75', alternativeFrequency: 0.25, alsoAcceptable: ['bet_pot', 'check'], explanation: `${handEval.label} em board molhado, aposte 67% para extrair valor e negar equity de draws. Bet 75% e pot também válidos para proteção máxima. Cheque ocasional para slow play.` }
+      return { primaryAction: 'check', primaryFrequency: 0.50, alternativeAction: 'bet_50', alternativeFrequency: 0.30, alsoAcceptable: ['bet_33', 'bet_67'], explanation: `${handEval.label} em board seco, slow play com check (induz bluffs do villain) ou bet 50% para valor equilibrado. Bet 33%/67% também aceitáveis dependendo do villain.` }
     }
     if (isStrong) {
       // SPR baixo: bet pot para comprometer logo
-      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.75, alternativeAction: 'bet_67', alternativeFrequency: 0.25, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet pot (75%). Com stack comprometido, size grande maximiza valor antes de ir all-in.` }
+      if (isShortSPR) return { primaryAction: 'bet_pot', primaryFrequency: 0.75, alternativeAction: 'bet_67', alternativeFrequency: 0.25, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}), bet pot (75%). Com stack comprometido, size grande maximiza valor antes de ir all-in.` }
       if (isTurn) {
         const sz: GtoAction = wet ? 'bet_75' : 'bet_67'
-        return { primaryAction: sz, primaryFrequency: 0.70, alternativeAction: 'check', alternativeFrequency: 0.30, explanation: `${handEval.label} no turn — aposte ${wet ? '75%' : '67%'}. Villain chamou o flop, range dele é mais fraca; aposte para extrair valor e dificultar realização de draws.` }
+        return { primaryAction: sz, primaryFrequency: 0.70, alternativeAction: 'check', alternativeFrequency: 0.30, explanation: `${handEval.label} no turn, aposte ${wet ? '75%' : '67%'}. Villain chamou o flop, range dele é mais fraca; aposte para extrair valor e dificultar realização de draws.` }
       }
       const sizing: GtoAction = wet ? 'bet_67' : 'bet_50'
       const freqBet = wet ? 0.75 : 0.65
-      return { primaryAction: sizing, primaryFrequency: freqBet, alternativeAction: 'check', alternativeFrequency: 1 - freqBet, explanation: `${handEval.label} — aposte ${wet ? '67%' : '50%'} para valor e proteção.` }
+      return { primaryAction: sizing, primaryFrequency: freqBet, alternativeAction: 'check', alternativeFrequency: 1 - freqBet, explanation: `${handEval.label}, aposte ${wet ? '67%' : '50%'} para valor e proteção.` }
     }
     if (category === 'tpwk' || (isMedium && !hasDraw)) {
       // SPR baixo: aposta mais com mãos médias (impliedodds compensam menos)
-      if (isShortSPR) return { primaryAction: 'bet_50', primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}) — bet 50% (65%). Mãos médias precisam extrair valor agora; pot control é menos relevante quando stacks são pequenos.` }
-      if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_50', alternativeFrequency: 0.25, explanation: `${handEval.label} no turn — cheque na maioria. Bet 50% ocasional como thin value em boards favoráveis. No turn, pot control é mais importante.` }
+      if (isShortSPR) return { primaryAction: 'bet_50', primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `${handEval.label} IP com SPR baixo (${spr.toFixed(1)}), bet 50% (65%). Mãos médias precisam extrair valor agora; pot control é menos relevante quando stacks são pequenos.` }
+      if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_50', alternativeFrequency: 0.25, explanation: `${handEval.label} no turn, cheque na maioria. Bet 50% ocasional como thin value em boards favoráveis. No turn, pot control é mais importante.` }
       // Deep stack: mais pot control com mãos médias
-      if (isDeepSPR) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_33', alternativeFrequency: 0.25, explanation: `${handEval.label} IP deep stack (SPR ${spr.toFixed(1)}) — cheque (75%). Com stacks profundos, pot control com mãos médias evita situações difíceis nos próximos streets.` }
-      if (dry) return { primaryAction: 'bet_33', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.45, explanation: `${handEval.label} em board seco — small bet (33%) captura valor. Cheque 45% para equilíbrio.` }
-      return { primaryAction: 'check', primaryFrequency: 0.65, alternativeAction: 'bet_33', alternativeFrequency: 0.35, explanation: `${handEval.label} em board molhado — cheque com frequência. Bet 33% ocasional.` }
+      if (isDeepSPR) return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_33', alternativeFrequency: 0.25, explanation: `${handEval.label} IP deep stack (SPR ${spr.toFixed(1)}), cheque (75%). Com stacks profundos, pot control com mãos médias evita situações difíceis nos próximos streets.` }
+      if (dry) return { primaryAction: 'bet_33', primaryFrequency: 0.55, alternativeAction: 'check', alternativeFrequency: 0.45, explanation: `${handEval.label} em board seco, small bet (33%) captura valor. Cheque 45% para equilíbrio.` }
+      return { primaryAction: 'check', primaryFrequency: 0.65, alternativeAction: 'bet_33', alternativeFrequency: 0.35, explanation: `${handEval.label} em board molhado, cheque com frequência. Bet 33% ocasional.` }
     }
     if (hasDraw) {
       if (isTurn) {
         if (strength >= 45) {
           const sz: GtoAction = draws.includes('Flush Draw') ? 'bet_67' : 'bet_50'
-          return { primaryAction: sz, primaryFrequency: 0.60, alternativeAction: 'check', alternativeFrequency: 0.40, explanation: `Semi-bluff no turn com ${draws.join(' + ')} — bet ${draws.includes('Flush') ? '67%' : '50%'} para fold equity + equity. Draws valem menos no turn (1 rua), então semi-bluff menos frequente.` }
+          return { primaryAction: sz, primaryFrequency: 0.60, alternativeAction: 'check', alternativeFrequency: 0.40, explanation: `Semi-bluff no turn com ${draws.join(' + ')}, bet ${draws.includes('Flush') ? '67%' : '50%'} para fold equity + equity. Draws valem menos no turn (1 rua), então semi-bluff menos frequente.` }
         }
-        return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_50', alternativeFrequency: 0.25, explanation: `Draw fraco no turn — cheque. Sem equity suficiente para semi-bluff lucrativo. Realize equity de graça.` }
+        return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_50', alternativeFrequency: 0.25, explanation: `Draw fraco no turn, cheque. Sem equity suficiente para semi-bluff lucrativo. Realize equity de graça.` }
       }
       if (strength >= 45) {
         const sz: GtoAction = draws.includes('Flush Draw') ? 'bet_50' : 'bet_33'
-        return { primaryAction: sz, primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `Semi-bluff com ${draws.join(' + ')} — aposte para fold equity + equity quando chamado.` }
+        return { primaryAction: sz, primaryFrequency: 0.65, alternativeAction: 'check', alternativeFrequency: 0.35, explanation: `Semi-bluff com ${draws.join(' + ')}, aposte para fold equity + equity quando chamado.` }
       }
-      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Semi-bluff fraco — cheque (55%) é o default. Bet pequeno 33% (45%) ocasional para fold equity, mas a equity da draw é baixa demais pra semi-bluff frequente.` }
+      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Semi-bluff fraco, cheque (55%) é o default. Bet pequeno 33% (45%) ocasional para fold equity, mas a equity da draw é baixa demais pra semi-bluff frequente.` }
     }
     if (category === 'overcards') {
-      if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.90, alternativeAction: 'bet_50', alternativeFrequency: 0.10, explanation: `Overcards no turn — cheque quase sempre. Bluff raramente; villain chamou o flop com mão razoável.` }
-      return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_33', alternativeFrequency: 0.25, explanation: `Duas overcards — cheque para ver turn. Bet 33% raramente como bluff.` }
+      if (isTurn) return { primaryAction: 'check', primaryFrequency: 0.90, alternativeAction: 'bet_50', alternativeFrequency: 0.10, explanation: `Overcards no turn, cheque quase sempre. Bluff raramente; villain chamou o flop com mão razoável.` }
+      return { primaryAction: 'check', primaryFrequency: 0.75, alternativeAction: 'bet_33', alternativeFrequency: 0.25, explanation: `Duas overcards, cheque para ver turn. Bet 33% raramente como bluff.` }
     }
     // Air
     if (isTurn) {
-      return { primaryAction: 'check', primaryFrequency: 0.88, alternativeAction: 'bet_67', alternativeFrequency: 0.12, explanation: `Nada no turn — cheque quase sempre. Bluff puro no turn só em spots muito específicos (pot grande, villain capped, fold equity alta). Use sizing grande quando bluffa (bet_67 ou pot).` }
+      return { primaryAction: 'check', primaryFrequency: 0.88, alternativeAction: 'bet_67', alternativeFrequency: 0.12, explanation: `Nada no turn, cheque quase sempre. Bluff puro no turn só em spots muito específicos (pot grande, villain capped, fold equity alta). Use sizing grande quando bluffa (bet_67 ou pot).` }
     }
     if (dry && !paired && potType === 'SRP') {
-      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Nada em board seco — cheque na maioria (55%). Bluff ocasional com bet 33% (45%) aproveita fold equity de boards secos, mas pot control é o default com ar.` }
+      return { primaryAction: 'check', primaryFrequency: 0.55, alternativeAction: 'bet_33', alternativeFrequency: 0.45, explanation: `Nada em board seco, cheque na maioria (55%). Bluff ocasional com bet 33% (45%) aproveita fold equity de boards secos, mas pot control é o default com ar.` }
     }
-    return { primaryAction: 'check', primaryFrequency: 0.82, alternativeAction: 'bet_33', alternativeFrequency: 0.18, explanation: `Nada — cheque quase sempre. Bet 33% raramente como bluff puro.` }
+    return { primaryAction: 'check', primaryFrequency: 0.82, alternativeAction: 'bet_33', alternativeFrequency: 0.18, explanation: `Nada, cheque quase sempre. Bet 33% raramente como bluff puro.` }
   }
 
-  // OOP strategy — check-raise é uma linha poderosa aqui
+  // OOP strategy, check-raise é uma linha poderosa aqui
   const isCheckRaiseCandidate =
     isNutted ||
     (isStrong && (wet || paired)) ||
@@ -1355,23 +1355,23 @@ function getGTODecisionImpl(
       const reason = vulnerableToStraight
         ? `board tem 4 cartas consecutivas`
         : vulnerableToFlush
-        ? `board monotone (3+ mesmo naipe) — flush completo possível`
+        ? `board monotone (3+ mesmo naipe), flush completo possível`
         : `FH com par no board maior que sua trinca`
       return {
         primaryAction: 'check', primaryFrequency: 0.50,
         alternativeAction: 'bet_33', alternativeFrequency: 0.30,
         alsoAcceptable: ['bet_50'],
         checkRaiseCandidate: false,
-        explanation: `${handEval.label} OOP — ⚠️ ${reason}. POT CONTROL: cheque para realizar equity barato (call vs raises pequenos, fold a overbet). Donk bet pequeno (33%) extrai de pares fortes sem inflar. NUNCA check-raise — villain com a mão melhor te dobra.`
+        explanation: `${handEval.label} OOP, ⚠️ ${reason}. POT CONTROL: cheque para realizar equity barato (call vs raises pequenos, fold a overbet). Donk bet pequeno (33%) extrai de pares fortes sem inflar. NUNCA check-raise, villain com a mão melhor te dobra.`
       }
     }
-    // SPR baixo: bet pot imediato OOP — não precisar de check-raise com stack comprometido
+    // SPR baixo: bet pot imediato OOP, não precisar de check-raise com stack comprometido
     if (isShortSPR) return {
       primaryAction: 'bet_pot', primaryFrequency: 0.75,
       alternativeAction: 'check_raise', alternativeFrequency: 0.20,
       alsoAcceptable: ['bet_75', 'bet_67'],
       checkRaiseCandidate: false,
-      explanation: `${handEval.label} OOP com SPR baixo (${spr.toFixed(1)}) — bet pot (75%). Stack comprometido: donk bet pot extrai valor imediato. Check-raise 20% para balancear. Bet 75%/67% também válidos.`
+      explanation: `${handEval.label} OOP com SPR baixo (${spr.toFixed(1)}), bet pot (75%). Stack comprometido: donk bet pot extrai valor imediato. Check-raise 20% para balancear. Bet 75%/67% também válidos.`
     }
     if (isTurn) {
       return {
@@ -1379,7 +1379,7 @@ function getGTODecisionImpl(
         alternativeAction: 'bet_pot', alternativeFrequency: 0.25,
         alsoAcceptable: ['bet_75', 'bet_67'],
         checkRaiseCandidate: true,
-        explanation: `${handEval.label} OOP no turn — Check-Raise (50%) é a linha ideal: pot é maior, ranges são mais polarizadas. Donk bet pot (25%) também excelente. Bet 75%/67% válidos. Não slow play no turn — river pode ser scare card.`
+        explanation: `${handEval.label} OOP no turn, Check-Raise (50%) é a linha ideal: pot é maior, ranges são mais polarizadas. Donk bet pot (25%) também excelente. Bet 75%/67% válidos. Não slow play no turn, river pode ser scare card.`
       }
     }
     if (wet || monotone) {
@@ -1388,14 +1388,14 @@ function getGTODecisionImpl(
         alternativeAction: 'bet_67', alternativeFrequency: 0.25,
         alsoAcceptable: ['bet_75', 'bet_pot'],
         checkRaiseCandidate: true,
-        explanation: `${handEval.label} OOP board molhado — Check-Raise (45%) nega equity dos draws E constrói pot. Donk bet 67%/75%/pot (25%+) balanceia sua linha — todos válidos com nuts.`
+        explanation: `${handEval.label} OOP board molhado, Check-Raise (45%) nega equity dos draws E constrói pot. Donk bet 67%/75%/pot (25%+) balanceia sua linha, todos válidos com nuts.`
       }
     }
     return {
       primaryAction: 'bet_67', primaryFrequency: 0.55,
       alternativeAction: 'check', alternativeFrequency: 0.45,
       checkRaiseCandidate: true,
-      explanation: `${handEval.label} OOP — donk bet 67% (55%) ou check para check-raise (45%). No check, levante se villain aposta. Ambas as linhas são excelentes.`
+      explanation: `${handEval.label} OOP, donk bet 67% (55%) ou check para check-raise (45%). No check, levante se villain aposta. Ambas as linhas são excelentes.`
     }
   }
   if (isStrong) {
@@ -1405,7 +1405,7 @@ function getGTODecisionImpl(
       primaryAction: 'check', primaryFrequency: 0.60,
       alternativeAction: betSz, alternativeFrequency: 0.40,
       checkRaiseCandidate: crFreq >= 0.35,
-      explanation: `${handEval.label} OOP${isTurn ? ' turn' : ''} — cheque (60%) para check-call/check-raise. Donk bet ${isTurn ? '67%' : '50%'} (40%) desequilibra villain.${crFreq >= 0.35 ? ` Check-raise ~${Math.round(crFreq*100)}% das vezes que villain aposta.` : ''}`
+      explanation: `${handEval.label} OOP${isTurn ? ' turn' : ''}, cheque (60%) para check-call/check-raise. Donk bet ${isTurn ? '67%' : '50%'} (40%) desequilibra villain.${crFreq >= 0.35 ? ` Check-raise ~${Math.round(crFreq*100)}% das vezes que villain aposta.` : ''}`
     }
   }
   if (hasDraw && strength >= 40) {
@@ -1414,7 +1414,7 @@ function getGTODecisionImpl(
         primaryAction: 'check', primaryFrequency: 0.70,
         alternativeAction: 'bet_67', alternativeFrequency: 0.30,
         checkRaiseCandidate: draws.some(d => d.includes('Flush')),
-        explanation: `Draw OOP no turn — cheque (70%) para check-call se tiver equity (FD: 9 outs ≈19%). Donk bet 67% (30%) como semi-bluff em boards favoráveis. Não cheque-fold com FD no turn.`
+        explanation: `Draw OOP no turn, cheque (70%) para check-call se tiver equity (FD: 9 outs ≈19%). Donk bet 67% (30%) como semi-bluff em boards favoráveis. Não cheque-fold com FD no turn.`
       }
     }
     const primaryAction: GtoAction = draws.includes('Flush Draw') && draws.includes('OESD') ? 'check_raise' : 'check'
@@ -1424,7 +1424,7 @@ function getGTODecisionImpl(
       alternativeAction: 'bet_50',
       alternativeFrequency: 0.45,
       checkRaiseCandidate: true,
-      explanation: `Semi-bluff OOP com ${draws.join(' + ')} — ${primaryAction === 'check_raise' ? 'Check-Raise (55%) para combo draws poderosos. ' : ''}Divida entre check para check-raise e donk bet 50%. Não cheque-fold!`
+      explanation: `Semi-bluff OOP com ${draws.join(' + ')}, ${primaryAction === 'check_raise' ? 'Check-Raise (55%) para combo draws poderosos. ' : ''}Divida entre check para check-raise e donk bet 50%. Não cheque-fold!`
     }
   }
   if (isMedium) {
@@ -1433,7 +1433,7 @@ function getGTODecisionImpl(
       alternativeAction: isTurn ? 'bet_50' : 'bet_33',
       alternativeFrequency: isTurn ? 0.10 : 0.20,
       checkRaiseCandidate: false,
-      explanation: `${handEval.label} OOP${isTurn ? ' turn — cheque quase sempre. Pot ficou grande, sem draws, pot control é essencial. Donk bet 50% muito raramente.' : ' — cheque na maioria. Donk bet 33% ocasional.'}`
+      explanation: `${handEval.label} OOP${isTurn ? ' turn, cheque quase sempre. Pot ficou grande, sem draws, pot control é essencial. Donk bet 50% muito raramente.' : ', cheque na maioria. Donk bet 33% ocasional.'}`
     }
   }
   return {
@@ -1441,7 +1441,7 @@ function getGTODecisionImpl(
     alternativeAction: isTurn ? 'bet_67' : 'bet_33',
     alternativeFrequency: isTurn ? 0.05 : 0.10,
     checkRaiseCandidate: false,
-    explanation: `Mão fraca OOP${isTurn ? ' turn — cheque quase sempre. Se bluffa no turn, use bet grande (67%+): polarize sua linha de bluff.' : ' — cheque quase sempre. Bluff 33% raramente em spots específicos.'}`
+    explanation: `Mão fraca OOP${isTurn ? ' turn, cheque quase sempre. Se bluffa no turn, use bet grande (67%+): polarize sua linha de bluff.' : ', cheque quase sempre. Bluff 33% raramente em spots específicos.'}`
   }
 }
 

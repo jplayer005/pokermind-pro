@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — TIPOS GLOBAIS
+// POKERMIND PRO, TIPOS GLOBAIS
 // Arquivo central de tipos TypeScript para toda a aplicação
 // ============================================================
 

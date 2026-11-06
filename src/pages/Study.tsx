@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — ESTUDOS
+// POKERMIND PRO, ESTUDOS
 // Cursos, flashcards com revisão espaçada, meta-game e quizzes
 // ============================================================
 
@@ -359,7 +359,7 @@ function MentalGameModule() {
       icon: '😡',
       title: 'Tipos de Tilt',
       color: 'text-accent-crimson',
-      content: '1. Revenge Tilt — querer "pagar de volta" ao mesmo player\n2. Running Bad Tilt — loosear porque "nada funciona"\n3. Entitlement Tilt — raiva após bad beats ("merecia ganhar")\n4. Fear Tilt — foldar demais por medo de perder mais\n5. Euphoria Tilt — descuidar quando está ganhando\n\n🛡️ Solução universal: Defina uma ação de "reset" ao sentir tilt. Exemplos: 5 min longe da mesa, respiração, revisar 3 mãos recentes.',
+      content: '1. Revenge Tilt, querer "pagar de volta" ao mesmo player\n2. Running Bad Tilt, loosear porque "nada funciona"\n3. Entitlement Tilt, raiva após bad beats ("merecia ganhar")\n4. Fear Tilt, foldar demais por medo de perder mais\n5. Euphoria Tilt, descuidar quando está ganhando\n\n🛡️ Solução universal: Defina uma ação de "reset" ao sentir tilt. Exemplos: 5 min longe da mesa, respiração, revisar 3 mãos recentes.',
     },
     {
       id: 'variance',
@@ -380,7 +380,7 @@ function MentalGameModule() {
       icon: '📉',
       title: 'Gerenciando Downswings',
       color: 'text-orange-400',
-      content: 'Durante um downswing:\n1. Revise mãos com solver — confirme que está jogando certo\n2. Não aumente volume para "recuperar mais rápido"\n3. Considere descer de stake temporariamente\n4. Tire 1-2 dias de folga após 3 sessões ruins seguidas\n5. Fale com outros players — downswings são normais\n\nLembrete: Downswing ≠ estou jogando mal. Às vezes coincide, às vezes é pura variância.',
+      content: 'Durante um downswing:\n1. Revise mãos com solver, confirme que está jogando certo\n2. Não aumente volume para "recuperar mais rápido"\n3. Considere descer de stake temporariamente\n4. Tire 1-2 dias de folga após 3 sessões ruins seguidas\n5. Fale com outros players, downswings são normais\n\nLembrete: Downswing ≠ estou jogando mal. Às vezes coincide, às vezes é pura variância.',
     },
   ]
 
@@ -426,9 +426,9 @@ const HUD_PROFILES = [
   { vpip: '28-38%', pfr: '18-28%', label: 'LAG', color: 'text-yellow-400', icon: '⚡',
     strategy: 'Pode ser forte ou com leaks. Observe se tem winrate positivo. Se LAG com baixo PFR = limp/call (fraco). Se LAG com alto PFR = agressivo equilibrado.' },
   { vpip: '40-55%', pfr: '8-15%', label: 'Fish Loose-Passivo', color: 'text-orange-400', icon: '🐟',
-    strategy: 'Alvo principal! Value-bet mais grosso. Nunca bluff — ele chama. Não faz raise sem mão forte. Bets dele = muito forte (nunca bluff). Sente à esquerda dele.' },
+    strategy: 'Alvo principal! Value-bet mais grosso. Nunca bluff, ele chama. Não faz raise sem mão forte. Bets dele = muito forte (nunca bluff). Sente à esquerda dele.' },
   { vpip: '55%+', pfr: '< 10%', label: 'Mega Fish', color: 'text-accent-crimson', icon: '🎯',
-    strategy: 'Extraia máximo valor. Bet thin, call downs com pairs medianos. Nunca bluff. Aguente bad beats — é assim que o jogo funciona vs fish. São a razão do poker ser lucrativo.' },
+    strategy: 'Extraia máximo valor. Bet thin, call downs com pairs medianos. Nunca bluff. Aguente bad beats, é assim que o jogo funciona vs fish. São a razão do poker ser lucrativo.' },
 ]
 
 function HUDGuideModule() {
@@ -482,8 +482,8 @@ function HUDGuideModule() {
         <SectionHeader title="📌 Stats Adicionais" subtitle="Além do VPIP e PFR" />
         <div className="mt-3 space-y-3">
           {[
-            { stat: 'Fold to 3-Bet > 70%', action: '3bete light com K9s, A3s, JTs — EV positivo mesmo sem equity alta' },
-            { stat: 'Fold to 3-Bet < 50%', action: '3bete apenas valor (QQ+/AK). Não bluff — ele chama tudo' },
+            { stat: 'Fold to 3-Bet > 70%', action: '3bete light com K9s, A3s, JTs, EV positivo mesmo sem equity alta' },
+            { stat: 'Fold to 3-Bet < 50%', action: '3bete apenas valor (QQ+/AK). Não bluff, ele chama tudo' },
             { stat: 'WTSD% > 30%', action: 'Não bluff. Value-bete muito mais grosso. Thin value no river é excelente' },
             { stat: 'WTSD% < 22%', action: 'Bluff mais no river. Ele folda draws não completados e pares fracos' },
             { stat: 'Cbet % > 80%', action: 'Float o flop e bete o turn. Ele aposta demais sem mãos fortes' },
@@ -566,9 +566,9 @@ function GameSelectionModule() {
       <Card className="p-4">
         <SectionHeader title="🔑 Princípio Fundamental" />
         <p className="text-[11px] text-text-secondary font-body leading-relaxed mt-3">
-          Você não precisa ser o melhor jogador do mundo — você precisa ser melhor que as pessoas na sua mesa.
+          Você não precisa ser o melhor jogador do mundo, você precisa ser melhor que as pessoas na sua mesa.
           {'\n\n'}Se você é claramente o melhor player na mesa, a longo prazo sua winrate será limitada pela sorte de curto prazo dos outros.
-          {'\n\n'}Busque mesas onde você é o 2º ou 3º melhor player — os piores serão seus alvos consistentes.
+          {'\n\n'}Busque mesas onde você é o 2º ou 3º melhor player, os piores serão seus alvos consistentes.
         </p>
       </Card>
     </div>

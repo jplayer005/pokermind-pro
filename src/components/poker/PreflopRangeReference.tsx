@@ -1,7 +1,7 @@
 // ============================================================
-// POKERMIND PRO — PAINEL DE CONSULTA DE RANGE PRÉ-FLOP
+// POKERMIND PRO, PAINEL DE CONSULTA DE RANGE PRÉ-FLOP
 // Consulta rápida de ranges por cenário, posição e stack.
-// Read-only — não modifica nenhum estado de treino.
+// Read-only, não modifica nenhum estado de treino.
 // ============================================================
 
 import { useState, useMemo } from 'react'
@@ -210,7 +210,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
           <span className="text-[9px] text-text-muted uppercase tracking-wider font-body">
             Stack Hero
             {scenario === 'open_raise' && heroStack < 100 && (
-              <span className="ml-1 text-accent-gold normal-case">— ajustado</span>
+              <span className="ml-1 text-accent-gold normal-case">- ajustado</span>
             )}
           </span>
           <div className="flex flex-wrap gap-1">
@@ -281,7 +281,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                   : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
               )}
             >
-              13–20 BB
+              13-20 BB
             </button>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
         </div>
       </div>
 
-      {/* Tablet (md–lg): grid sm, filtros à direita */}
+      {/* Tablet (md-lg): grid sm, filtros à direita */}
       <div className="hidden md:flex lg:hidden md:gap-6 md:items-start">
         <div className="flex-1 min-w-0">
           <RangeGrid range={rangeMap} cellSize="sm" showLegend={true} />

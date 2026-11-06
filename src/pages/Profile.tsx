@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — PERFIL DO USUÁRIO (v2)
+// POKERMIND PRO, PERFIL DO USUÁRIO (v2)
 // Avatar, níveis progressivos, 61 conquistas, metas, stats
 // ============================================================
 // XP_HOOK: ao adicionar novas fontes de XP no app, use XP_REWARDS de @/lib/utils
@@ -167,7 +167,7 @@ function PositionPerformance({ sessionHistory }: { sessionHistory: any[] }) {
               transition={{ duration: 0.8, delay: 0.1 }} />
           </div>
           <span className="text-xs font-mono text-text-secondary w-10 text-right">
-            {total === 0 ? '—' : `${Math.round(accuracy * 100)}%`}
+            {total === 0 ? '-' : `${Math.round(accuracy * 100)}%`}
           </span>
           <span className="text-[10px] text-text-muted w-12 text-right">
             {total > 0 ? `${total}q` : ''}
@@ -544,7 +544,7 @@ export default function Profile() {
                       ]}
                     />
                   </ShareButton>
-                  {/* Botão editar nome — funcional */}
+                  {/* Botão editar nome, funcional */}
                   <button
                     onClick={() => setShowEditName(true)}
                     aria-label="Editar o nome"
@@ -573,7 +573,7 @@ export default function Profile() {
             <div className="mt-4">
               <div className="flex justify-between items-center mb-1.5">
                 <span className="text-xs font-bold text-yellow-400">
-                  Nível {stats.level} — {levelData.tierName}
+                  Nível {stats.level}, {levelData.tierName}
                 </span>
                 <span className="text-xs text-text-muted font-mono">
                   {formatNumber(xpInfo.current)} / {formatNumber(xpInfo.needed)} XP
@@ -690,7 +690,7 @@ export default function Profile() {
                           )}>
                           {studied ? '🔥' : '·'}
                         </motion.div>
-                        <span className="text-[8px] text-text-muted/60">{DAY_LABELS[dow]}</span>
+                        <span className="text-[10px] text-text-muted">{DAY_LABELS[dow]}</span>
                       </div>
                     )
                   })}
@@ -905,7 +905,7 @@ export default function Profile() {
                   'Foque nos pontos fracos: posições com menor precisão primeiro',
                   'Revise as mãos erradas no dia seguinte para fixar o aprendizado',
                   defaultDifficulty === 'hard'
-                    ? 'No modo Difícil, a seleção inclui mais hands borderline — paciência na análise!'
+                    ? 'No modo Difícil, a seleção inclui mais hands borderline, paciência na análise!'
                     : 'Troque para o modo Difícil quando atingir 80%+ de precisão no modo atual.',
                 ].map((tip, i) => (
                   <div key={i} className="flex gap-2">
@@ -978,7 +978,7 @@ export default function Profile() {
             <Card className="p-4">
               <h4 className="text-xs font-bold text-text-muted uppercase mb-3">Progressão de Tier</h4>
               <p className="text-xs text-text-muted mb-3">
-                Nível {stats.level} — {levelData.fullName}
+                Nível {stats.level}, {levelData.fullName}
               </p>
               <TierRoadmap currentLevel={stats.level} />
             </Card>

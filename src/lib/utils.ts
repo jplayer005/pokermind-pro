@@ -148,13 +148,13 @@ export const XP_REWARDS = {
   CORRECT_POSTFLOP_ALT: 5, // ação alternativa aceitável no pós-flop
   SESSION_COMPLETE: 50,    // bônus por completar sessão (10+ questões)
   PERFECT_SESSION: 100,    // bônus sessão perfeita (100%, 15+ questões)
-  // ==== XP_HOOK: LESSON_COMPLETE — chamar addXP(XP_REWARDS.LESSON_COMPLETE) ao completar aula em Study.tsx ====
+  // ==== XP_HOOK: LESSON_COMPLETE, chamar addXP(XP_REWARDS.LESSON_COMPLETE) ao completar aula em Study.tsx ====
   LESSON_COMPLETE: 200,
-  // ==== XP_HOOK: COURSE_COMPLETE — chamar addXP(XP_REWARDS.COURSE_COMPLETE) ao concluir curso em Study.tsx ====
+  // ==== XP_HOOK: COURSE_COMPLETE, chamar addXP(XP_REWARDS.COURSE_COMPLETE) ao concluir curso em Study.tsx ====
   COURSE_COMPLETE: 500,
-  // ==== XP_HOOK: FLASHCARD_REVIEW — chamar addXP(XP_REWARDS.FLASHCARD_REVIEW * n) por n flashcards revisados ====
+  // ==== XP_HOOK: FLASHCARD_REVIEW, chamar addXP(XP_REWARDS.FLASHCARD_REVIEW * n) por n flashcards revisados ====
   FLASHCARD_REVIEW: 2,
-  // ==== XP_HOOK: COMPETITION — XP de competição já calculado por score em PreflopTrainer ====
+  // ==== XP_HOOK: COMPETITION, XP de competição já calculado por score em PreflopTrainer ====
 } as const
 
 /** Multiplicador de XP por dificuldade */

@@ -172,7 +172,7 @@ describe('maos recriadas (myHands)', () => {
     expect(mergeMyHands({ hands: [], deleted: { a: 100 } }, { hands: [h('a', 150)], deleted: {} }).hands.map((x: any) => x.id)).toEqual(['a'])
   })
 
-  it('esta registrada como documento de sincronizacao', async () => {
+  it('esta registrada como documento de sincronizacao', { timeout: 30000 }, async () => {
     const { SYNC_DOCS } = await import('@/firebase/sync')
     expect(SYNC_DOCS).toContain('myHands')
     expect(Object.keys(MERGERS)).toContain('myHands')

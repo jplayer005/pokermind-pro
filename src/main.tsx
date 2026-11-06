@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — ENTRY POINT
+// POKERMIND PRO, ENTRY POINT
 // ============================================================
 
 import React from 'react'

@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — DASHBOARD
+// POKERMIND PRO, DASHBOARD
 // Painel principal com estatísticas e evolução do usuário
 // ============================================================
 
@@ -220,12 +220,12 @@ const QUICK_LINKS = [
     spanFull: true,
   },
   {
-    icon: '🃏', label: 'Drill Pré-Flop', sub: 'Começa agora — modo drill',
+    icon: '🃏', label: 'Drill Pré-Flop', sub: 'Começa agora, modo drill',
     path: '/preflop', navState: { scenario: 'open_raise', mode: 'drill', autoStart: true },
     color: 'from-yellow-500/10 to-yellow-600/5', border: 'border-yellow-500/20',
   },
   {
-    icon: '🎯', label: 'Push/Fold', sub: 'Começa agora — modo drill',
+    icon: '🎯', label: 'Push/Fold', sub: 'Começa agora, modo drill',
     path: '/preflop', navState: { scenario: 'push_fold', mode: 'drill', autoStart: true },
     color: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/20',
   },
@@ -374,7 +374,7 @@ export default function Dashboard() {
                 {stats.currentStreak}
               </span>
             </div>
-            <span className="text-[9px] text-text-muted font-body">dias seguidos</span>
+            <span className="text-[10px] text-text-muted font-body">dias seguidos</span>
           </div>
         </motion.div>
 
@@ -443,14 +443,14 @@ export default function Dashboard() {
             />
             <StatCard
               label="Tempo de Estudo"
-              value={stats.studyTimeMinutes > 0 ? formatTime(stats.studyTimeMinutes) : '—'}
+              value={stats.studyTimeMinutes > 0 ? formatTime(stats.studyTimeMinutes) : '-'}
               subtext="Total acumulado"
               color="gold"
               icon={<Clock size={16} />}
             />
             <StatCard
               label="Total de Mãos"
-              value={stats.totalQuestions > 0 ? formatNumber(stats.totalQuestions) : '—'}
+              value={stats.totalQuestions > 0 ? formatNumber(stats.totalQuestions) : '-'}
               subtext={stats.totalSessions > 0 ? `${stats.totalSessions} sessões` : 'Nenhuma sessão ainda'}
               color="blue"
               icon={<TrendingUp size={16} />}
@@ -646,7 +646,7 @@ export default function Dashboard() {
                 {[['#4ade80', '≥ 80%'], ['#facc15', '60-79%'], ['#f43f5e', '< 60%']].map(([color, label]) => (
                   <div key={label} className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full inline-block" style={{ background: color }} />
-                    <span className="text-[9px] text-text-muted">{label}</span>
+                    <span className="text-[10px] text-text-muted">{label}</span>
                   </div>
                 ))}
               </div>
@@ -701,7 +701,7 @@ export default function Dashboard() {
                       )}>
                         {row.accuracy}%
                       </div>
-                      <div className="text-[9px] text-text-muted w-8 text-right flex-shrink-0">{row.attempts}q</div>
+                      <div className="text-[10px] text-text-muted w-8 text-right flex-shrink-0">{row.attempts}q</div>
                     </div>
                   ))}
                 </div>

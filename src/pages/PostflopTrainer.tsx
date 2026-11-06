@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — TREINADOR PÓS-FLOP (REESCRITA COMPLETA)
+// POKERMIND PRO, TREINADOR PÓS-FLOP (REESCRITA COMPLETA)
 // Treino real: hand + board + decisão GTO com feedback detalhado
 // ============================================================
 
@@ -51,7 +51,7 @@ const RIVER_FIRST_TO_ACT_ACTIONS_IP: PostflopAction[]  = ['check', 'bet_33', 'be
 const RIVER_FIRST_TO_ACT_ACTIONS_OOP: PostflopAction[] = ['check', 'check_raise', 'bet_33', 'bet_67', 'bet_pot']
 const FACING_BET_ACTIONS: PostflopAction[] = ['fold', 'call', 'raise']
 
-// Tailwind purga classes dinâmicas — mapeamento estático garante geração no build
+// Tailwind purga classes dinâmicas, mapeamento estático garante geração no build
 const POSTFLOP_COLS_CLASS: Record<number, string> = {
   1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3',
   4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6',
@@ -136,7 +136,7 @@ function textureBadgeVariant(label: string): 'crimson' | 'emerald' | 'gold' | 'b
 // ---- SETUP PHASE ----
 type StreetMode = 'full' | 'flop_only' | 'turn_only' | 'river_only'
 
-// Filtros de categoria — restringe quais spots o usuário quer treinar
+// Filtros de categoria, restringe quais spots o usuário quer treinar
 type HandCategoryFilter = 'any' | 'nutted' | 'strong' | 'medium' | 'draws' | 'weak' | 'air'
 type TextureFilter = 'any' | 'dry' | 'wet' | 'paired' | 'monotone'
 
@@ -273,9 +273,9 @@ function SetupPanel({ onStart, initialConfig }: { onStart: (cfg: SetupConfig) =>
           </div>
         </div>
         <div className="flex items-center gap-2 pt-2 border-t border-border-subtle">
-          <span className="text-[10px] text-text-muted uppercase tracking-wider">No postflop:</span>
+          <span className="shrink-0 text-[10px] text-text-muted uppercase tracking-wider">No postflop:</span>
           <span className={cn(
-            'text-xs font-mono font-bold px-2 py-0.5 rounded border',
+            'shrink-0 whitespace-nowrap text-xs font-mono font-bold px-2 py-0.5 rounded border',
             derivedPosition === 'IP'
               ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
               : 'bg-red-500/15 text-red-400 border-red-500/30'
@@ -571,19 +571,19 @@ function spotKey(
   return `${category}_${position}_${potType}_${street}_${textureClass}`
 }
 
-// Retorna range estimado do villain para o spot — usado no cálculo de equity.
+// Retorna range estimado do villain para o spot, usado no cálculo de equity.
 // Agora usa a função dinâmica por posição (villain vs hero, com positions trocadas).
 function getVillainRange(cfg: SetupConfig): string[] {
   return getHeroPreflopRangeByPosition(cfg.villainPreflopPosition, cfg.heroPreflopPosition, cfg.potType)
 }
 
-// Equity Monte Carlo com 400 iterações (~80-150ms — snappy o suficiente).
+// Equity Monte Carlo com 400 iterações (~80-150ms, snappy o suficiente).
 function computeEquity(heroCards: [CardType, CardType], board: CardType[], cfg: SetupConfig): MonteCarloResult {
   const villainRange = getVillainRange(cfg)
   return runMonteCarloEquityPostflop(heroCards, board, villainRange, 400)
 }
 
-// Helpers de filtro — checam se um candidato passa pelos filtros da config
+// Helpers de filtro, checam se um candidato passa pelos filtros da config
 function matchesCategoryFilter(handCategory: string, filter: HandCategoryFilter): boolean {
   if (filter === 'any') return true
   return CATEGORY_GROUPS[filter].includes(handCategory)
@@ -604,10 +604,10 @@ function scoreCandidate(profile: PostflopSpotProfile | null): number {
   let score = 1
 
   if (!profile) {
-    // Nunca viu esse tipo de spot — boost moderado para descoberta
+    // Nunca viu esse tipo de spot, boost moderado para descoberta
     score += 0.5
   } else {
-    // Boost por erros (diminishing — 1 erro = 0.51, 5 erros = 1.69, 20 erros = 1.96)
+    // Boost por erros (diminishing, 1 erro = 0.51, 5 erros = 1.69, 20 erros = 1.96)
     if (profile.mistakes > 0) {
       score += 2 * (1 - Math.exp(-profile.mistakes / 3))
     }
@@ -635,8 +635,8 @@ function scoreCandidate(profile: PostflopSpotProfile | null): number {
 // Isso evita situações irrealistas como 72o em pote 3-bet.
 //
 // Estratégia:
-//   • 75% das vezes — mão do range pré-flop típico, com MARGINAIS-in boostadas 3×
-//   • 25% das vezes — mão MARGINAL fora do range típico, para variar e ensinar
+//   • 75% das vezes, mão do range pré-flop típico, com MARGINAIS-in boostadas 3×
+//   • 25% das vezes, mão MARGINAL fora do range típico, para variar e ensinar
 //     o usuário a reconhecer situações onde "essa mão não deveria estar aqui"
 function pickHeroCardsFromRange(cfg: SetupConfig, boardCards: CardType[]): [CardType, CardType] {
   const range = getHeroPreflopRangeByPosition(cfg.heroPreflopPosition, cfg.villainPreflopPosition, cfg.potType)
@@ -644,7 +644,7 @@ function pickHeroCardsFromRange(cfg: SetupConfig, boardCards: CardType[]): [Card
 
   // Pool ponderado:
   //   - mão IN range: peso por combos × 3 se marginal, × 1 se premium
-  //   - mão MARGINAL OUT of range: peso adicional (~25% do total) — ensina spots "raros"
+  //   - mão MARGINAL OUT of range: peso adicional (~25% do total), ensina spots "raros"
   const weighted: string[] = []
   for (const hand of range) {
     const w = countCombos(hand)
@@ -817,7 +817,7 @@ function advanceTurn(drill: DrillState, cfg: SetupConfig): DrillState {
   const flopInvestmentPerPlayer = Math.max(0, (turnEstimatedPot - cfg.potSize) / 2)
   const turnRemainingStack = Math.max(1, cfg.effectiveStack - flopInvestmentPerPlayer)
   const turnSPR = turnEstimatedPot > 0 ? Math.round((turnRemainingStack / turnEstimatedPot) * 10) / 10 : 10
-  // facing_bet só é o estado inicial do flop — no turn/river hero atua primeiro após villain check
+  // facing_bet só é o estado inicial do flop, no turn/river hero atua primeiro após villain check
   const turnGtoDecision = getGTODecision(turnHandEval, turnTexture, cfg.position, cfg.potType, false, 'turn', turnSPR)
   const turnEquity = computeEquity(drill.heroCards, fullBoard, cfg)
   return {
@@ -869,7 +869,7 @@ export default function PostflopTrainer() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Estado vindo do Dashboard "Pontos Fracos Pós-Flop" — pré-aplica config + auto-start
+  // Estado vindo do Dashboard "Pontos Fracos Pós-Flop", pré-aplica config + auto-start
   const navState = location.state as null | {
     fromWeakSpot?: boolean
     position?: HeroPos
@@ -906,7 +906,7 @@ export default function PostflopTrainer() {
     }
   }, [drill?.phase])
 
-  // Auto-start quando vem do Dashboard "Pontos Fracos" — usa defaults para campos não setados
+  // Auto-start quando vem do Dashboard "Pontos Fracos", usa defaults para campos não setados
   useEffect(() => {
     if (navState?.autoStart && !config) {
       const ipOop = navState.position ?? 'IP'
@@ -1149,7 +1149,7 @@ export default function PostflopTrainer() {
             <div className="flex items-center gap-2">
               <div className="text-right">
                 <div className="font-mono text-xs text-accent-emerald font-bold">
-                  {sessionStats.total > 0 ? `${Math.round((sessionStats.correct / sessionStats.total) * 100)}%` : '—'}
+                  {sessionStats.total > 0 ? `${Math.round((sessionStats.correct / sessionStats.total) * 100)}%` : '-'}
                 </div>
                 <div className="text-[10px] text-text-muted">{sessionStats.total} mãos</div>
               </div>
@@ -1457,7 +1457,7 @@ export default function PostflopTrainer() {
                         </div>
                         {drill.blockerEffects.some(b => b.impact === 'high') && (
                           <p className="text-[10px] text-accent-blue mt-2 pt-2 border-t border-border-subtle">
-                            Bloqueadores fortes aumentam sua fold equity — villain tem menos combos de mãos fortes para chamar ou raisar.
+                            Bloqueadores fortes aumentam sua fold equity, villain tem menos combos de mãos fortes para chamar ou raisar.
                           </p>
                         )}
                       </Card>
@@ -1470,7 +1470,7 @@ export default function PostflopTrainer() {
                           <span className="text-purple-400 text-sm font-bold">♟ Check-Raise Spot</span>
                         </div>
                         <p className="text-[10px] text-text-secondary mt-1 leading-relaxed">
-                          Esta mão tem potencial de check-raise OOP. Cheque com intenção de raisar se villain apostar — constrói potes maiores que donk bet e protege sua checking range.
+                          Esta mão tem potencial de check-raise OOP. Cheque com intenção de raisar se villain apostar, constrói potes maiores que donk bet e protege sua checking range.
                         </p>
                       </Card>
                     )}
@@ -1525,7 +1525,7 @@ export default function PostflopTrainer() {
                           drill.turnInfo.type === 'scare' ? 'text-red-400' :
                                                             'text-text-secondary'
                         )}>
-                          Turn — {drill.turnInfo.label}
+                          Turn, {drill.turnInfo.label}
                         </div>
                         <div className="text-[10px] text-text-muted mt-0.5">
                           Pot estimado: ~{drill.turnEstimatedPot} BB
@@ -1773,7 +1773,7 @@ export default function PostflopTrainer() {
                           drill.riverInfo?.type === 'gin'   ? 'text-emerald-400' :
                           drill.riverInfo?.type === 'scare' ? 'text-red-400' : 'text-accent-blue'
                         )}>
-                          River — {drill.riverInfo?.label ?? 'Board Final'}
+                          River, {drill.riverInfo?.label ?? 'Board Final'}
                         </div>
                         <div className="text-[10px] text-text-muted mt-0.5">
                           Pot estimado: ~{drill.riverEstimatedPot} BB • SPR ≈ {Math.max(0, (config.effectiveStack - (drill.riverEstimatedPot - config.potSize) / 2) / drill.riverEstimatedPot).toFixed(1)}
@@ -1956,7 +1956,7 @@ export default function PostflopTrainer() {
                           {/* ======= MULTI-STREET SUMMARY (só no modo full) ======= */}
                           {config.streetMode === 'full' && <Card className="p-4">
                             <div className="text-xs text-text-muted uppercase tracking-wider mb-3">
-                              Resumo da Mão — 3 Ruas
+                              Resumo da Mão, 3 Ruas
                             </div>
                             <div className="space-y-2">
                               {[
@@ -1973,7 +1973,7 @@ export default function PostflopTrainer() {
                                       row.result === 'alternative' ? 'bg-yellow-500/20 text-yellow-400' :
                                       row.result === 'wrong' ? 'bg-red-500/20 text-red-400' : 'bg-bg-overlay text-text-muted'
                                     )}>
-                                      {row.userAction ? ACTION_LABELS[row.userAction as PostflopAction] : '—'}
+                                      {row.userAction ? ACTION_LABELS[row.userAction as PostflopAction] : '-'}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2001,9 +2001,9 @@ export default function PostflopTrainer() {
                                   score >= 1.5 ? 'bg-yellow-500/10 text-yellow-400' :
                                                  'bg-red-500/10 text-red-400'
                                 )}>
-                                  {score >= 2.5 ? '✅ Linha excelente — consistência GTO nas 3 ruas.' :
-                                   score >= 1.5 ? '⚠️ Linha razoável — revise as ruas marcadas em amarelo.' :
-                                                  '❌ Linha inconsistente — revise a estratégia multi-street.'}
+                                  {score >= 2.5 ? '✅ Linha excelente, consistência GTO nas 3 ruas.' :
+                                   score >= 1.5 ? '⚠️ Linha razoável, revise as ruas marcadas em amarelo.' :
+                                                  '❌ Linha inconsistente, revise a estratégia multi-street.'}
                                 </div>
                               )
                             })()}

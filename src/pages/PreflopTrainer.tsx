@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — TREINADOR PRÉ-FLOP
+// POKERMIND PRO, TREINADOR PRÉ-FLOP
 // Sistema completo de drill com ranges, heatmaps e análise GTO
 // ============================================================
 
@@ -64,7 +64,7 @@ function getRangeForScenario(
     case 'bb_defense': return resolveBBDefenseRange(villainPosition)
     case 'vs_raise':
       if (position === 'BB') return resolveBBDefenseRange(villainPosition)
-      // IP defense ranges (BTN/CO/HJ) variam por opener — vs UTG é muito tight, vs CO é wide
+      // IP defense ranges (BTN/CO/HJ) variam por opener, vs UTG é muito tight, vs CO é wide
       const ipDefense = getIPDefenseRange(position, villainPosition)
       if (ipDefense) return ipDefense
       // Fallback: open range (comportamento antigo) se não há range específica
@@ -165,7 +165,7 @@ function getCorrectActionForScenario(
 // Mãos especulativas (implied odds) perdem valor em stacks curtos
 function applyStackAdjustment(range: string[], heroStack: number): string[] {
   if (heroStack >= 100) return range
-  // Mãos que exigem implied odds (deep stack) — removidas gradualmente com stack menor
+  // Mãos que exigem implied odds (deep stack), removidas gradualmente com stack menor
   const removalsMid = [
     'K2s','K3s','K4s','Q6s','Q7s','J6s','J7s','T5s','T6s',
     '95s','96s','85s','86s','74s','75s','63s','64s','52s','53s','54s','A2s','A3s',
@@ -203,7 +203,7 @@ function buildWeightedPool(range: string[], allHands: string[], difficulty: 'eas
   const pool: string[] = []
   const rangeSet = new Set(range)
 
-  // Boost de marginais — mais alto em hard (treino mais focado em borderline)
+  // Boost de marginais, mais alto em hard (treino mais focado em borderline)
   const marginalBoost = difficulty === 'easy' ? 3 : difficulty === 'hard' ? 5 : 4
 
   // Cobertura TOTAL: itera as 169 mãos do grid
@@ -287,7 +287,7 @@ export default function PreflopTrainer() {
       : ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']
   )
   // Quando hero é aleatório, o seletor de villain deve aceitar qualquer posição que seja
-  // válida para PELO MENOS UM hero possível no cenário — evita bloquear todos os botões.
+  // válida para PELO MENOS UM hero possível no cenário, evita bloquear todos os botões.
   const VALID_VILLAIN_SET = new Set(
     isRandomPosition
       ? ALL_VILLAIN_POSITIONS_BY_FORMAT.filter(pos =>
@@ -348,7 +348,7 @@ export default function PreflopTrainer() {
   // Buffer das últimas N questões para evitar repetição imediata (anti-loop)
   const recentQuestionsRef = useRef<string[]>([])
   const RECENT_BUFFER = 5
-  // Contador de questões — usado como display key para forçar re-animação mesmo quando o ID se repete
+  // Contador de questões, usado como display key para forçar re-animação mesmo quando o ID se repete
   const [questionSequence, setQuestionSequence] = useState(0)
 
   // Estatísticas da sessão atual
@@ -468,7 +468,7 @@ export default function PreflopTrainer() {
       setPoolPosition(effectivePos)
     }
 
-    // ---- 5. Pop próxima mão da fila — pulando a mão imediatamente anterior ----
+    // ---- 5. Pop próxima mão da fila, pulando a mão imediatamente anterior ----
     const lastHand = recentQuestionsRef.current[0] ?? null
     let hand = pool[0] ?? randomHand()
     let remainingPool = pool.slice(1)
@@ -507,7 +507,7 @@ export default function PreflopTrainer() {
         '3bet': '3-BET (reraise)', '4bet': '4-BET (re-reraise)', call: 'CALL (chamar)', limp: 'LIMP (completar BB)',
       }
       const stackNote = scenario !== 'push_fold' && heroStack < 100
-        ? ` [Range ajustada para ${heroStack}bb — mãos especulativas removidas]`
+        ? ` [Range ajustada para ${heroStack}bb, mãos especulativas removidas]`
         : ''
 
       question = {
@@ -520,7 +520,7 @@ export default function PreflopTrainer() {
         correctFrequency: 1.0,
         explanation: isInRange
           ? `${hand} está dentro do range de ${scenarioLabels[scenario]} do ${effectivePos}.${stackNote} A jogada correta é ${actionLabels[correctAction] ?? correctAction}.`
-          : `${hand} está fora do range de ${scenarioLabels[scenario]} do ${effectivePos}.${stackNote} A mão não tem equity suficiente nesta situação — FOLD é a jogada correta.`,
+          : `${hand} está fora do range de ${scenarioLabels[scenario]} do ${effectivePos}.${stackNote} A mão não tem equity suficiente nesta situação, FOLD é a jogada correta.`,
       }
     }
 
@@ -540,12 +540,12 @@ export default function PreflopTrainer() {
   // 1. Match exato com correctAction → correto
   // 2. Em gtoMix com freq >= 15% → também válido (mistura GTO conhecida)
   // 3. Spots de mistura (correctFrequency < 0.9) onde a ação alternativa
-  //    natural também é GTO-correta (ex: A5s BTN vs_raise — pode ser call OU 3bet)
+  //    natural também é GTO-correta (ex: A5s BTN vs_raise, pode ser call OU 3bet)
   function isAlsoValidAction(action: Action, q: PreflopDrillQuestion): boolean {
     if (action === q.correctAction) return false // já é exato, não "também"
     // Mistura GTO explícita no banco
     if (q.gtoMix && (q.gtoMix[action] ?? 0) >= 0.15) return true
-    // Spots com correctFrequency < 0.9 = mistura — aceita ação complementar plausível
+    // Spots com correctFrequency < 0.9 = mistura, aceita ação complementar plausível
     if ((q.correctFrequency ?? 1) < 0.9) {
       const sc = q.scenario as ScenarioType
       // bb_defense / vs_raise: alternativa entre call e 3bet
@@ -638,7 +638,7 @@ export default function PreflopTrainer() {
       startDrillSession()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // mount only — usa closure do estado inicial
+  }, []) // mount only, usa closure do estado inicial
 
   // ---- TIMER DE COMPETIÇÃO ----
   useEffect(() => {
@@ -863,7 +863,7 @@ export default function PreflopTrainer() {
           {isSessionActive && currentQuestion && showResult && mode !== 'competition' && (showRange || mode === 'study') && (
             <div className="mt-6 pt-5 border-t border-border-subtle">
               <div className="text-[10px] text-text-muted uppercase tracking-wider mb-3 font-body">
-                Range correto — {currentQuestion.position}
+                Range correto, {currentQuestion.position}
               </div>
               <RangeGrid
                 range={rangeMap}
@@ -903,7 +903,7 @@ export default function PreflopTrainer() {
               )}
               <div className="text-right">
                 <div className="font-mono text-xs text-accent-emerald font-bold">
-                  {sessionStats.total > 0 ? formatPercent(sessionStats.correct / sessionStats.total) : '—'}
+                  {sessionStats.total > 0 ? formatPercent(sessionStats.correct / sessionStats.total) : '-'}
                 </div>
                 <div className="text-[10px] text-text-muted">{sessionStats.total} mãos</div>
               </div>
@@ -938,7 +938,7 @@ export default function PreflopTrainer() {
                       {m === 'study' ? '📖 Estudo' : m === 'drill' ? '🎯 Drill' : '📝 Exame'}
                     </button>
                   ))}
-                  {/* Botão de consulta rápida — ocupa o slot vazio ao lado do Exame */}
+                  {/* Botão de consulta rápida, ocupa o slot vazio ao lado do Exame */}
                   <button
                     onClick={() => setShowRangeRef(true)}
                     className="py-2.5 rounded-lg text-xs font-display font-semibold transition-all duration-200 border bg-bg-overlay border-border-subtle text-text-muted hover:border-accent-blue/40 hover:text-accent-blue flex items-center justify-center gap-1.5"
@@ -955,7 +955,7 @@ export default function PreflopTrainer() {
                       : 'bg-bg-overlay border-border-subtle text-text-muted'
                   )}
                 >
-                  <Trophy size={13} /> 🏆 Competição — 3 min, sem dicas
+                  <Trophy size={13} /> Competição, 3 min, sem dicas
                 </button>
                 <p className="text-[10px] text-text-muted mt-2 font-body">
                   {mode === 'study' ? 'Veja o range completo e explicações detalhadas após cada resposta'
@@ -985,9 +985,9 @@ export default function PreflopTrainer() {
                   ))}
                 </div>
                 <p className="text-[10px] text-text-muted font-body mt-2">
-                  {tableFormat === 'HU' ? 'HU MTT: BTN abre ~65% das mãos — dinâmica heads-up' :
+                  {tableFormat === 'HU' ? 'HU MTT: BTN abre ~65% das mãos, dinâmica heads-up' :
                    tableFormat === '6max' ? '6-max MTT: formato mais comum em torneios online' :
-                   '9-max MTT: full ring, UTG very tight (~10%) — simula mesas de torneio ao vivo'}
+                   '9-max MTT: full ring, UTG very tight (~10%), simula mesas de torneio ao vivo'}
                 </p>
               </Card>
 
@@ -1035,7 +1035,7 @@ export default function PreflopTrainer() {
                   >
                     🎲 Aleatória
                   </button>
-                  {/* Posições manuais — desabilita as incompatíveis com villainPosition */}
+                  {/* Posições manuais, desabilita as incompatíveis com villainPosition */}
                   {(() => {
                     const formatPos = POSITIONS_BY_FORMAT[tableFormat]
                     const scenarioPos = POSITIONS_BY_SCENARIO[scenario]
@@ -1072,7 +1072,7 @@ export default function PreflopTrainer() {
                 </div>
                 {isRandomPosition && (
                   <p className="text-[10px] text-accent-crimson/70 mt-1.5 font-body">
-                    Posição, mão e contexto variam a cada rodada — simula tomada de decisão real.
+                    Posição, mão e contexto variam a cada rodada, simula tomada de decisão real.
                   </p>
                 )}
                 {/* Seletor de posição do villain para bb_defense, vs_raise, 3bet, 4bet, squeeze */}
@@ -1110,8 +1110,8 @@ export default function PreflopTrainer() {
                     </div>
                     <p className="text-[10px] text-text-muted mt-2 font-body">
                       {scenario === 'bb_defense'
-                        ? 'Range de defesa varia conforme a posição do opener — quanto mais late, mais wide o range adversário e mais mãos você pode defender.'
-                        : 'Range de call e 3-bet vs raise varia conforme a posição do opener — vs UTG você defende mais tight, verde = Call / laranja = 3-Bet.'}
+                        ? 'Range de defesa varia conforme a posição do opener, quanto mais late, mais wide o range adversário e mais mãos você pode defender.'
+                        : 'Range de call e 3-bet vs raise varia conforme a posição do opener, vs UTG você defende mais tight, verde = Call / laranja = 3-Bet.'}
                     </p>
                   </div>
                 )}
@@ -1122,12 +1122,12 @@ export default function PreflopTrainer() {
                 )}
                 {scenario === 'squeeze' && (
                   <p className="text-[10px] text-text-muted mt-2 font-body">
-                    Squeeze: houve um open raise + 1 caller antes de você. Range mais tight que 3-bet HU — precisa bater 2 players. Ação: fold, call ou squeeze (3-bet).
+                    Squeeze: houve um open raise + 1 caller antes de você. Range mais tight que 3-bet HU, precisa bater 2 players. Ação: fold, call ou squeeze (3-bet).
                   </p>
                 )}
                 {scenario === 'sb_vs_bb' && (
                   <p className="text-[10px] text-text-muted mt-2 font-body">
-                    SB vs BB: todos foldaram, você está no SB. Pode FOLD, LIMP (completar BB por 0.5bb extra) ou RAISE (2.5x). GTO mistura limp e raise com muitas mãos — heatmap mostra range de raise.
+                    SB vs BB: todos foldaram, você está no SB. Pode FOLD, LIMP (completar BB por 0.5bb extra) ou RAISE (2.5x). GTO mistura limp e raise com muitas mãos, heatmap mostra range de raise.
                   </p>
                 )}
 
@@ -1172,11 +1172,11 @@ export default function PreflopTrainer() {
                   ))}
                 </div>
                 <p className="text-[10px] text-text-muted mt-2 font-body">
-                  {heroStack <= 25 ? '⚡ Push/fold territory — quase tudo é all-in ou fold' :
-                   heroStack <= 50 ? '⚠ Short stack — evite calls especulativos, valorize fold equity' :
-                   heroStack <= 75 ? '📊 Mid stack — ranges ajustadas, 3-bets menores em valor de stack' :
-                   heroStack === 100 ? '✅ Stack padrão 100bb — ranges GTO padrão' :
-                   '🚀 Deep stack — mãos especulativas valem mais (implied odds maiores)'}
+                  {heroStack <= 25 ? '⚡ Push/fold territory, quase tudo é all-in ou fold' :
+                   heroStack <= 50 ? '⚠ Short stack, evite calls especulativos, valorize fold equity' :
+                   heroStack <= 75 ? '📊 Mid stack, ranges ajustadas, 3-bets menores em valor de stack' :
+                   heroStack === 100 ? '✅ Stack padrão 100bb, ranges GTO padrão' :
+                   '🚀 Deep stack, mãos especulativas valem mais (implied odds maiores)'}
                 </p>
               </Card>
 
@@ -1192,8 +1192,8 @@ export default function PreflopTrainer() {
                   title={scenario === 'bb_defense'
                     ? `BB Defense vs ${villainPosition}`
                     : scenario === 'vs_raise'
-                    ? `Call vs Raise — ${position}`
-                    : `Range ${isRandomPosition ? 'por posição' : position} — ${{
+                    ? `Call vs Raise, ${position}`
+                    : `Range ${isRandomPosition ? 'por posição' : position}, ${{
                         open_raise: 'Open Raise', push_fold: 'Push/Fold',
                         '3bet': '3-Bet', '4bet': '4-Bet', squeeze: 'Squeeze',
                         sb_vs_bb: 'SB vs BB (Raise)',
@@ -1251,7 +1251,7 @@ export default function PreflopTrainer() {
                     )}
                   </div>
                   <div className="font-mono text-[11px] text-text-muted">
-                    {sessionStats.total + 1}ª mão
+                    <span className="whitespace-nowrap">{sessionStats.total + 1}ª mão</span>
                   </div>
                 </div>
 
@@ -1275,7 +1275,7 @@ export default function PreflopTrainer() {
                 )}
               </Card>
 
-              {/* Botões de ação — filtrados por cenário */}
+              {/* Botões de ação, filtrados por cenário */}
               {!showResult && (() => {
                 const visibleActions = ACTIONS.filter(a =>
                   ACTIONS_BY_SCENARIO[currentQuestion.scenario as ScenarioType]?.includes(a.action) ?? true
@@ -1297,7 +1297,7 @@ export default function PreflopTrainer() {
                         )}
                       >
                         <div>{label}</div>
-                        {mode !== 'exam' && <div className="text-[9px] opacity-50 mt-0.5">[{shortcut}]</div>}
+                        {mode !== 'exam' && <div className="mt-0.5 hidden text-[10px] opacity-50 [@media(hover:hover)]:block">[{shortcut}]</div>}
                       </button>
                     ))}
                   </div>
@@ -1357,7 +1357,7 @@ export default function PreflopTrainer() {
                         </p>
                       )}
 
-                      {/* GTO Mix — frequências de mistura */}
+                      {/* GTO Mix, frequências de mistura */}
                       {currentQuestion.gtoMix && mode !== 'exam' && mode !== 'competition' && (
                         <div className="mt-3 pt-3 border-t border-border-subtle">
                           <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">
@@ -1448,7 +1448,7 @@ export default function PreflopTrainer() {
                       )
                     })()}
 
-                    {/* Range heatmap pós-resposta (mobile) — no desktop fica no painel esquerdo */}
+                    {/* Range heatmap pós-resposta (mobile), no desktop fica no painel esquerdo */}
                     {mode !== 'competition' && (showRange || mode === 'study') && (
                       <Card className="p-4 lg:hidden">
                         <SectionHeader
@@ -1518,7 +1518,7 @@ export default function PreflopTrainer() {
 
     </div>
 
-    {/* ===== MODAL DE CONSULTA DE RANGE — portal no document.body para escapar transforms ===== */}
+    {/* ===== MODAL DE CONSULTA DE RANGE, portal no document.body para escapar transforms ===== */}
     {createPortal(
       <AnimatePresence>
         {showRangeRef && (
@@ -1551,7 +1551,7 @@ export default function PreflopTrainer() {
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <span className="text-sm font-display font-bold text-text-primary">Consulta de Range</span>
-                  <p className="text-[10px] text-text-muted font-body mt-0.5">Referência GTO — não conta para o treino</p>
+                  <p className="text-[10px] text-text-muted font-body mt-0.5">Referência GTO, não conta para o treino</p>
                 </div>
                 <button
                   onClick={() => setShowRangeRef(false)}

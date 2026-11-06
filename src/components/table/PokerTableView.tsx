@@ -284,7 +284,7 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
             aria-label={cover === 'hero' ? 'Você cobre este jogador' : 'Este jogador cobre você'}
             className={cn(
               'absolute -top-1.5 -right-1.5 z-20 rounded-full border font-mono font-bold leading-none',
-              compact ? 'h-2.5 w-2.5' : 'px-1 py-0.5 text-[7px]',
+              compact ? 'h-2.5 w-2.5' : 'px-1 py-0.5 text-[8px]',
               cover === 'hero' ? 'bg-accent-emerald border-emerald-200/60 text-black' : 'bg-accent-crimson border-red-200/60 text-white',
             )}
           >
@@ -295,7 +295,7 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
           <span className={cn('font-body font-semibold text-text-primary truncate', compact ? 'text-[9px] max-w-[34px]' : 'text-[10px] max-w-[52px]')}>
             {hero ? 'Você' : seat.name}
           </span>
-          {label && <span className={cn('font-mono text-text-muted', compact ? 'text-[7px]' : 'text-[8px]')}>{label}</span>}
+          {label && <span className={cn('font-mono text-text-muted', compact ? 'text-[8px]' : 'text-[9px]')}>{label}</span>}
         </div>
         <div className={cn('font-mono font-bold text-accent-gold leading-tight', compact ? 'text-[10px]' : 'text-[11px]')}>
           {seat.out ? 'fora' : seat.allIn && seat.stack === 0 ? 'ALL-IN' : fmtChips(seat.stack, bb, unit)}
@@ -306,12 +306,12 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
             const m = hudText.match(/V(\d+) P(\d+)/)
             const tag = showProfile && !hero ? (PROFILE_SHORT[seat.profile] ?? profile.label.slice(0, 3).toUpperCase()) : ''
             const line = [tag, m ? `${m[1]}/${m[2]}` : ''].filter(Boolean).join(' ')
-            return line ? <div className={cn('text-[8px] leading-tight truncate font-mono', m ? 'text-accent-blue' : 'text-text-muted')}>{line}</div> : null
+            return line ? <div className={cn('text-[9px] leading-tight truncate font-mono', m ? 'text-accent-blue' : 'text-text-muted')}>{line}</div> : null
           })()
         ) : (
           <>
-            {showProfile && !hero && <div className="text-[8px] text-text-muted leading-tight truncate">{profile.label}</div>}
-            {hudText && <div className="text-[8px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
+            {showProfile && !hero && <div className="text-[9px] text-text-muted leading-tight truncate">{profile.label}</div>}
+            {hudText && <div className="text-[9px] font-mono text-accent-blue leading-tight truncate">{hudText}</div>}
           </>
         )}
       </div>

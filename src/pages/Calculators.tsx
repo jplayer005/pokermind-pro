@@ -1,5 +1,5 @@
 // ============================================================
-// POKERMIND PRO — CALCULADORAS
+// POKERMIND PRO, CALCULADORAS
 // Pot Odds, MDF, ICM, EV, SPR, Fold Equity e mais
 // ============================================================
 
@@ -29,7 +29,7 @@ interface CalcConfig {
 }
 
 // Ordem: das mais essenciais (decisão em toda mão) para as mais situacionais.
-//   1-5: ferramentas core — uso diário em qualquer mão (pot odds, outs, MDF, EV, SPR)
+//   1-5: ferramentas core, uso diário em qualquer mão (pot odds, outs, MDF, EV, SPR)
 //   6-8: úteis em spots específicos (equity Monte Carlo, fold equity, combos)
 //   9-10: ICM (só torneios)
 //   11:   rake (raro consultar em mesa)
@@ -349,7 +349,7 @@ function FoldEquityCalc() {
         <div className="text-[11px] text-text-muted">
           {isProfitable
             ? `Villain precisa foldar mais de ${feNeededPct.toFixed(0)}% para lucrar`
-            : 'Equity muito baixa — bluff nunca será lucrativo aqui'}
+            : 'Equity muito baixa, bluff nunca será lucrativo aqui'}
         </div>
       </div>
 
@@ -371,7 +371,7 @@ function FoldEquityCalc() {
           <Info size={13} className="text-accent-blue mt-0.5 flex-shrink-0" />
           <p className="text-[11px] text-text-secondary font-body leading-relaxed">
             Com um bet de <strong className="text-text-primary">{betPct}%</strong> do pot e <strong className="text-text-primary">{formatPercent(equity)}</strong> de equity,
-            você precisa que o villain folde ao menos <strong className="text-accent-gold">{isProfitable ? `${feNeededPct.toFixed(1)}%` : '—'}</strong> para o bluff ser lucrativo.
+            você precisa que o villain folde ao menos <strong className="text-accent-gold">{isProfitable ? `${feNeededPct.toFixed(1)}%` : '-'}</strong> para o bluff ser lucrativo.
           </p>
         </div>
       </div>
@@ -387,10 +387,10 @@ function SPRCalc() {
   const sprVal = spr(stack, pot)
 
   const interpretation =
-    sprVal < 2 ? { text: 'SPR muito baixo — fácil commitar com top pair', color: 'text-accent-crimson' }
-    : sprVal < 5 ? { text: 'SPR baixo — boas mãos top pair e above merecem comprometer', color: 'text-yellow-400' }
-    : sprVal < 10 ? { text: 'SPR médio — precisa de mãos fortes (two pair+) para commitar', color: 'text-accent-gold' }
-    : { text: 'SPR alto — necessita de nutted hands para all-in', color: 'text-accent-emerald' }
+    sprVal < 2 ? { text: 'SPR muito baixo, fácil commitar com top pair', color: 'text-accent-crimson' }
+    : sprVal < 5 ? { text: 'SPR baixo, boas mãos top pair e above merecem comprometer', color: 'text-yellow-400' }
+    : sprVal < 10 ? { text: 'SPR médio, precisa de mãos fortes (two pair+) para commitar', color: 'text-accent-gold' }
+    : { text: 'SPR alto, necessita de nutted hands para all-in', color: 'text-accent-emerald' }
 
   return (
     <div className="space-y-4">
@@ -416,9 +416,9 @@ function SPRCalc() {
       {/* Tabela de referência */}
       <div className="space-y-1.5">
         {[
-          { range: '< 2', desc: 'Top pair é nuts — commita facilmente', color: 'text-accent-crimson' },
-          { range: '2–4', desc: 'Two pair+ para comprometer tudo', color: 'text-yellow-400' },
-          { range: '5–9', desc: 'Sets e acima — jogue com cuidado', color: 'text-accent-gold' },
+          { range: '< 2', desc: 'Top pair é nuts, commita facilmente', color: 'text-accent-crimson' },
+          { range: '2-4', desc: 'Two pair+ para comprometer tudo', color: 'text-yellow-400' },
+          { range: '5-9', desc: 'Sets e acima, jogue com cuidado', color: 'text-accent-gold' },
           { range: '10+', desc: 'Flushes, straights e melhor', color: 'text-accent-emerald' },
         ].map(({ range, desc, color }) => (
           <div key={range} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-bg-base border border-border-subtle">
@@ -804,7 +804,7 @@ const ICM_SCENARIOS: ICMScenario[] = [
   },
   {
     id: 'i2',
-    title: 'Final Table — Chip Leader',
+    title: 'Final Table, Chip Leader',
     description: 'Final table de 5. Você é chip leader.',
     stacks: [60, 20, 15, 10, 5],
     payouts: [40, 25, 18, 12, 5],
@@ -814,12 +814,12 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'Você é o chip leader (60bb) no UTG de um final table. Tem TT. Short stack (5bb) está no BTN. Call ou Fold vs sua raise se ele shove?',
     correctAction: 'shove',
-    explanation: 'Mesmo sendo chip leader, TT é forte o suficiente para continuar. Com 60bb você não arrisca sua posição dominante — 5bb a mais não muda muito. TT tem ~70% de equity vs range de shove do short stack. ICM não muda essa decisão quando o risco é pequeno.',
+    explanation: 'Mesmo sendo chip leader, TT é forte o suficiente para continuar. Com 60bb você não arrisca sua posição dominante, 5bb a mais não muda muito. TT tem ~70% de equity vs range de shove do short stack. ICM não muda essa decisão quando o risco é pequeno.',
     icmValues: [0, 0, 0, 0, 0],
   },
   {
     id: 'i3',
-    title: 'Bolha — Big Stack vs Short',
+    title: 'Bolha, Big Stack vs Short',
     description: '4 players, 3 paid. Você é big stack.',
     stacks: [45, 5, 28, 22],
     payouts: [50, 30, 20],
@@ -829,12 +829,12 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'Você é o big stack (45bb) no CO na bolha. Short stack (5bb) está all-in no SB. BB tem 22bb. Você tem 44. Call ou Fold?',
     correctAction: 'fold',
-    explanation: 'ICM diz FOLD aqui! Com 45bb você já está "na beira do dinheiro." Se chamar e perder, você vai para 40bb — ok. Mas se o short stack dobrar, você ainda tem 40bb. A questão é: o BB pode entrar também (squeeze). Com 44 vs dois players, equity é ruim. E perder chips ameaça sua posição dominante que garante o prêmio.',
+    explanation: 'ICM diz FOLD aqui! Com 45bb você já está "na beira do dinheiro." Se chamar e perder, você vai para 40bb, ok. Mas se o short stack dobrar, você ainda tem 40bb. A questão é: o BB pode entrar também (squeeze). Com 44 vs dois players, equity é ruim. E perder chips ameaça sua posição dominante que garante o prêmio.',
     icmValues: [0, 0, 0, 0],
   },
   {
     id: 'i4',
-    title: 'Push/Fold na Bolha — 8bb',
+    title: 'Push/Fold na Bolha, 8bb',
     description: 'MTT com 10 pagos, 11 players restantes.',
     stacks: [8, 40, 22, 30, 35, 28, 18, 15, 12, 50, 20],
     payouts: [35, 20, 15, 12, 8, 5, 3, 1.5, 1, 0.5],
@@ -844,7 +844,7 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'MTT, bolha (11 de 10 pagos). Você tem 8bb no BTN. SB tem 40bb, BB tem 22bb. Mão: K9o. Shove ou Fold?',
     correctAction: 'shove',
-    explanation: 'Com apenas 8bb na bolha, foldar K9o seria muito tight. Você está morto se esperar — em 2-3 órbitas perderá o stack a blinds. K9o no BTN vs SB e BB tem equity suficiente (~52% vs range de call razoável de ~30%). A fold equity é alta pois nenhum dos dois quer ser o "assassino do short stack" na bolha.',
+    explanation: 'Com apenas 8bb na bolha, foldar K9o seria muito tight. Você está morto se esperar, em 2-3 órbitas perderá o stack a blinds. K9o no BTN vs SB e BB tem equity suficiente (~52% vs range de call razoável de ~30%). A fold equity é alta pois nenhum dos dois quer ser o "assassino do short stack" na bolha.',
     icmValues: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   },
   {
@@ -857,14 +857,14 @@ const ICM_SCENARIOS: ICMScenario[] = [
     heroHand: 'ATs',
     heroPosition: 'BB',
     bbSize: 1,
-    question: '3-handed final table. Você é o short stack (20bb) no BB. Chip leader (50bb) shove do BTN. ATs — Call ou Fold?',
+    question: '3-handed final table. Você é o short stack (20bb) no BB. Chip leader (50bb) shove do BTN. ATs, Call ou Fold?',
     correctAction: 'shove',
-    explanation: 'ATs com 20bb no BB vs BTN shove é um call claro mesmo com ICM. A diferença de equity entre 1º e 2º é grande, mas você está a 2 órbitas de ser eliminado. ATs tem ~55% vs range de shove do chip leader. ICM custo é real mas não é suficiente para foldar ATs aqui — você precisa acumular chips.',
+    explanation: 'ATs com 20bb no BB vs BTN shove é um call claro mesmo com ICM. A diferença de equity entre 1º e 2º é grande, mas você está a 2 órbitas de ser eliminado. ATs tem ~55% vs range de shove do chip leader. ICM custo é real mas não é suficiente para foldar ATs aqui, você precisa acumular chips.',
     icmValues: [0, 0, 0],
   },
   {
     id: 'i6',
-    title: 'Pay Jump — Fold para Prêmio',
+    title: 'Pay Jump, Fold para Prêmio',
     description: '5 players, pay jump enorme de 5º para 4º.',
     stacks: [8, 50, 45, 40, 38],
     payouts: [40, 25, 18, 12, 5],
@@ -872,9 +872,9 @@ const ICM_SCENARIOS: ICMScenario[] = [
     heroHand: 'KJo',
     heroPosition: 'SB',
     bbSize: 1,
-    question: 'Bolha de 5 (4 pagam). Você é o short stack (8bb) SB. BB tem 50bb. KJo — Shove ou Fold?',
+    question: 'Bolha de 5 (4 pagam). Você é o short stack (8bb) SB. BB tem 50bb. KJo, Shove ou Fold?',
     correctAction: 'shove',
-    explanation: 'Com 8bb na bolha e KJo no SB, você DEVE shove. Esperar não é opção — em 2 órbitas você terá 5bb e qualquer hand vira call automático. KJo tem equity positiva vs BB call range. O risco ICM é real mas com 8bb sua "opção de esperar" não existe. Shove e torça por fold ou por equity.',
+    explanation: 'Com 8bb na bolha e KJo no SB, você DEVE shove. Esperar não é opção, em 2 órbitas você terá 5bb e qualquer hand vira call automático. KJo tem equity positiva vs BB call range. O risco ICM é real mas com 8bb sua "opção de esperar" não existe. Shove e torça por fold ou por equity.',
     icmValues: [0, 0, 0, 0, 0],
   },
   {
@@ -889,12 +889,12 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'Você tem 20bb (2º lugar de 3). Chip leader (70bb) abre, você tem QQ. Shove ou Fold considerando ICM?',
     correctAction: 'shove',
-    explanation: 'QQ com 20bb 3-handed é um shove independente de ICM. Você está no "dead money zone" — precisa acumular ou vai ser eliminado. QQ tem ~65% vs range do chip leader. Se dobrar, você competi pelo 1º. Se perder, você tem ~0bb mas a short stack (10bb) ainda está viva — você ganha o 3º de qualquer forma.',
+    explanation: 'QQ com 20bb 3-handed é um shove independente de ICM. Você está no "dead money zone", precisa acumular ou vai ser eliminado. QQ tem ~65% vs range do chip leader. Se dobrar, você competi pelo 1º. Se perder, você tem ~0bb mas a short stack (10bb) ainda está viva, você ganha o 3º de qualquer forma.',
     icmValues: [0, 0, 0],
   },
   {
     id: 'i8',
-    title: 'Laydown Premium — ICM Extremo',
+    title: 'Laydown Premium, ICM Extremo',
     description: 'Final table heads-up, pay jump massivo.',
     stacks: [55, 45],
     payouts: [70, 30],
@@ -902,14 +902,14 @@ const ICM_SCENARIOS: ICMScenario[] = [
     heroHand: 'QQ',
     heroPosition: 'BB',
     bbSize: 1,
-    question: 'Heads-up, você tem 45bb (2º). Villain (55bb) all-in pré-flop. QQ — Call ou Fold? (Prêmio: 1º = R$10k, 2º = R$6k)',
+    question: 'Heads-up, você tem 45bb (2º). Villain (55bb) all-in pré-flop. QQ, Call ou Fold? (Prêmio: 1º = R$10k, 2º = R$6k)',
     correctAction: 'shove',
-    explanation: 'QQ heads-up é SEMPRE call. ICM não muda isso. Você tem ~80% equity vs range de shove heads-up (inclui K-x, A-x, pares menores). Se ganhar: +R$4k EV. ICM só pede laydowns de premium quando a diferença de EV é marginal — QQ tem equity esmagadora heads-up. Call sem hesitar.',
+    explanation: 'QQ heads-up é SEMPRE call. ICM não muda isso. Você tem ~80% equity vs range de shove heads-up (inclui K-x, A-x, pares menores). Se ganhar: +R$4k EV. ICM só pede laydowns de premium quando a diferença de EV é marginal, QQ tem equity esmagadora heads-up. Call sem hesitar.',
     icmValues: [0, 0],
   },
   {
     id: 'i9',
-    title: 'Spot de Fold Premium — ICM Real',
+    title: 'Spot de Fold Premium, ICM Real',
     description: '4 players, 3 pagam. Chip leader vs short stack.',
     stacks: [5, 40, 35, 20],
     payouts: [50, 30, 20],
@@ -919,7 +919,7 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'Bolha (4 de 3 pagos). Short stack (5bb) all-in. Chip leader (40bb) cold call. Você tem JJ com 35bb. Shove/Call ou Fold?',
     correctAction: 'fold',
-    explanation: 'FOLD com JJ! Este é o clássico spot ICM de laydown. Você está na bolha com 35bb — quasi-seguro de entrar no dinheiro se foldar. Se você entra no pote, fica exposto a chip leader (40bb) E ao short stack. Perder esse pote = você vai para ~10bb e corre risco. JJ vs 2 ranges simultâneos tem equity ruim. ICM diz: proteja o prêmio garantido.',
+    explanation: 'FOLD com JJ! Este é o clássico spot ICM de laydown. Você está na bolha com 35bb, quasi-seguro de entrar no dinheiro se foldar. Se você entra no pote, fica exposto a chip leader (40bb) E ao short stack. Perder esse pote = você vai para ~10bb e corre risco. JJ vs 2 ranges simultâneos tem equity ruim. ICM diz: proteja o prêmio garantido.',
     icmValues: [0, 0, 0, 0],
   },
   {
@@ -934,7 +934,7 @@ const ICM_SCENARIOS: ICMScenario[] = [
     bbSize: 1,
     question: 'Bolha (4 de 3 pagos). Você tem 12bb no SB. CO (38bb) open-raises para 2.5x. Você tem A9s. Shove ou Fold?',
     correctAction: 'shove',
-    explanation: 'Reshove com A9s para 12bb vs CO open é correto. Você tem fold equity suficiente (CO precisará de ~40% equity para justificar call dado o ICM), e A9s tem ~50% equity quando chamado. Com 12bb, você não tem outra opção viável — min-3bet/fold desperdiça equity, limp é muito fraco. A9s é forte o suficiente para reshove nessa stack depth.',
+    explanation: 'Reshove com A9s para 12bb vs CO open é correto. Você tem fold equity suficiente (CO precisará de ~40% equity para justificar call dado o ICM), e A9s tem ~50% equity quando chamado. Com 12bb, você não tem outra opção viável, min-3bet/fold desperdiça equity, limp é muito fraco. A9s é forte o suficiente para reshove nessa stack depth.',
     icmValues: [0, 0, 0, 0],
   },
 ]
@@ -1050,7 +1050,7 @@ function ICMDrillCalc() {
             <div className={cn('text-sm font-bold mb-2',
               userAction === scenario.correctAction ? 'text-emerald-400' : 'text-red-400'
             )}>
-              {userAction === scenario.correctAction ? '✅ Correto!' : `❌ Incorreto — correto: ${scenario.correctAction.toUpperCase()}`}
+              {userAction === scenario.correctAction ? '✅ Correto!' : `❌ Incorreto, correto: ${scenario.correctAction.toUpperCase()}`}
             </div>
             <p className="text-[11px] text-text-secondary leading-relaxed">{scenario.explanation}</p>
           </div>
