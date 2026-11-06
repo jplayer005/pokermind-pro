@@ -166,7 +166,7 @@ export default function PokerTableView({
                   initial={{ opacity: 0, scale: 0.6 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/55 border border-accent-gold/40"
+                  className="absolute z-20 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/70 border border-accent-gold/40"
                   style={toward(0.42)}
                 >
                   <span className="w-2.5 h-2.5 rounded-full bg-accent-gold border border-yellow-200/60" />
