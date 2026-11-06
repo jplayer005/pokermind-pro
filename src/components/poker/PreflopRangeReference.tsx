@@ -169,7 +169,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
               key={s}
               onClick={() => handleScenarioChange(s)}
               className={cn(
-                'px-2 py-1.5 rounded text-[10px] lg:text-[11px] font-body font-medium transition-colors text-left truncate',
+                'min-h-10 lg:min-h-0 px-2 py-1.5 rounded text-[11px] font-body font-medium transition-colors text-left truncate',
                 scenario === s
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary hover:bg-bg-overlay border border-border-subtle',
@@ -191,7 +191,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={pos}
                 onClick={() => setHeroPos(pos)}
                 className={cn(
-                  'px-2.5 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
+                  'min-h-10 lg:min-h-0 px-2.5 py-1 lg:py-1.5 rounded text-[11px] font-mono font-bold transition-colors',
                   effectiveHeroPos === pos
                     ? 'bg-accent-gold text-bg-base'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -219,7 +219,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={s}
                 onClick={() => setHeroStack(s)}
                 className={cn(
-                  'px-2 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
+                  'min-h-10 lg:min-h-0 px-2 py-1 lg:py-1.5 rounded text-[11px] font-mono font-bold transition-colors',
                   heroStack === s
                     ? 'bg-accent-emerald/80 text-bg-base'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -243,7 +243,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
                 key={pos}
                 onClick={() => setVillainPos(pos)}
                 className={cn(
-                  'px-2.5 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
+                  'min-h-10 lg:min-h-0 px-2.5 py-1 lg:py-1.5 rounded text-[11px] font-mono font-bold transition-colors',
                   villainPos === pos
                     ? 'bg-accent-crimson/80 text-white'
                     : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -264,7 +264,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
             <button
               onClick={() => setStackIsShort(true)}
               className={cn(
-                'flex-1 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
+                'flex-1 min-h-10 lg:min-h-0 py-1 lg:py-1.5 rounded text-[11px] font-mono font-bold transition-colors',
                 stackIsShort
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',
@@ -275,7 +275,7 @@ export default function PreflopRangeReference({ tableFormat = '6max' }: Props) {
             <button
               onClick={() => setStackIsShort(false)}
               className={cn(
-                'flex-1 py-1 lg:py-1.5 rounded text-[10px] lg:text-[11px] font-mono font-bold transition-colors',
+                'flex-1 min-h-10 lg:min-h-0 py-1 lg:py-1.5 rounded text-[11px] font-mono font-bold transition-colors',
                 !stackIsShort
                   ? 'bg-accent-gold text-bg-base'
                   : 'bg-bg-base text-text-muted hover:text-text-primary border border-border-subtle',

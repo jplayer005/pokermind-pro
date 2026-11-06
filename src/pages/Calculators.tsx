@@ -1101,9 +1101,9 @@ function ICMCalc() {
           <span className="text-[11px] text-text-muted uppercase tracking-wider">Stacks (BB)</span>
           <div className="flex gap-1.5">
             <button onClick={removePlayer} disabled={stacks.length <= 2}
-              className="text-[11px] px-2.5 py-1 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">−</button>
+              className="min-h-10 text-xs px-3 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">−</button>
             <button onClick={addPlayer} disabled={stacks.length >= 8}
-              className="text-[11px] px-2.5 py-1 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">+ Jogador</button>
+              className="min-h-10 text-xs px-3 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">+ Jogador</button>
           </div>
         </div>
         <div className="space-y-2">
@@ -1140,9 +1140,9 @@ function ICMCalc() {
           </span>
           <div className="flex gap-1.5">
             <button onClick={removePayout} disabled={payouts.length <= 1}
-              className="text-[11px] px-2.5 py-1 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">−</button>
+              className="min-h-10 text-xs px-3 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">−</button>
             <button onClick={addPayout} disabled={payouts.length >= stacks.length - 1}
-              className="text-[11px] px-2.5 py-1 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">+ Lugar</button>
+              className="min-h-10 text-xs px-3 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-accent-gold disabled:opacity-30 transition-all">+ Lugar</button>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">

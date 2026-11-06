@@ -35,8 +35,8 @@ export function Button({
   }
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2.5 text-sm',
+    sm: 'min-h-10 px-3.5 py-2 text-xs',
+    md: 'min-h-11 px-4 py-2.5 text-sm',
     lg: 'px-6 py-3.5 text-base',
   }
 
@@ -111,7 +111,7 @@ export function Badge({ children, variant = 'neutral', size = 'sm' }: BadgeProps
   }
 
   const sizes = {
-    sm: 'text-[10px] px-2 py-0.5',
+    sm: 'text-[11px] px-2 py-0.5',
     md: 'text-xs px-2.5 py-1',
   }
 
@@ -212,11 +212,11 @@ export function StatCard({
         {value}
       </div>
       {(subtext || trend) && (
-        <div className="flex items-center gap-2 mt-1">
+        <div className="mt-1 flex flex-col gap-0.5">
           {subtext && <span className="text-[11px] text-text-muted">{subtext}</span>}
           {trend && trendValue && (
             <span className={cn(
-              'text-[10px] font-mono',
+              'text-[11px] font-mono',
               trend === 'up' ? 'text-accent-emerald' : trend === 'down' ? 'text-accent-crimson' : 'text-text-muted'
             )}>
               {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'} {trendValue}

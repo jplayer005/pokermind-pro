@@ -52,9 +52,9 @@ export default function CardPicker({ label, max, value, taken, onChange, hint }:
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-text-muted">{label}</p>
-        <button type="button" onClick={() => setOpen((o) => !o)} className="text-[11px] text-accent-gold">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-xs text-text-muted">{label}</p>
+        <button type="button" onClick={() => setOpen((o) => !o)} className="-my-2 shrink-0 whitespace-nowrap py-2 text-xs text-accent-gold">
           {open ? 'Fechar cartas' : value.length === 0 ? 'Escolher cartas' : 'Editar'}
         </button>
       </div>

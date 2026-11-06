@@ -78,7 +78,7 @@ function recordOf(d: Draft, id: string, createdAt: number): HandRecord | string 
   }
 }
 
-const TYPE_LABEL: Record<RecordStep['type'], string> = { fold: 'Largar', check: 'Passar', call: 'Pagar', raise: 'Apostar ou aumentar' }
+const TYPE_LABEL: Record<RecordStep['type'], string> = { fold: 'Largar', check: 'Passar', call: 'Pagar', raise: 'Apostar/aumentar' }
 
 const fieldCls = 'w-full rounded-lg border border-border-default bg-bg-base px-2 py-1.5 text-sm text-text-primary'
 
@@ -118,20 +118,25 @@ export default function MyHandForm({ initial, onSave, onPlay, onClose }: Props) 
   const others = (mine: number[]) => allCards.filter((c) => !mine.includes(c))
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Recriar minha mão" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65">
+    <div role="dialog" aria-modal="true" aria-label="Recriar minha mão" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/65" onClick={onClose}>
       <div
         style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
         className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border-default p-4 space-y-4"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2">
+        {/* cabecalho fixo: o X continua a vista mesmo com o formulario rolado */}
+        <div
+          style={{ backgroundColor: 'rgb(var(--c-bg-elevated))' }}
+          className="sticky top-0 z-10 -mx-4 -mt-4 flex items-start justify-between gap-2 border-b border-border-subtle px-4 pb-3 pt-4"
+        >
           <div>
             <h3 className="text-sm font-display font-bold text-text-primary">{initial ? 'Editar mão' : 'Recriar minha mão'}</h3>
             <p className="mt-0.5 text-[11px] text-text-muted">
               Registre a mão como foi, até a sua decisão. Depois você joga de novo, com o coach analisando.
             </p>
           </div>
-          <button aria-label="Fechar" onClick={onClose} className="p-1 text-text-muted hover:text-text-primary">
-            <X size={16} />
+          <button aria-label="Fechar" onClick={onClose} className="-m-2 p-3 text-text-muted hover:text-text-primary">
+            <X size={18} />
           </button>
         </div>
 
@@ -196,14 +201,14 @@ export default function MyHandForm({ initial, onSave, onPlay, onClose }: Props) 
               <div key={i} className="rounded-lg border border-border-default bg-bg-base p-2">
                 <div className="flex items-center gap-2">
                   <span className="w-12 shrink-0 text-[10px] font-mono text-text-muted">{streets[i] ? streetLabel(streets[i]) : `#${i + 1}`}</span>
-                  <select aria-label={`Quem age na ação ${i + 1}`} className={cn(fieldCls, 'py-1')} value={s.who} onChange={(e) => setStep(i, { who: e.target.value as RecordWho })}>
+                  <select aria-label={`Quem age na ação ${i + 1}`} className={cn(fieldCls, 'w-24 shrink-0 py-1 text-xs')} value={s.who} onChange={(e) => setStep(i, { who: e.target.value as RecordWho })}>
                     <option value="hero">Você</option>
                     <option value="villain">Vilão</option>
                   </select>
-                  <select aria-label={`Tipo da ação ${i + 1}`} className={cn(fieldCls, 'py-1')} value={s.type} onChange={(e) => setStep(i, { type: e.target.value as RecordStep['type'] })}>
+                  <select aria-label={`Tipo da ação ${i + 1}`} className={cn(fieldCls, 'min-w-0 flex-1 py-1 text-xs')} value={s.type} onChange={(e) => setStep(i, { type: e.target.value as RecordStep['type'] })}>
                     {(Object.keys(TYPE_LABEL) as RecordStep['type'][]).map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
                   </select>
-                  <button type="button" aria-label={`Remover a ação ${i + 1}`} onClick={() => set('steps', d.steps.filter((_, j) => j !== i))} className="p-1 text-text-muted hover:text-accent-crimson">
+                  <button type="button" aria-label={`Remover a ação ${i + 1}`} onClick={() => set('steps', d.steps.filter((_, j) => j !== i))} className="-m-1 shrink-0 p-2.5 text-text-muted hover:text-accent-crimson">
                     <Trash2 size={14} />
                   </button>
                 </div>

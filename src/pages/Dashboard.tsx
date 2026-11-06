@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useMemo, useEffect, useState } from 'react'
+import ScrollRow from '@/components/ui/ScrollRow'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -750,20 +751,20 @@ export default function Dashboard() {
           <SectionHeader
             title="Conquistas"
             action={
-              <button onClick={() => navigate('/profile')} className="flex items-center gap-1 text-[11px] text-accent-gold">
-                Ver todas <ChevronRight size={12} />
+              <button onClick={() => navigate('/profile')} className="-my-3 flex min-h-11 items-center gap-1 px-1 text-xs text-accent-gold">
+                Ver todas <ChevronRight size={14} />
               </button>
             }
           />
           {profile.achievements.length > 0 ? (
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <ScrollRow className="gap-3 pb-2">
               {profile.achievements.slice(0, 4).map((ach) => (
                 <Card key={ach.id} className={cn(
                   'flex-shrink-0 p-3 w-28 flex flex-col items-center text-center gap-1',
                   ach.unlockedAt ? 'border-accent-gold/20' : 'opacity-50'
                 )}>
                   <div className={cn('text-2xl', !ach.unlockedAt && 'grayscale')}>{ach.icon}</div>
-                  <div className="text-[10px] font-display font-bold text-text-primary leading-tight">{ach.title}</div>
+                  <div className="text-[11px] font-display font-bold text-text-primary leading-tight">{ach.title}</div>
                   {ach.maxProgress && (
                     <>
                       <ProgressBar
@@ -771,14 +772,14 @@ export default function Dashboard() {
                         color={ach.unlockedAt ? 'gold' : 'blue'}
                         size="xs"
                       />
-                      <div className="text-[9px] text-text-muted font-mono">
+                      <div className="text-[10px] text-text-muted font-mono">
                         {ach.progress || 0}/{ach.maxProgress}
                       </div>
                     </>
                   )}
                 </Card>
               ))}
-            </div>
+            </ScrollRow>
           ) : (
             <Card className="p-4 text-center">
               <p className="text-xs text-text-muted">Nenhuma conquista ainda. Comece a treinar!</p>

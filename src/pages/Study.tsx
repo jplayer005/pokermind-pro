@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useRef } from 'react'
+import ScrollRow from '@/components/ui/ScrollRow'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Zap, Clock, ChevronRight, ChevronDown, RotateCcw, Check, X, Brain, DollarSign } from 'lucide-react'
 import { Card, Badge, Button, SectionHeader, ProgressBar, PremiumLock } from '@/components/ui'
@@ -659,12 +660,12 @@ export default function Study() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-body font-medium transition-all',
+                'flex-1 min-h-10 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-body font-medium transition-all',
                 tab === t.id ? 'bg-bg-overlay text-text-primary shadow-sm' : 'text-text-muted'
               )}
             >
-              <span>{t.icon}</span>
-              <span className="hidden sm:inline">{t.label}</span>
+              <span aria-hidden="true">{t.icon}</span>
+              <span>{t.label}</span>
             </button>
           ))}
         </div>
@@ -682,13 +683,14 @@ export default function Study() {
             {/* CURSOS */}
             {tab === 'courses' && (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+                <ScrollRow className="items-center gap-2 pb-1">
                   {COURSE_FILTERS.map(f => (
                     <button
                       key={f.label}
                       onClick={() => setCourseFilter(f.category)}
+                      aria-pressed={courseFilter === f.category}
                       className={cn(
-                        'flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-body border transition-all',
+                        'flex-shrink-0 min-h-10 px-3.5 py-2 rounded-full text-xs font-body border transition-all',
                         courseFilter === f.category
                           ? 'bg-accent-gold/10 border-accent-gold/30 text-accent-gold'
                           : 'border-border-subtle text-text-muted bg-bg-base'
@@ -697,7 +699,7 @@ export default function Study() {
                       {f.label}
                     </button>
                   ))}
-                </div>
+                </ScrollRow>
                 {COURSES_DATA.filter(c => !courseFilter || c.category === courseFilter).map(course => (
                   course.isPremium
                     ? <PremiumLock key={course.id}><CourseCard course={course} /></PremiumLock>

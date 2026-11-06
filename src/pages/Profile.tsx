@@ -23,6 +23,7 @@ import {
   BarChart2, Award, Clock, Layers, LogIn, LogOut
 } from 'lucide-react'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import ScrollRow from '@/components/ui/ScrollRow'
 import ShareButton from '@/components/share/ShareButton'
 import { StatsShareBody } from '@/components/share/bodies'
 import { StudyGoal } from '@/types'
@@ -41,8 +42,8 @@ function DetailStat({ label, value, sublabel, icon, color = 'text-text-primary' 
       <div className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center shrink-0">{icon}</div>
       <div className="min-w-0">
         <div className={cn('text-lg font-bold font-mono', color)}>{value}</div>
-        <div className="text-xs text-text-muted truncate">{label}</div>
-        {sublabel && <div className="text-[10px] text-text-muted/60">{sublabel}</div>}
+        <div className="text-xs leading-tight text-text-muted">{label}</div>
+        {sublabel && <div className="text-[11px] text-text-muted/70">{sublabel}</div>}
       </div>
     </motion.div>
   )
@@ -546,11 +547,12 @@ export default function Profile() {
                   {/* Botão editar nome — funcional */}
                   <button
                     onClick={() => setShowEditName(true)}
-                    className="text-text-muted hover:text-text-primary transition-colors">
-                    <Edit3 size={13} />
+                    aria-label="Editar o nome"
+                    className="-m-1.5 p-3 text-text-muted hover:text-text-primary transition-colors">
+                    <Edit3 size={15} />
                   </button>
                 </div>
-                <p className="text-xs text-text-muted mb-2">{user?.email ?? profile.email}</p>
+                <p className="text-xs text-text-muted mb-2">{user?.email ?? (guestMode ? 'Modo convidado: dados só neste aparelho' : profile.email)}</p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant={isPremium ? 'gold' : 'neutral'}>
                     {isPremium ? '⭐ Premium' : '🆓 Free'}
@@ -630,15 +632,15 @@ export default function Profile() {
         )}
 
         {/* ===== TABS ===== */}
-        <div className="flex gap-1 bg-bg-elevated rounded-xl p-1 mb-4 overflow-x-auto no-scrollbar">
+        <ScrollRow outerClassName="mb-4" className="gap-1 bg-bg-elevated rounded-xl p-1" fadeFrom="from-bg-elevated">
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={cn('flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} aria-pressed={activeTab === tab.id}
+              className={cn('flex min-h-10 shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all',
                 activeTab === tab.id ? 'bg-yellow-500 text-bg-base' : 'text-text-muted hover:text-text-primary')}>
               <span>{tab.icon}</span><span>{tab.label}</span>
             </button>
           ))}
-        </div>
+        </ScrollRow>
 
         {/* ========== TAB: VISÃO GERAL ========== */}
         {activeTab === 'overview' && (
@@ -700,8 +702,8 @@ export default function Profile() {
             <Card className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-bold text-text-muted uppercase">Conquistas</h4>
-                <button onClick={() => setActiveTab('achievements')} className="text-xs text-yellow-400 flex items-center gap-1">
-                  Ver todas <ChevronRight size={12} />
+                <button onClick={() => setActiveTab('achievements')} className="-my-3 min-h-11 px-1 text-xs text-yellow-400 flex items-center gap-1">
+                  Ver todas <ChevronRight size={14} />
                 </button>
               </div>
               <div className="flex gap-2 flex-wrap mb-2">
@@ -722,8 +724,8 @@ export default function Profile() {
             <Card className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-bold text-text-muted uppercase">Metas</h4>
-                <button onClick={() => setActiveTab('goals')} className="text-xs text-yellow-400 flex items-center gap-1">
-                  Ver todas <ChevronRight size={12} />
+                <button onClick={() => setActiveTab('goals')} className="-my-3 min-h-11 px-1 text-xs text-yellow-400 flex items-center gap-1">
+                  Ver todas <ChevronRight size={14} />
                 </button>
               </div>
               <div className="space-y-2">
@@ -744,7 +746,7 @@ export default function Profile() {
                   {defaultDifficulty === 'medium' && 'Equilíbrio entre acertos e disciplina de fold.'}
                   {defaultDifficulty === 'hard' && 'Menos XP por acerto, mais questões borderline de fold.'}
                 </div>
-                <button onClick={() => navigate('/settings')} className="text-xs text-yellow-400 shrink-0">
+                <button onClick={() => navigate('/settings')} className="-my-3 min-h-11 px-2 text-xs text-yellow-400 shrink-0">
                   Mudar
                 </button>
               </div>

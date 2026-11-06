@@ -1027,7 +1027,7 @@ export default function PreflopTrainer() {
                   <button
                     onClick={() => setIsRandomPosition(true)}
                     className={cn(
-                      'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border flex items-center gap-1',
+                      'min-h-10 px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all border flex items-center gap-1',
                       isRandomPosition
                         ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
                         : 'bg-bg-overlay border-border-subtle text-text-muted'
@@ -1055,7 +1055,7 @@ export default function PreflopTrainer() {
                           : undefined}
                         onClick={() => { if (!isHeroDisabled) { setIsRandomPosition(false); setPosition(pos); setHandPool([]) } }}
                         className={cn(
-                          'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
+                          'min-h-10 px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all border',
                           isSelected
                             ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
                             : isHeroDisabled
@@ -1095,7 +1095,7 @@ export default function PreflopTrainer() {
                               ? (pos === position ? 'Mesma posição que o herói' : 'Ordem de ação preflop incompatível')
                               : undefined}
                             className={cn(
-                              'px-3 py-1.5 rounded-lg text-[11px] font-mono font-bold transition-all border',
+                              'min-h-10 px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all border',
                               isSelected
                                 ? 'bg-accent-crimson/15 border-accent-crimson/40 text-accent-crimson'
                                 : isDisabled

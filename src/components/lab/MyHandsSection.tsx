@@ -3,7 +3,7 @@
 // jogar, editar e apagar (o apagar pede confirmacao aqui mesmo).
 // ============================================================
 import { useState } from 'react'
-import { History, Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, History, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { useMyHandsStore } from '@/store'
 import { scenarioFromRecord, validateRecord, type HandRecord } from '@/engine/lab/myHand'
@@ -20,6 +20,7 @@ export default function MyHandsSection({ onPlay }: Props) {
   const { saveHand, deleteHand } = useMyHandsStore.getState()
   const [editing, setEditing] = useState<HandRecord | 'new' | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [listOpen, setListOpen] = useState(false)
 
   const play = (rec: HandRecord) => {
     if (validateRecord(rec).ok) onPlay(scenarioFromRecord(rec))
@@ -30,7 +31,7 @@ export default function MyHandsSection({ onPlay }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-display font-bold text-text-primary">
-            <History size={15} className="text-accent-gold" /> Minhas mãos
+            <History size={15} className="text-accent-gold" /> Minhas mãos{hands.length > 0 ? ` (${hands.length})` : ''}
           </p>
           <p className="text-[11px] text-text-muted mt-0.5">
             Registre uma mão que você jogou de verdade e jogue de novo, com o coach analisando e o vilão variando.
@@ -39,13 +40,25 @@ export default function MyHandsSection({ onPlay }: Props) {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-accent-gold/40 bg-accent-gold/10 px-2.5 py-1.5 text-xs font-semibold text-accent-gold"
+          className="flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-accent-gold/40 bg-accent-gold/10 px-3 py-2 text-xs font-semibold text-accent-gold"
         >
           <Plus size={13} /> Recriar minha mão
         </button>
       </div>
 
       {hands.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setListOpen((o) => !o)}
+          aria-expanded={listOpen}
+          className="flex min-h-10 w-full items-center justify-between text-xs text-text-secondary"
+        >
+          {listOpen ? 'Esconder a lista' : 'Ver a lista'}
+          <ChevronDown size={16} className={`transition-transform ${listOpen ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+
+      {hands.length > 0 && listOpen && (
         <div className="grid gap-2">
           {hands.map((h) => {
             const check = validateRecord(h)
@@ -61,11 +74,11 @@ export default function MyHandsSection({ onPlay }: Props) {
                     type="button"
                     disabled={!check.ok}
                     onClick={() => play(h)}
-                    className="flex items-center gap-1 rounded-lg bg-accent-gold px-2.5 py-1 text-xs font-semibold text-black disabled:opacity-40"
+                    className="flex min-h-10 items-center gap-1 rounded-lg bg-accent-gold px-3 py-2 text-xs font-semibold text-black disabled:opacity-40"
                   >
                     <Play size={12} /> Jogar
                   </button>
-                  <button type="button" onClick={() => setEditing(h)} className="flex items-center gap-1 rounded-lg border border-border-default px-2.5 py-1 text-xs text-text-primary">
+                  <button type="button" onClick={() => setEditing(h)} className="flex min-h-10 items-center gap-1 rounded-lg border border-border-default px-3 py-2 text-xs text-text-primary">
                     <Pencil size={12} /> Editar
                   </button>
                   {confirmId === h.id ? (

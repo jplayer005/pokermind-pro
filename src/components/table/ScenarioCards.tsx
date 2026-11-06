@@ -2,24 +2,34 @@
 // Laboratorio de cenarios na tela Jogar: cartoes para escolher o tema de treino e a folha de
 // abertura (contexto + o que observar) que aparece ao sentar e pode ser reaberta na mesa.
 // ============================================================
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Target, X } from 'lucide-react'
+import { ChevronDown, Target, X } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { SCENARIOS, type Scenario } from '@/engine/lab/scenarios'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 export function ScenarioPicker({ onPick }: { onPick: (sc: Scenario) => void }) {
+  const [open, setOpen] = useState(false)
   return (
     <Card className="p-4 space-y-3">
-      <div>
-        <p className="flex items-center gap-1.5 text-sm font-display font-bold text-text-primary">
-          <Target size={15} className="text-accent-gold" /> Cenários de treino
-        </p>
-        <p className="text-[11px] text-text-muted mt-0.5">
-          Situações difíceis já montadas: você cai direto na decisão, com cartas diferentes a cada repetição, e o coach pausa para você ler o vilão.
-        </p>
-      </div>
-      <div className="grid gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-start justify-between gap-3 text-left"
+      >
+        <span>
+          <span className="flex items-center gap-1.5 text-sm font-display font-bold text-text-primary">
+            <Target size={15} className="text-accent-gold" /> Cenários de treino ({SCENARIOS.length})
+          </span>
+          <span className="mt-0.5 block text-[11px] text-text-muted">
+            Situações difíceis já montadas: você cai direto na decisão, com cartas diferentes a cada repetição, e o coach pausa para você ler o vilão.
+          </span>
+        </span>
+        <ChevronDown size={18} className={`mt-0.5 shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="grid gap-2">
         {SCENARIOS.map((sc) => (
           <button
             key={sc.id}
@@ -31,7 +41,7 @@ export function ScenarioPicker({ onPick }: { onPick: (sc: Scenario) => void }) {
             <span className="block text-[11px] text-text-muted mt-0.5">{sc.summary}</span>
           </button>
         ))}
-      </div>
+      </div>}
     </Card>
   )
 }

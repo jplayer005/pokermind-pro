@@ -59,7 +59,7 @@ export default function StatsSheet({ hud, heroName, styleOf, heroTotal, onResetT
                   key={id}
                   aria-pressed={scope === id}
                   onClick={() => setScope(id)}
-                  className={cn('px-2.5 py-1 rounded-md', scope === id ? 'bg-accent-gold/15 text-accent-gold' : 'text-text-muted')}
+                  className={cn('min-h-10 px-3 py-2 rounded-md', scope === id ? 'bg-accent-gold/15 text-accent-gold' : 'text-text-muted')}
                 >
                   {label}
                 </button>

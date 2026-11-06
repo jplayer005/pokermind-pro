@@ -35,6 +35,7 @@ import type { OpenQuizFreq } from '@/engine/coach/openQuiz'
 import OpenRangeSheet from '@/components/table/OpenRangeSheet'
 import { scenarioConfig, scenarioPlayers, scenarioSeats, type Scenario } from '@/engine/lab/scenarios'
 import MyHandsSection from '@/components/lab/MyHandsSection'
+import Switch from '@/components/ui/Switch'
 import {
   mttConfig, sngConfig, startTournament, prizeInBuyIns, type TournamentConfig,
 } from '@/engine/game/tournament'
@@ -139,7 +140,7 @@ function Chip({ active, children, onClick }: { active: boolean; children: React.
     <button
       onClick={onClick}
       className={cn(
-        'px-3 py-1.5 rounded-lg text-xs border transition-colors',
+        'min-h-10 px-3 py-2 rounded-lg text-xs border transition-colors',
         active
           ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
           : 'bg-bg-elevated border-border-default text-text-secondary hover:border-border-strong',
@@ -254,9 +255,6 @@ export default function PlayTable() {
         </Card>
       )}
 
-      <ScenarioPicker onPick={startScenario} />
-      <MyHandsSection onPlay={startScenario} />
-
       <Card className="p-4 space-y-4">
         <div className="space-y-2">
           <p className="text-xs text-text-muted font-body">Cash</p>
@@ -343,19 +341,17 @@ export default function PlayTable() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Chip active={autoNext} onClick={() => setAutoNext((v) => !v)}>
-            Próxima mão automática: {autoNext ? 'sim' : 'não'}
-          </Chip>
-          <Chip active={showProfiles} onClick={() => setShowProfiles((v) => !v)}>
-            Mostrar estilo dos bots: {showProfiles ? 'sim' : 'não'}
-          </Chip>
-          <Chip active={showHud} onClick={() => setShowHud((v) => !v)}>
-            HUD dos bots: {showHud ? 'sim' : 'não'}
-          </Chip>
+        <div className="grid gap-2">
+          <Switch checked={autoNext} onChange={setAutoNext} label="Próxima mão automática" />
+          <Switch checked={showProfiles} onChange={setShowProfiles} label="Mostrar o estilo dos bots" />
+          <Switch checked={showHud} onChange={setShowHud} label="HUD dos bots (VPIP e PFR nos assentos)" />
         </div>
 
       </Card>
+
+      {/* treinos prontos e maos suas: depois da configuracao da mesa, que e o que mais se usa */}
+      <ScenarioPicker onPick={startScenario} />
+      <MyHandsSection onPlay={startScenario} />
     </BottomBarScreen>
   )
 }

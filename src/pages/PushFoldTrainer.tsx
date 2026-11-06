@@ -188,7 +188,7 @@ export default function PushFoldTrainer() {
                   key={f.id}
                   onClick={() => setFormatId(f.id)}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs border transition-colors',
+                    'min-h-10 px-3 py-2 rounded-lg text-xs border transition-colors',
                     f.id === formatId
                       ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
                       : 'bg-bg-elevated border-border-default text-text-secondary hover:border-border-strong',
@@ -212,7 +212,7 @@ export default function PushFoldTrainer() {
                   key={s ?? 'any'}
                   onClick={() => setStackChoice(s)}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs border font-mono transition-colors',
+                    'min-h-10 px-3 py-2 rounded-lg text-xs border font-mono transition-colors',
                     s === stackChoice
                       ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
                       : 'bg-bg-elevated border-border-default text-text-secondary hover:border-border-strong',

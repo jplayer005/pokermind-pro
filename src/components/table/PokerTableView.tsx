@@ -175,11 +175,14 @@ export default function PokerTableView({
               )}
             </AnimatePresence>
 
-            {/* botao do dealer */}
+            {/* botao do dealer: ao lado da placa, do lado da mesa (nunca por cima do nome) */}
             {game.button === seat.id && !seat.out && (
               <div
-                className="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white text-black text-[10px] font-bold flex items-center justify-center shadow"
-                style={toward(0.24)}
+                className="absolute -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white text-black text-[10px] font-bold flex items-center justify-center shadow z-20"
+                style={{
+                  left: `calc(${x}% + ${x <= 50 ? 1 : -1} * ${(portrait && n >= 7 && seat.id !== heroId ? 32 : 42) + 12}px)`,
+                  top: `calc(${y}% - 12px)`,
+                }}
               >
                 D
               </div>
@@ -245,13 +248,13 @@ function SeatView({ seat, x, y, label, bb, unit, isTurn, reveal, win, handName, 
       className={cn(
         'absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center',
         compact ? 'w-[64px]' : 'w-[84px]',
-        faded && 'opacity-45',
+        faded && 'opacity-60',
       )}
       style={{ left: `${x}%`, top: bottomAnchor ? "calc(100% - 50px)" : `${y}%` }}
     >
       {/* cartas */}
       {cards && !seat.out && !seat.folded && (
-        <div className={cn('flex z-0', hero ? 'gap-1 -mb-3' : '-space-x-2 -mb-1.5')}>
+        <div className={cn('flex z-0', hero ? 'gap-1 mb-1' : '-space-x-2 -mb-1.5')}>
           {showCards ? (
             <>
               <PlayingCard card={fromInt(cards[0])} size={hero ? (heroSmall ? 'sm' : 'md') : compact ? 'xs' : 'sm'} />
