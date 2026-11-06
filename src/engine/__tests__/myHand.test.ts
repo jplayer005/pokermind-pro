@@ -125,3 +125,49 @@ describe('validateRecord: erros em portugues, sem derrubar o app', () => {
     expect(validateRecord({ ...base, anteBB: -1 }).ok).toBe(false)
   })
 })
+
+describe('todas as combinacoes de posicao caem onde o jogador pediu', () => {
+  const TABLES: [6 | 9, string[]][] = [[6, ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB']], [9, ['UTG', 'UTG+1', 'UTG+2', 'LJ', 'HJ', 'CO', 'BTN', 'SB', 'BB']]]
+  for (const [size, labels] of TABLES) {
+    it(`mesa de ${size}: heroi e vilao ficam na posicao escolhida (qualquer par)`, () => {
+      let tested = 0
+      for (const heroPos of labels) {
+        for (const villainPos of labels) {
+          if (heroPos === villainPos) continue
+          // roteiro minimo valido: o vilao age, depois o heroi decide (testa so o que fecha)
+          const villainFirst = labels.indexOf(villainPos) < labels.indexOf(heroPos)
+          const rec = { ...base, tableSize: size as 6 | 9, heroPos: heroPos as any, villainPos: villainPos as any, steps: villainFirst ? [{ who: 'villain' as const, type: 'fold' as const }] : [], board: [] }
+          const sc = (() => { try { return scenarioFromRecord(rec) } catch { return null } })()
+          if (sc) {
+            const g = buildScenarioHand(sc, mulberry32(1))
+            const pos = positionsBySeat(g)
+            const vSeat = g.seats.find((s) => s.name === 'Rafa')!.id
+            expect(pos[0]).toBe(heroPos)
+            expect(pos[vSeat]).toBe(villainPos)
+            tested++
+          }
+        }
+      }
+      // quase todos os pares fecham; so nao fecham os que acabam a mao antes (ex.: heroi no BB com todos largando)
+      expect(tested).toBeGreaterThanOrEqual(size === 6 ? 20 : 60)
+    })
+  }
+
+  it('posicao do heroi em qualquer lugar: o setup monta sem erro estrutural (so o roteiro vazio e que pode nao fechar)', () => {
+    for (const heroPos of ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as const) {
+      const v = validateRecord({ ...base, heroPos, villainPos: heroPos === 'BB' ? 'SB' : 'BB', steps: [], board: [] })
+      if (!v.ok) expect(v.error).not.toMatch(/não existe|diferentes|Informe/)
+    }
+  })
+})
+
+describe('registro corrompido nao derruba nada', () => {
+  it('campos faltando viram erro de validacao, sem excecao', () => {
+    const broken = { id: 'x', title: 'x' } as unknown as HandRecord
+    const v = validateRecord(broken)
+    expect(v.ok).toBe(false)
+    expect(!v.ok && v.error).toMatch(/incompleta/)
+    expect(validateRecord({ ...base, steps: undefined } as unknown as HandRecord).ok).toBe(false)
+    expect(() => scenarioFromRecord(broken)).toThrow()
+  })
+})

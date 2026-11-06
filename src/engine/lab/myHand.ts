@@ -51,6 +51,9 @@ export const streetLabel = (s: Street) => STREET_LABEL[s] ?? String(s)
 
 /** Tudo que precisa estar certo antes de montar a mesa; devolve a mensagem para o formulario. */
 function structuralError(rec: HandRecord): string | null {
+  if (!rec || !Array.isArray(rec.steps) || !Array.isArray(rec.board) || !Array.isArray(rec.heroCards)) {
+    return 'Esta mão está incompleta: abra para editar.'
+  }
   const labels = POSITIONS_BY_FORMAT[rec.tableSize === 6 ? '6max' : '9max']
   if (!labels.includes(rec.heroPos) || !labels.includes(rec.villainPos)) {
     return `Essa posição não existe na mesa de ${rec.tableSize}. Escolha outra.`
@@ -93,13 +96,14 @@ function setupOf(rec: HandRecord): CustomSetup {
 
 /** Confere a mao inteira montando-a de verdade: as mesmas regras do jogo decidem se ela fecha. */
 export function validateRecord(rec: HandRecord): RecordCheck {
-  const bad = structuralError(rec)
-  if (bad) return { ok: false, error: bad }
   try {
+    const bad = structuralError(rec)
+    if (bad) return { ok: false, error: bad }
     const built = buildCustomHand(setupOf(rec), mulberry32(1))
     return { ok: true, stepStreets: built.stepStreets, decisionStreet: built.game.street }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Não foi possível montar essa mão.' }
+    // registro corrompido (campo faltando, vindo de outro aparelho): vira mensagem, nunca derruba a lista
+    return { ok: false, error: e instanceof Error && !(e instanceof TypeError) ? e.message : 'Esta mão está incompleta: abra para editar.' }
   }
 }
 

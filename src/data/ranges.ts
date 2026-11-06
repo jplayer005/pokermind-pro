@@ -1411,7 +1411,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'open_raise',
     correctAction: 'raise',
     correctFrequency: 1.0,
-    explanation: '87s no BTN é uma abertura padrão. Na BTN, o range é muito amplo (~44%), e 87s é um conector suited com boa jogabilidade pós-flop — draws a straight, flush, pair. Esta mão cria equity e bluffs bem-constru­ídos em boards coordenados.',
+    explanation: '87s no BTN é uma abertura padrão. Na BTN, o range é muito amplo (~44%), e 87s é um conector suited com boa jogabilidade pós-flop, draws a straight, flush, pair. Esta mão cria equity e bluffs bem-constru­ídos em boards coordenados.',
     evComparison: { fold: 0, call: 0, raise: 0.8 }
   },
   {
@@ -1521,7 +1521,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     scenario: 'open_raise',
     correctAction: 'fold',
     correctFrequency: 0.65,
-    explanation: 'A8o no SB é uma abertura borderline — o range do SB para raise é ~38% incluindo suited aces, mas A8o offsuit tem equity ruim OOP. A maioria dos solvers dá mix entre raise e fold aqui. Fold é mais conservador e evita spots difíceis fora de posição.',
+    explanation: 'A8o no SB é uma abertura borderline, o range do SB para raise é ~38% incluindo suited aces, mas A8o offsuit tem equity ruim OOP. A maioria dos solvers dá mix entre raise e fold aqui. Fold é mais conservador e evita spots difíceis fora de posição.',
     evComparison: { fold: 0, call: 0, raise: 0.1 }
   },
   {
@@ -2370,7 +2370,7 @@ const RAW_DRILL_QUESTIONS: PreflopDrillQuestion[] = [
     villainPosition: 'BTN',
     correctAction: 'call',
     correctFrequency: 1.0,
-    explanation: '87s vs BTN open no BB é um call padrão. BTN range é amplo (~44%), e 87s tem boa playability — draws a straight, flush draws, pair médio. Com odds do BB (já tem 1 BB no pote), chamar é claramente lucrativo. 87s realiza equity bem vs range wide do BTN.',
+    explanation: '87s vs BTN open no BB é um call padrão. BTN range é amplo (~44%), e 87s tem boa playability, draws a straight, flush draws, pair médio. Com odds do BB (já tem 1 BB no pote), chamar é claramente lucrativo. 87s realiza equity bem vs range wide do BTN.',
     evComparison: { fold: 0, call: 0.9, raise: 0.5 }
   },
   {
@@ -2736,15 +2736,15 @@ export const COURSES_DATA = [
         { id: 'l006', title: 'UTG e UTG+1 em 6-max', duration: 20, isCompleted: false, type: 'article' as const,
           content: 'UTG (Under The Gun) é a posição mais difícil do 6-max. Você age PRIMEIRO em todas as ruas, antes de saber o que os outros vão fazer.\n\n📊 Range UTG 6-max no app (~14% das mãos, a posição que menos abre):\n• Pares: 88+\n• Aces suited: todos (A2s+)\n• Aces offsuit: AJo+ e ATo\n• Suited: K9s+, QTs+, JTs, T9s\n• Offsuit: KQo\n\n📏 Referência do app: a média das aberturas de todas as posições (o BB não abre e conta zero) fica entre 20% e 25%. No 6-max dá ~24%: UTG 14%, HJ 20%, CO 27%, BTN 44%, SB 38%.\n\n❌ Mãos que parecem boas mas são fold no UTG:\n• KJo e QJo: kicker médio fora de posição é problemático\n• 77 e menores: set-mining precisa de implied odds profundos\n• J9s e 98s: jogam melhor em posição\n\n🎯 Por que tão tight? Você pode ser 3betado por qualquer posição depois de você. Seu range precisa ser forte o suficiente para aguentar pressão de toda a mesa.' },
         { id: 'l007', title: 'HJ e CO — posições de transição', duration: 15, isCompleted: false, type: 'article' as const,
-          content: 'HJ e CO são as posições de "transição" — mais largas que early positions mas não tão largas quanto BTN.\n\n📊 Range HJ (~20%):\nTudo do UTG adicionando: 77/66, Q9s, J9s, J8s, 98s, 87s, 76s, T8s, K8s/K7s, KJo, QJo, KTo\n\n📊 Range CO (~27%):\nTudo do HJ adicionando: 55, A9o/A8o, QTo, JTo, K6s/K5s, Q8s, J7s, T7s, 97s, 86s, 75s, 65s, 54s\n\n🔑 Princípio: A cada posição que avança, você adiciona mãos especulativas (conectores, suited aces menores) que precisam de implied odds pós-flop.' },
+          content: 'HJ e CO são as posições de "transição", mais largas que early positions mas não tão largas quanto BTN.\n\n📊 Range HJ (~20%):\nTudo do UTG adicionando: 77/66, Q9s, J9s, J8s, 98s, 87s, 76s, T8s, K8s/K7s, KJo, QJo, KTo\n\n📊 Range CO (~27%):\nTudo do HJ adicionando: 55, A9o/A8o, QTo, JTo, K6s/K5s, Q8s, J7s, T7s, 97s, 86s, 75s, 65s, 54s\n\n🔑 Princípio: A cada posição que avança, você adiciona mãos especulativas (conectores, suited aces menores) que precisam de implied odds pós-flop.' },
         { id: 'l008', title: 'Drill: Posições Early/Médio', duration: 15, isCompleted: false, type: 'quiz' as const,
           content: 'Pratique abertura de UTG e HJ no Treinador Pré-Flop. Configure o cenário para "Open Raise" e a posição para UTG ou HJ. Objetivo: ≥80% de precisão.' },
       ]},
       { id: 'm004', title: 'Posições Late', lessons: [
         { id: 'l009', title: 'BTN stealing — o superpoder do poker', duration: 18, isCompleted: false, type: 'article' as const,
-          content: 'O BTN (Button) é a melhor posição do poker. Você age POR ÚLTIMO em todas as ruas do flop em diante, uma vantagem enorme.\n\n📊 Range BTN (~44% das mãos, junto com o SB a posição que mais abre):\nPares 22+, todos os Ax suited, a maioria dos Kx suited, broadways, conectores suited e as mãos offsuit de carta alta (Ax, Kx, Qx e Jx fortes).\n\n🎯 Steal vs Blinds:\n• SB e BB têm que defender OOP — eles são desvantajosos\n• BTN pode abrir amplo e ganhar chips dos blinds frequentemente\n• Valor do BTN steal: ~0.5-1 BB/mão em risco\n\n💡 Regra prática: Se você abre no BTN e os blinds foldarem, você ganhou ~1.5 BBs sem ver flop. Fazendo isso consistentemente é extremamente lucrativo a longo prazo.' },
+          content: 'O BTN (Button) é a melhor posição do poker. Você age POR ÚLTIMO em todas as ruas do flop em diante, uma vantagem enorme.\n\n📊 Range BTN (~44% das mãos, junto com o SB a posição que mais abre):\nPares 22+, todos os Ax suited, a maioria dos Kx suited, broadways, conectores suited e as mãos offsuit de carta alta (Ax, Kx, Qx e Jx fortes).\n\n🎯 Steal vs Blinds:\n• SB e BB têm que defender OOP, eles são desvantajosos\n• BTN pode abrir amplo e ganhar chips dos blinds frequentemente\n• Valor do BTN steal: ~0.5-1 BB/mão em risco\n\n💡 Regra prática: Se você abre no BTN e os blinds foldarem, você ganhou ~1.5 BBs sem ver flop. Fazendo isso consistentemente é extremamente lucrativo a longo prazo.' },
         { id: 'l010', title: 'SB vs BB — o duelo especial', duration: 22, isCompleted: false, type: 'article' as const,
-          content: 'SB vs BB é o único spot onde AMBOS os players estão fora de posição. O SB age primeiro no pós-flop, então o BB tem ligeira vantagem posicional.\n\n📊 Estratégia SB:\n• Raise range: ~38% (largo, só o BB para trás)\n• Fora do raise (~62%): fold para o lixo puro; limp só para mãos que jogam bem multiway\n\n📊 Estratégia BB vs SB open:\n• Defesa: ~65% (BB tem odds excelentes — já investiu 1 BB)\n• 3bet: ~10% (mãos premium + bluffs com bloqueadores)\n\n🔑 Insight: O BB deve foldar menos vs SB do que vs qualquer outra posição, porque o SB abre muito amplo. Um range de SB de ~38% inclui muito trash que o BB domina facilmente.' },
+          content: 'SB vs BB é o único spot onde AMBOS os players estão fora de posição. O SB age primeiro no pós-flop, então o BB tem ligeira vantagem posicional.\n\n📊 Estratégia SB:\n• Raise range: ~38% (largo, só o BB para trás)\n• Fora do raise (~62%): fold para o lixo puro; limp só para mãos que jogam bem multiway\n\n📊 Estratégia BB vs SB open:\n• Defesa: ~65% (BB tem odds excelentes, já investiu 1 BB)\n• 3bet: ~10% (mãos premium + bluffs com bloqueadores)\n\n🔑 Insight: O BB deve foldar menos vs SB do que vs qualquer outra posição, porque o SB abre muito amplo. Um range de SB de ~38% inclui muito trash que o BB domina facilmente.' },
       ]},
     ],
   },
